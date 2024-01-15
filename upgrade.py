@@ -903,8 +903,10 @@ def main() -> None:
 
     # Refresh system information to ensure we have the latest data
     logging.info("Refreshing system information...")
-    settings = SystemSettings.refreshall(firewall)[0]
-    logging.info(f"{firewall.serial} {settings.hostname} {settings.ip_address}")
+    firewall_details = SystemSettings.refreshall(firewall)[0]
+    logging.info(
+        f"{firewall.serial} {firewall_details.hostname} {firewall_details.ip_address}"
+    )
 
     # Determine if the firewall is standalone, HA, or in a cluster
     logging.info("Checking if firewall is standalone, HA, or in a cluster...")
@@ -942,7 +944,7 @@ def main() -> None:
         # Use the modified run_assurance function
         assurance_report = run_assurance(
             firewall,
-            settings.hostname,
+            firewall_details.hostname,
             operation_type="state_snapshot",
             action="arp_table,content_version,ip_sec_tunnels,license,nics,routes,session_stats",
             config={},
@@ -956,7 +958,7 @@ def main() -> None:
             logging.debug(assurance_report_json)
 
             # Ensure directory exists before writing the file
-            file_path = f'snapshots/{settings.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json'
+            file_path = f'snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json'
             ensure_directory_exists(file_path)
 
             with open(file_path, "w") as file:
@@ -967,7 +969,9 @@ def main() -> None:
 
         logging.info(f"Network state information collected from {firewall.serial}")
 
-    logging.info(f"Network state information collected from {firewall.serial}")
+    logging.info(
+        f"Network state information collected from {firewall_details.hostname}"
+    )
 
 
 if __name__ == "__main__":
