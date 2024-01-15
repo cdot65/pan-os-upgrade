@@ -16,12 +16,15 @@ from panos.firewall import Firewall
 # Palo Alto Networks panos-upgrade-assurance imports
 from panos_upgrade_assurance.check_firewall import CheckFirewall
 from panos_upgrade_assurance.firewall_proxy import FirewallProxy
-from assurance import AssuranceOptions
 
 # third party imports
 import defusedxml.ElementTree as ET
 import xmltodict
 from pydantic import BaseModel
+
+# project imports
+from models import AssuranceReport
+from assurance import AssuranceOptions
 
 
 # ----------------------------------------------------------------------------
@@ -677,7 +680,7 @@ def run_assurance(
     operation_type: str,
     action: str,
     config: Dict[str, Union[str, int, float, bool]],
-) -> Union[Dict[str, Union[str, int, float, bool]], None]:
+) -> Union[AssuranceReport, None]:
     """
     Execute specified operational tasks on the Firewall and return the results.
 
@@ -765,7 +768,13 @@ def run_assurance(
         try:
             logging.info("Running snapshots...")
             results = snapshot_node.run_snapshots(snapshots_config=actions)
-            logging.info(results)
+            logging.debug(results)
+
+            if results:
+                # Pass the results to the AssuranceReport model
+                return AssuranceReport(hostname=firewall.hostname, **results)
+            else:
+                return None
 
         except Exception as e:
             logging.error("Error running readiness checks: %s", e)
@@ -857,7 +866,7 @@ def main() -> None:
 
     # Download the target PAN-OS version
     logging.info(f"Checking if {args['target_version']} is downloaded...")
-    software_download(firewall, args["target_version"], ha_details)
+    image_downloaded = software_download(firewall, args["target_version"], ha_details)
     if deploy_info == "active" or deploy_info == "passive":
         logging.info(
             f"{args['target_version']} has been downloaded and sync'd to HA peer."
@@ -867,10 +876,32 @@ def main() -> None:
 
     # Begin collecting network state information with panos-upgrade-assurance
     logging.info("Collecting network state information...")
-    firewall_assurance = create_panos_assurance_connection(firewall)
-    logging.info(
-        f"Network state information collected from {firewall_assurance.serial}"
-    )
+    if image_downloaded:
+        # Use the modified run_assurance function
+        assurance_report = run_assurance(
+            firewall,
+            operation_type="state_snapshot",
+            action="arp_table,content_version,ip_sec_tunnels,license,nics,routes,session_stats",
+            config={},
+        )
+
+        # Check if an assurance report was successfully created
+        if assurance_report:
+            # Do something with the assurance report, e.g., log it, save it, etc.
+            logging.info("Assurance Report created successfully")
+            assurance_report_json = assurance_report.model_dump_json(indent=4)
+            logging.debug(assurance_report_json)
+
+            file_path = f"logs/{firewall.serial}-assurance.json"
+            with open(file_path, "w") as file:
+                file.write(assurance_report_json)
+
+        else:
+            logging.error("Failed to create Assurance Report")
+
+        logging.info(f"Network state information collected from {firewall.serial}")
+
+    logging.info(f"Network state information collected from {firewall.serial}")
 
 
 if __name__ == "__main__":
