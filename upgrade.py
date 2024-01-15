@@ -25,7 +25,6 @@ from pydantic import BaseModel
 
 # project imports
 from models import AssuranceReport
-from assurance import AssuranceOptions
 
 
 # ----------------------------------------------------------------------------
@@ -38,6 +37,63 @@ LOGGING_LEVELS = {
     "error": logging.ERROR,
     "critical": logging.CRITICAL,
 }
+
+
+# ----------------------------------------------------------------------------
+# Define panos-upgrade-assurance options
+# ----------------------------------------------------------------------------
+class AssuranceOptions:
+    """
+    AssuranceOptions provides configuration options for the panos-upgrade-assurance process.
+
+    This class encapsulates the configurations used in the upgrade assurance process for PAN-OS appliances. It includes definitions for various readiness checks, state snapshots, and reports that are essential in the upgrade process of PAN-OS appliances.
+
+    Attributes
+    ----------
+    READINESS_CHECKS : list of str
+        A list of readiness checks to be performed on the PAN-OS appliance. These checks include various system and network parameters like active support status, arp entry existence, candidate configuration, etc.
+
+    STATE_SNAPSHOTS : list of str
+        A list of state snapshot types to be taken from the PAN-OS appliance. These snapshots capture essential data regarding the appliance's current state, such as arp table, content version, IP sec tunnels, etc.
+
+    REPORTS : list of str
+        A list of report types that can be generated from the PAN-OS appliance. These reports include detailed information about various aspects of the appliance like arp table, content version, IP sec tunnels, license details, etc.
+    """
+
+    READINESS_CHECKS = [
+        "active_support",
+        "arp_entry_exist",
+        "candidate_config",
+        "content_version",
+        "free_disk_space",
+        "expired_licenses",
+        "ha",
+        "ip_sec_tunnel_status",
+        "ntp_sync",
+        "panorama",
+        "planes_clock_sync",
+        "session_exist",
+    ]
+
+    STATE_SNAPSHOTS = [
+        "arp_table",
+        "content_version",
+        "ip_sec_tunnels",
+        "license",
+        "nics",
+        "routes",
+        "session_stats",
+    ]
+
+    REPORTS = [
+        "arp_table",
+        "content_version",
+        "ip_sec_tunnels",
+        "license",
+        "nics",
+        "routes",
+        "session_stats",
+    ]
 
 
 # ----------------------------------------------------------------------------
