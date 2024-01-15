@@ -161,3 +161,6 @@ cython_debug/
 
 # ignore .env file
 .env
+
+# ignore my personal snapshots
+snapshots/
