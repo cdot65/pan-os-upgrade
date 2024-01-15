@@ -1,0 +1,27 @@
+# Site settings
+title: PAN-OS Upgrade Automation
+description: Python script to automate the upgrade process of PAN-OS
+github_username: cdot65
+# Build settings
+markdown: kramdown
+theme: minima # or choose another Jekyll theme
+plugins:
+  - jekyll-feed
+
+include:
+  - docs
+  - README.md
+  - images/
+
+# Exclude from build
+exclude:
+  - pyproject.toml
+  - "*.py"
+  - "*.sh"
+  - "*.bat"
+  - "*.yml"
+  - "*.toml"
+  - "LICENSE"
+  - "poetry.lock"
+  - "requirements.txt"
+  - "logs/"
