@@ -10,6 +10,7 @@ from typing import Dict, Tuple, Union
 # Palo Alto Networks PAN-OS imports
 import panos
 from panos.base import PanDevice
+from panos.device import SystemSettings
 from panos.errors import PanDeviceXapiError
 from panos.firewall import Firewall
 
@@ -462,16 +463,16 @@ def software_update_check(
         If the target version is older than or equal to the current version, indicating no
         upgrade is needed or a downgrade was attempted.
     """
-    # retrieve available versions of PAN-OS
-    firewall.software.check()
-    available_versions = firewall.software.versions
-    logging.debug(f"Available PAN-OS versions: {available_versions}")
-
     # parse target version
     target_major, target_minor, target_maintenance = target_version.split(".")
 
     # check to see if the target version is older than the current version
     determine_upgrade(firewall, target_major, target_minor, target_maintenance)
+
+    # retrieve available versions of PAN-OS
+    firewall.software.check()
+    available_versions = firewall.software.versions
+    logging.debug(f"Available PAN-OS versions: {available_versions}")
 
     # check to see if target version is available for upgrade
     if target_version in available_versions:
@@ -658,25 +659,11 @@ def software_download(
 
 
 # ----------------------------------------------------------------------------
-# Create a FirewallProxy object to interact with panos-upgrade-assurance
-# ----------------------------------------------------------------------------
-def create_panos_assurance_connection(firewall: Firewall) -> FirewallProxy:
-    """_summary_
-
-    Args:
-        firewall (Firewall): _description_
-
-    Returns:
-        bool: _description_
-    """
-    return FirewallProxy(firewall)
-
-
-# ----------------------------------------------------------------------------
 # Handle panos-upgrade-assurance operations
 # ----------------------------------------------------------------------------
 def run_assurance(
     firewall: Firewall,
+    hostname: str,
     operation_type: str,
     action: str,
     config: Dict[str, Union[str, int, float, bool]],
@@ -772,7 +759,7 @@ def run_assurance(
 
             if results:
                 # Pass the results to the AssuranceReport model
-                return AssuranceReport(hostname=firewall.hostname, **results)
+                return AssuranceReport(hostname=hostname, **results)
             else:
                 return None
 
@@ -792,6 +779,25 @@ def run_assurance(
         return
 
     return results
+
+
+# ----------------------------------------------------------------------------
+# Make sure the directories exist for our snapshots
+# ----------------------------------------------------------------------------
+def ensure_directory_exists(file_path):
+    """
+    Ensure that the directory for the given file path exists.
+
+    Creates the directory (and any necessary parent directories) if it does not already exist.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path for which to ensure the directory exists.
+    """
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 
 # ----------------------------------------------------------------------------
@@ -835,14 +841,14 @@ def main() -> None:
     configure_logging(args["log_level"])
 
     # Create our connection to the firewall
-    logging.info("Connecting to PAN appliance...")
+    logging.info("Connecting to PAN-OS firewall...")
     firewall = connect_to_firewall(args)
     logging.info("Connection established")
 
     # Refresh system information to ensure we have the latest data
     logging.info("Refreshing system information...")
-    firewall.refresh_system_info()
-    logging.info("System information refreshed")
+    settings = SystemSettings.refreshall(firewall)[0]
+    logging.info(f"{firewall.serial} {settings.hostname} {settings.ip_address}")
 
     # Determine if the firewall is standalone, HA, or in a cluster
     logging.info("Checking if firewall is standalone, HA, or in a cluster...")
@@ -880,6 +886,7 @@ def main() -> None:
         # Use the modified run_assurance function
         assurance_report = run_assurance(
             firewall,
+            settings.hostname,
             operation_type="state_snapshot",
             action="arp_table,content_version,ip_sec_tunnels,license,nics,routes,session_stats",
             config={},
@@ -892,7 +899,10 @@ def main() -> None:
             assurance_report_json = assurance_report.model_dump_json(indent=4)
             logging.debug(assurance_report_json)
 
-            file_path = f"logs/{firewall.serial}-assurance.json"
+            # Ensure directory exists before writing the file
+            file_path = f'snapshots/{settings.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json'
+            ensure_directory_exists(file_path)
+
             with open(file_path, "w") as file:
                 file.write(assurance_report_json)
 
