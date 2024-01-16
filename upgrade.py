@@ -184,6 +184,9 @@ class Args(BaseModel):
     api_key : str, optional
         API key for authentication with the Firewall appliance.
         Default is None.
+    dry_run : bool, optional
+        Flag to indicate whether the script should perform a dry run.
+        Default is False.
     hostname : str, optional
         Hostname or IP address of the Firewall appliance.
         Default is None.
@@ -203,6 +206,7 @@ class Args(BaseModel):
     """
 
     api_key: str = None
+    dry_run: bool = False
     hostname: str = None
     log_level: str = "info"
     password: str = None
@@ -282,6 +286,9 @@ def parse_arguments() -> Args:
         If the hostname or target version is not provided either as CLI arguments or in the .env file,
         or if neither the API key nor both username and password are provided.
     """
+    # Load environment variables first
+    load_environment_variables(".env")
+
     parser = argparse.ArgumentParser(
         description="Script to interact with Firewall appliance."
     )
@@ -291,6 +298,13 @@ def parse_arguments() -> Args:
         type=str,
         default=None,
         help="API Key for authentication",
+    )
+    parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        default=os.getenv("DRY_RUN", "False").lower() == "true",
+        help="Dry run of the upgrade process",
     )
     parser.add_argument(
         "--hostname",
@@ -303,7 +317,7 @@ def parse_arguments() -> Args:
         "--log-level",
         dest="log_level",
         choices=LOGGING_LEVELS.keys(),
-        default="info",
+        default=os.getenv("LOG_LEVEL", "info"),
         help="Set the logging output level",
     )
     parser.add_argument(
@@ -337,6 +351,7 @@ def parse_arguments() -> Args:
     # Create a new structure to store arguments with different variable names
     arguments = {
         "api_key": args.api_key or os.getenv("API_KEY"),
+        "dry_run": args.dry_run or os.getenv("DRY_RUN"),
         "hostname": args.hostname or os.getenv("HOSTNAME"),
         "pan_username": args.username or os.getenv("PAN_USERNAME"),
         "pan_password": args.password or os.getenv("PAN_PASSWORD"),
@@ -1204,9 +1219,13 @@ def main() -> None:
     )
     logging.debug(backup_config)
     logging.info("Configuration backed up successfully")
-    # import ipdb
 
-    # ipdb.set_trace()
+    # Exit execution is dry_run is True
+    if args["dry_run"] is True:
+        logging.info("Dry run complete, exiting...")
+        sys.exit(0)
+    else:
+        logging.info("Not a dry run, continue with upgrade...")
 
 
 if __name__ == "__main__":
