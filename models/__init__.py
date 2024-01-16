@@ -4,10 +4,10 @@
 from .arp_table import ArpTableEntry
 
 # trunk-ignore(ruff/F401)
-from .content_version import ContentVersion
+from .assurance_report import ReadinessCheckReport, SnapshotReport
 
 # trunk-ignore(ruff/F401)
-from .assurance_report import AssuranceReport
+from .content_version import ContentVersion
 
 # trunk-ignore(ruff/F401)
 from .ip_sec_tunnel import IPSecTunnelEntry
