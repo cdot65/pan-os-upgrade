@@ -44,20 +44,30 @@ LOGGING_LEVELS = {
 # ----------------------------------------------------------------------------
 class AssuranceOptions:
     """
-    AssuranceOptions provides configuration options for the panos-upgrade-assurance process.
+    Configuration options for the panos-upgrade-assurance process.
 
-    This class encapsulates the configurations used in the upgrade assurance process for PAN-OS appliances. It includes definitions for various readiness checks, state snapshots, and reports that are essential in the upgrade process of PAN-OS appliances.
+    This class encapsulates various configurations used in the upgrade assurance process for PAN-OS appliances.
+    It includes definitions for readiness checks, state snapshots, and reports, which are crucial in the upgrade
+    process of PAN-OS appliances.
 
     Attributes
     ----------
     READINESS_CHECKS : list of str
-        A list of readiness checks to be performed on the PAN-OS appliance. These checks include various system and network parameters like active support status, arp entry existence, candidate configuration, etc.
+        A list of readiness checks to be performed on the PAN-OS appliance. These checks assess system and
+        network parameters like active support status, ARP entry existence, candidate configuration, etc.
 
     STATE_SNAPSHOTS : list of str
-        A list of state snapshot types to be taken from the PAN-OS appliance. These snapshots capture essential data regarding the appliance's current state, such as arp table, content version, IP sec tunnels, etc.
+        A list of state snapshot types to capture from the PAN-OS appliance. These snapshots record critical
+        data regarding the appliance's current state, such as ARP table, content version, IPsec tunnels, etc.
 
     REPORTS : list of str
-        A list of report types that can be generated from the PAN-OS appliance. These reports include detailed information about various aspects of the appliance like arp table, content version, IP sec tunnels, license details, etc.
+        A list of report types that can be generated for the PAN-OS appliance. These reports provide detailed
+        information on various aspects of the appliance, including ARP table, content version, IPsec tunnels,
+        license details, and more.
+
+    READINESS_CHECK_DESCRIPTIONS : dict
+        A dictionary mapping each readiness check to its description, log level, and whether to exit on failure.
+        This provides a more detailed context for each check, allowing for tailored logging and error handling.
     """
 
     READINESS_CHECKS = [
@@ -94,6 +104,29 @@ class AssuranceOptions:
         "routes",
         "session_stats",
     ]
+
+    READINESS_CHECK_DESCRIPTIONS = {
+        "candidate_config": {
+            "description": "No Pending Configuration Changes",
+            "log_level": "error",
+            "exit_on_failure": True,
+        },
+        "content_version": {
+            "description": "Running Latest Content Version",
+            "log_level": "warning",
+            "exit_on_failure": False,
+        },
+        "expired_licenses": {
+            "description": "No Expired Licenses",
+            "log_level": "warning",
+            "exit_on_failure": False,
+        },
+        "ha": {
+            "description": "HA Status",
+            "log_level": "info",
+            "exit_on_failure": False,
+        },
+    }
 
 
 # ----------------------------------------------------------------------------
@@ -354,6 +387,79 @@ def configure_logging(level: str) -> None:
 
 
 # ----------------------------------------------------------------------------
+# Helper function to flip XML objects into Python dictionaries
+# ----------------------------------------------------------------------------
+def xml_to_dict(xml_object) -> dict:
+    """
+    Convert an XML object into a Python dictionary.
+
+    This function takes an XML object, typically obtained from parsing XML data, and converts it into a Python dictionary
+    for easier access and manipulation. The conversion is done using the xmltodict library, which transforms the XML tree
+    structure into a dictionary format, maintaining elements as keys and their contents as values. This is particularly useful
+    for processing and interacting with XML data in a more Pythonic way.
+
+    Parameters
+    ----------
+    xml_object : ET.Element
+        An XML object to convert into a Python dictionary. This is typically an ElementTree Element.
+
+    Returns
+    -------
+    dict
+        A Python dictionary representation of the XML object. The structure of the dictionary corresponds to the structure
+        of the XML, with tags as keys and their contents as values.
+    """
+    xml_string = ET.tostring(xml_object)
+    xml_dict = xmltodict.parse(xml_string)
+    return xml_dict
+
+
+# ----------------------------------------------------------------------------
+# Helper function to ensure the directories exist for our snapshots
+# ----------------------------------------------------------------------------
+def ensure_directory_exists(file_path: str):
+    """
+    Ensure that the directory for the given file path exists.
+
+    Creates the directory (and any necessary parent directories) if it does not already exist.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path for which to ensure the directory exists.
+    """
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+# ----------------------------------------------------------------------------
+# Helper function to check readiness and log the result
+# ----------------------------------------------------------------------------
+def check_readiness_and_log(
+    result: dict,
+    test_name: str,
+    test_info: dict,
+):
+    test_result = result.get(
+        test_name, {"state": False, "reason": "Test not performed"}
+    )
+    log_message = f'{test_info["description"]} - {test_result["reason"]}'
+
+    if test_result["state"]:
+        logging.info(f"Passed Readiness Check: {test_info['description']}")
+    else:
+        if test_info["log_level"] == "error":
+            logging.error(f"{log_message}")
+            if test_info["exit_on_failure"]:
+                sys.exit(1)
+        elif test_info["log_level"] == "warning":
+            logging.warning(f"{log_message}")
+        else:
+            logging.info(log_message)
+
+
+# ----------------------------------------------------------------------------
 # Setting up connection to the Firewall appliance
 # ----------------------------------------------------------------------------
 def connect_to_firewall(args: dict) -> Firewall:
@@ -556,34 +662,6 @@ def software_update_check(
 
 
 # ----------------------------------------------------------------------------
-# Helper function to flip XML objects into Python dictionaries
-# ----------------------------------------------------------------------------
-def xml_to_dict(xml_object) -> dict:
-    """
-    Convert an XML object into a Python dictionary.
-
-    This function takes an XML object, typically obtained from parsing XML data, and converts it into a Python dictionary
-    for easier access and manipulation. The conversion is done using the xmltodict library, which transforms the XML tree
-    structure into a dictionary format, maintaining elements as keys and their contents as values. This is particularly useful
-    for processing and interacting with XML data in a more Pythonic way.
-
-    Parameters
-    ----------
-    xml_object : ET.Element
-        An XML object to convert into a Python dictionary. This is typically an ElementTree Element.
-
-    Returns
-    -------
-    dict
-        A Python dictionary representation of the XML object. The structure of the dictionary corresponds to the structure
-        of the XML, with tags as keys and their contents as values.
-    """
-    xml_string = ET.tostring(xml_object)
-    xml_dict = xmltodict.parse(xml_string)
-    return xml_dict
-
-
-# ----------------------------------------------------------------------------
 # Determine if the firewall is standalone, HA, or in a cluster
 # ----------------------------------------------------------------------------
 def get_ha_status(firewall: Firewall) -> Tuple:
@@ -729,42 +807,49 @@ def run_assurance(
     config: Dict[str, Union[str, int, float, bool]],
 ) -> Union[AssuranceReport, None]:
     """
-    Execute specified operational tasks on the Firewall and return the results.
+    Execute operational tasks on the Firewall and return the results or generate reports.
 
-    This function handles various operational tasks based on the specified 'operation_type'.
-    It can perform readiness checks, state snapshots, or generate reports, depending on the
-    action and configuration provided. The results of the operation are returned as a dictionary.
-    If an invalid operation type or action is specified, the function logs an error and returns None.
+    Handles various operational tasks on the Firewall based on 'operation_type', such as
+    performing readiness checks, capturing state snapshots, or generating reports. The function
+    operates according to the specified 'actions' and 'config'. If the operation is successful,
+    it returns the results or an AssuranceReport object. If an invalid operation type or action
+    is specified, or an error occurs, the function logs an error and returns None.
 
     Parameters
     ----------
     firewall : Firewall
         An instance of the Firewall class representing the firewall to operate on.
+    hostname : str
+        Hostname of the firewall.
     operation_type : str
-        The type of operation to be executed, e.g., 'readiness_check', 'state_snapshot', 'report'.
+        Type of operation to be executed, e.g., 'readiness_check', 'state_snapshot', 'report'.
     actions : List[str]
-        A list of specific actions to be performed within the operation type.
+        List of specific actions to be performed within the operation type.
     config : Dict[str, Union[str, int, float, bool]]
         Configuration settings for the specified action.
 
     Returns
     -------
-    Union[Dict[str, Union[str, int, float, bool]], None]
-        The results of the operation as a dictionary, or None if an invalid operation type or action is provided.
+    Union[AssuranceReport, None]
+        The results of the operation as an AssuranceReport object, or None if an invalid
+        operation type or action is specified, or if an error occurs.
 
     Raises
     ------
     SystemExit
-        If an exception occurs during the operation execution.
+        If an invalid action is provided for the specified operation type or if an exception
+        occurs during the execution of the operation.
 
     Notes
     -----
-    - For 'readiness_check', the function verifies the firewall's readiness for certain tasks.
-    - For 'state_snapshot', it captures the current state of the firewall.
-    - For 'report', it generates a report based on the specified action.
+    - 'readiness_check' verifies the firewall's readiness for upgrade tasks.
+    - 'state_snapshot' captures the current state of the firewall.
+    - 'report' generates a report based on the specified action. Implementation details for
+      report generation should be completed as per requirements.
     """
     # setup Firewall client
-    assurance_firewall = FirewallProxy(firewall)
+    proxy_firewall = FirewallProxy(firewall)
+    checks_firewall = CheckFirewall(proxy_firewall)
 
     results = None
 
@@ -772,31 +857,23 @@ def run_assurance(
         for action in actions:
             if action not in AssuranceOptions.READINESS_CHECKS:
                 logging.error(f"Invalid action for readiness check: {action}")
-                return
+                sys.exit(1)
 
-            logging.info(f"Performing readiness check: {action}")
+        try:
+            logging.info("Checking if firewall is ready for upgrade...")
+            result = checks_firewall.run_readiness_checks(actions)
 
-            checks = CheckFirewall(assurance_firewall)
-            checks_configuration = {action: config}
+            for (
+                test_name,
+                test_info,
+            ) in AssuranceOptions.READINESS_CHECK_DESCRIPTIONS.items():
+                check_readiness_and_log(result, test_name, test_info)
 
-            try:
-                logging.info("Running readiness checks...")
-                result = checks.run_readiness_check(checks_configuration)
-                if result["state"]:
-                    logging.info(f"Passed: {action}")
-                else:
-                    logging.error(f"FAILED: {action} - {result['reason']}")
-                results = results or {}
-                results.update({action: result})
-            except Exception as e:
-                logging.error(f"Error running readiness checks: {e}")
-                return
-
-        logging.info("Completed checks successfully!")
+        except Exception as e:
+            logging.error(f"Error running readiness checks: {e}")
+            return
 
     elif operation_type == "state_snapshot":
-        snapshot_node = CheckFirewall(assurance_firewall)
-
         # validate each type of action
         for action in actions:
             if action not in AssuranceOptions.STATE_SNAPSHOTS:
@@ -806,7 +883,7 @@ def run_assurance(
         # take snapshots
         try:
             logging.debug("Running snapshots...")
-            results = snapshot_node.run_snapshots(snapshots_config=actions)
+            results = checks_firewall.run_snapshots(snapshots_config=actions)
             logging.debug(results)
 
             if results:
@@ -835,60 +912,32 @@ def run_assurance(
 
 
 # ----------------------------------------------------------------------------
-# Make sure the directories exist for our snapshots
-# ----------------------------------------------------------------------------
-def ensure_directory_exists(file_path):
-    """
-    Ensure that the directory for the given file path exists.
-
-    Creates the directory (and any necessary parent directories) if it does not already exist.
-
-    Parameters
-    ----------
-    file_path : str
-        The file path for which to ensure the directory exists.
-    """
-    directory = os.path.dirname(file_path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-
-# ----------------------------------------------------------------------------
 # Primary execution of the script
 # ----------------------------------------------------------------------------
 def main() -> None:
     """
     Main function of the script, serving as the entry point.
 
-    Handles CLI arguments and configures logging. Establishes a connection to
-    the Firewall appliance using an API key or username and password credentials.
-    Performs operations including refreshing system information, checking for
-    software updates, and downloading a target PAN-OS version, if available.
+    Handles CLI arguments, configures logging, and establishes a connection to the Firewall appliance.
+    Performs a series of operations, including refreshing system information, checking for software updates,
+    downloading the target PAN-OS version, and collecting network state information for upgrade assurance.
+    It conducts readiness checks and takes a pre-upgrade snapshot of the network state. Logs progress and
+    status throughout the process.
+
+    The function gracefully exits with an error if conditions for the upgrade are not met or if any critical
+    issues are encountered during execution. It enters a debug mode upon successful completion of all operations.
 
     Operations:
     - Connects to the Firewall and refreshes system information.
-    - Checks the deployment status (standalone, HA, cluster).
-    - Assesses firewall readiness for upgrade and downloads the target PAN-OS version.
-    - Collects network state information for upgrade assurance.
-
-    The function logs progress and status, and enters a debug mode upon completion.
-    It exits with an error if conditions for upgrade are not met.
-
-    Returns
-    -------
-    None
+    - Determines deployment status (standalone, HA, cluster).
+    - Assesses readiness for upgrade and downloads the target PAN-OS version.
+    - Collects network state information and performs readiness checks.
 
     Raises
     ------
     SystemExit
         If the firewall is not ready for an upgrade to the target version, or
-        if there are other critical issues that prevent the continuation of
-        the script.
-
-    Example
-    -------
-    To execute the script, run:
-    python upgrade.py --version 10.2.2-h3
+        if there are other critical issues preventing the continuation of the script.
     """
     args = parse_arguments()
     configure_logging(args["log_level"])
@@ -935,10 +984,10 @@ def main() -> None:
     else:
         logging.info(f"{args['target_version']} has been downloaded.")
 
-    # Begin collecting network state information with panos-upgrade-assurance
-    logging.info("Taking a pre-upgrade snapshot of network state information...")
+    # Begin Snapshotting the network state
     if image_downloaded:
-        # Use the modified run_assurance function
+        # Execute the pre-upgrade snapshot
+        logging.info("Taking a pre-upgrade snapshot of network state information...")
         assurance_report = run_assurance(
             firewall,
             firewall_details.hostname,
@@ -963,7 +1012,7 @@ def main() -> None:
             logging.debug(assurance_report_json)
 
             # Ensure directory exists before writing the file
-            file_path = f'snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json'
+            file_path = f'assurance/snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json'
             ensure_directory_exists(file_path)
 
             with open(file_path, "w") as file:
@@ -975,6 +1024,27 @@ def main() -> None:
         logging.info(
             f"Pre-Upgrade network state snapshot collected from {firewall_details.hostname}, saved to {file_path}"
         )
+
+        # Execute Readiness Checks
+        logging.info("Checking device to see if its ready for an upgrade...")
+        readiness_check = run_assurance(
+            firewall,
+            firewall_details.hostname,
+            operation_type="readiness_check",
+            actions=[
+                "candidate_config",
+                "content_version",
+                "expired_licenses",
+                "ha",
+            ],
+            config={},
+        )
+
+        # Check if an readiness check was successfully created
+        if readiness_check:
+            # Do something with the readiness check, e.g., log it, save it, etc.
+            logging.info("Readiness Checks completed")
+            logging.info(readiness_check)
 
 
 if __name__ == "__main__":
