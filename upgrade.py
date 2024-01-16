@@ -356,7 +356,7 @@ def parse_arguments() -> Args:
         "pan_username": args.username or os.getenv("PAN_USERNAME"),
         "pan_password": args.password or os.getenv("PAN_PASSWORD"),
         "target_version": args.target_version or os.getenv("TARGET_VERSION"),
-        "log_level": args.log_level or os.getenv("LOG_LEVEL"),
+        "log_level": args.log_level or os.getenv("LOG_LEVEL") or "info",
     }
 
     # Check for missing hostname
