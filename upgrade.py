@@ -362,15 +362,16 @@ def parse_arguments() -> Args:
     # Check for missing hostname
     if not arguments["hostname"]:
         logging.error(
-            "Error: Hostname must be provided as a --hostname argument or in .env",
+            f"{get_emoji('error')} Hostname must be provided as a --hostname argument or in .env",
         )
         sys.exit(1)
 
     # Check for missing target version
     if not arguments["target_version"]:
         logging.error(
-            "Error: Target version must be provided as a --version argument or in .env",
+            f"{get_emoji('error')} Target version must be provided as a --version argument or in .env",
         )
+        logging.error(f"{get_emoji('stop')} Halting script.")
         sys.exit(1)
 
     # Ensuring mutual exclusivity
@@ -378,9 +379,10 @@ def parse_arguments() -> Args:
         arguments["pan_username"] = arguments["pan_password"] = None
     elif not (arguments["pan_username"] and arguments["pan_password"]):
         logging.error(
-            "Error: Provide either API key --api-key argument or both --username and --password",
+            f"{get_emoji('error')} Provide either API key --api-key argument or both --username and --password",
             file=sys.stderr,
         )
+        logging.error(f"{get_emoji('stop')} Halting script.")
         sys.exit(1)
 
     return arguments
@@ -426,7 +428,7 @@ def configure_logging(level: str) -> None:
 
     # Create formatters and add them to the handlers
     console_format = logging.Formatter(
-        "%(name)s - %(levelname)s - %(message)s",
+        "%(levelname)s - %(message)s",
     )
     file_format = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -437,6 +439,21 @@ def configure_logging(level: str) -> None:
     # Add handlers to the logger
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
+
+
+def get_emoji(action):
+    emoji_map = {
+        "success": "✅",
+        "warning": "⚠️",
+        "error": "❌",
+        "working": "⚙️",
+        "report": "📝",
+        "search": "🔍",
+        "save": "💾",
+        "stop": "🛑",
+        "start": "🚀",
+    }
+    return emoji_map.get(action, "")
 
 
 # ----------------------------------------------------------------------------
@@ -500,14 +517,19 @@ def check_readiness_and_log(
     log_message = f'{test_info["description"]} - {test_result["reason"]}'
 
     if test_result["state"]:
-        logging.info(f"Passed Readiness Check: {test_info['description']}")
+        logging.info(
+            f"{get_emoji('success')} Passed Readiness Check: {test_info['description']}"
+        )
     else:
         if test_info["log_level"] == "error":
-            logging.error(f"{log_message}")
+            logging.error(f"{get_emoji('error')} {log_message}")
             if test_info["exit_on_failure"]:
+                logging.error(f"{get_emoji('stop')} Halting script.")
                 sys.exit(1)
         elif test_info["log_level"] == "warning":
-            logging.info(f"Skipped Readiness Check: {test_info['description']}")
+            logging.info(
+                f"{get_emoji('report')} Skipped Readiness Check: {test_info['description']}"
+            )
         else:
             logging.debug(log_message)
 
@@ -558,8 +580,9 @@ def connect_to_firewall(args: dict) -> Firewall:
 
     if isinstance(target_device, panos.panorama.Panorama):
         logging.error(
-            "You are targeting a Panorama appliance, please target a firewall."
+            f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
         )
+        logging.error(f"{get_emoji('stop')} Halting script.")
         sys.exit(1)
 
     return target_device
@@ -627,20 +650,23 @@ def determine_upgrade(
             f"{target_major}.{target_minor}.{target_maintenance}"
         )
 
-    logging.info(f"Current PAN-OS version: {firewall.version}")
+    logging.info(f"{get_emoji('report')} Current PAN-OS version: {firewall.version}")
     logging.info(
-        f"Target PAN-OS version: {target_major}.{target_minor}.{target_maintenance}"
+        f"{get_emoji('report')} Target PAN-OS version: {target_major}.{target_minor}.{target_maintenance}"
     )
 
     upgrade_needed = current_version < target_version
     if upgrade_needed:
         logging.info(
-            f"Confirmed that moving from {firewall.version} to {target_major}.{target_minor}.{target_maintenance} is an upgrade"
+            f"{get_emoji('success')} Confirmed that moving from {firewall.version} to {target_major}.{target_minor}.{target_maintenance} is an upgrade"
         )
         return
 
     else:
-        logging.error("Upgrade is not required or a downgrade was attempted.")
+        logging.error(
+            f"{get_emoji('error')} Upgrade is not required or a downgrade was attempted."
+        )
+        logging.error(f"{get_emoji('stop')} Halting script.")
         sys.exit(1)
 
 
@@ -696,20 +722,24 @@ def software_update_check(
     # check to see if target version is available for upgrade
     if target_version in available_versions:
         logging.info(
-            f"Target PAN-OS version {target_version} is available for download"
+            f"{get_emoji('success')} Target PAN-OS version {target_version} is available for download"
         )
 
         # validate the target version's base image is already downloaded
         if available_versions[f"{target_major}.{target_minor}.0"]["downloaded"]:
-            logging.info(f"Base image for {target_version} is already downloaded")
+            logging.info(
+                f"{get_emoji('success')} Base image for {target_version} is already downloaded"
+            )
             return True
 
         else:
-            logging.error(f"Base image for {target_version} is not downloaded")
+            logging.error(
+                f"{get_emoji('error')} Base image for {target_version} is not downloaded"
+            )
             return False
     else:
         logging.error(
-            f"Target PAN-OS version {target_version} is not available for download"
+            f"{get_emoji('error')} Target PAN-OS version {target_version} is not available for download"
         )
         return False
 
@@ -743,13 +773,17 @@ def get_ha_status(firewall: Firewall) -> Tuple:
     >>> get_ha_status(fw)
     ('active/passive', {'ha_details': ...})
     """
-    logging.debug(f"Getting {firewall.serial} deployment information...")
+    logging.debug(
+        f"{get_emoji('start')} Getting {firewall.serial} deployment information..."
+    )
     deployment_type = firewall.show_highavailability_state()
-    logging.debug(f"Firewall deployment: {deployment_type[0]}")
+    logging.debug(f"{get_emoji('report')} Firewall deployment: {deployment_type[0]}")
 
     if deployment_type[1]:
         ha_details = xml_to_dict(deployment_type[1])
-        logging.debug(f"Firewall deployment details: {ha_details}")
+        logging.debug(
+            f"{get_emoji('report')} Firewall deployment details: {ha_details}"
+        )
         return deployment_type[0], ha_details
     else:
         return deployment_type[0], None
@@ -797,22 +831,28 @@ def software_download(
     """
 
     if firewall.software.versions[target_version]["downloaded"]:
-        logging.info(f"PAN-OS version {target_version} already on firewall.")
+        logging.info(
+            f"{get_emoji('success')} PAN-OS version {target_version} already on firewall."
+        )
         return True
 
     if (
         not firewall.software.versions[target_version]["downloaded"]
         or firewall.software.versions[target_version]["downloaded"] != "downloading"
     ):
-        logging.info(f"PAN-OS version {target_version} is not on the firewall")
+        logging.info(
+            f"{get_emoji('search')} PAN-OS version {target_version} is not on the firewall"
+        )
 
         start_time = time.time()
 
         try:
-            logging.info(f"PAN-OS version {target_version} is beginning download")
+            logging.info(
+                f"{get_emoji('start')} PAN-OS version {target_version} is beginning download"
+            )
             firewall.software.download(target_version)
         except PanDeviceXapiError as download_error:
-            logging.error(download_error)
+            logging.error(f"{get_emoji('error')} {download_error}")
             sys.exit(1)
 
         while True:
@@ -822,7 +862,7 @@ def software_download(
 
             if dl_status is True:
                 logging.info(
-                    f"{target_version} downloaded in {elapsed_time} seconds",
+                    f"{get_emoji('success')} {target_version} downloaded in {elapsed_time} seconds",
                 )
                 return True
             elif dl_status in (False, "downloading"):
@@ -834,18 +874,20 @@ def software_download(
                 )
                 if ha_details:
                     logging.info(
-                        f"{status_msg} - HA will sync image - Elapsed time: {elapsed_time} seconds"
+                        f"{get_emoji('start')} {status_msg} - HA will sync image - Elapsed time: {elapsed_time} seconds"
                     )
                 else:
                     logging.info(f"{status_msg} - Elapsed time: {elapsed_time} seconds")
             else:
-                logging.error(f"Download failed after {elapsed_time} seconds")
+                logging.error(
+                    f"{get_emoji('error')} Download failed after {elapsed_time} seconds"
+                )
                 return False
 
             time.sleep(30)
 
     else:
-        logging.error(f"Error downloading {target_version}.")
+        logging.error(f"{get_emoji('error')} Error downloading {target_version}.")
         sys.exit(1)
 
 
@@ -909,11 +951,15 @@ def run_assurance(
     if operation_type == "readiness_check":
         for action in actions:
             if action not in AssuranceOptions.READINESS_CHECKS.keys():
-                logging.error(f"Invalid action for readiness check: {action}")
+                logging.error(
+                    f"{get_emoji('error')} Invalid action for readiness check: {action}"
+                )
                 sys.exit(1)
 
         try:
-            logging.info("Checking if firewall is ready for upgrade...")
+            logging.info(
+                f"{get_emoji('start')} Checking if firewall is ready for upgrade..."
+            )
             result = checks_firewall.run_readiness_checks(actions)
 
             for (
@@ -925,14 +971,16 @@ def run_assurance(
             return ReadinessCheckReport(**result)
 
         except Exception as e:
-            logging.error(f"Error running readiness checks: {e}")
+            logging.error(f"{get_emoji('error')} Error running readiness checks: {e}")
             return None
 
     elif operation_type == "state_snapshot":
         # validate each type of action
         for action in actions:
             if action not in AssuranceOptions.STATE_SNAPSHOTS:
-                logging.error(f"Invalid action for state snapshot: {action}")
+                logging.error(
+                    f"{get_emoji('error')} Invalid action for state snapshot: {action}"
+                )
                 return
 
         # take snapshots
@@ -948,19 +996,21 @@ def run_assurance(
                 return None
 
         except Exception as e:
-            logging.error("Error running snapshots: %s", e)
+            logging.error(f"{get_emoji('error')} Error running snapshots: %s", e)
             return
 
     elif operation_type == "report":
         for action in actions:
             if action not in AssuranceOptions.REPORTS:
-                logging.error(f"Invalid action for report: {action}")
+                logging.error(
+                    f"{get_emoji('error')} Invalid action for report: {action}"
+                )
                 return
-            logging.info(f"Generating report: {action}")
+            logging.info(f"{get_emoji('report')} Generating report: {action}")
             # result = getattr(Report(firewall), action)(**config)
 
     else:
-        logging.error(f"Invalid operation type: {operation_type}")
+        logging.error(f"{get_emoji('error')} Invalid operation type: {operation_type}")
         return
 
     return results
@@ -970,7 +1020,9 @@ def run_assurance(
 # Perform the snapshot of the network state
 # ----------------------------------------------------------------------------
 def perform_snapshot(firewall: Firewall, hostname: str, file_path: str) -> None:
-    logging.info("Taking a snapshot of network state information...")
+    logging.info(
+        f"{get_emoji('start')} Taking a snapshot of network state information..."
+    )
 
     # take snapshots
     network_snapshot = run_assurance(
@@ -991,7 +1043,7 @@ def perform_snapshot(firewall: Firewall, hostname: str, file_path: str) -> None:
 
     # Check if a readiness check was successfully created
     if isinstance(network_snapshot, SnapshotReport):
-        logging.info("Network snapshot created successfully")
+        logging.info(f"{get_emoji('report')} Network snapshot created successfully")
         network_snapshot_json = network_snapshot.model_dump_json(indent=4)
         logging.debug(network_snapshot_json)
 
@@ -1001,17 +1053,19 @@ def perform_snapshot(firewall: Firewall, hostname: str, file_path: str) -> None:
             file.write(network_snapshot_json)
 
         logging.info(
-            f"Network state snapshot collected from {hostname}, saved to {file_path}"
+            f"{get_emoji('save')} Network state snapshot collected from {hostname}, saved to {file_path}"
         )
     else:
-        logging.error("Failed to create snapshot")
+        logging.error(f"{get_emoji('error')} Failed to create snapshot")
 
 
 # ----------------------------------------------------------------------------
 # Perform the readiness checks
 # ----------------------------------------------------------------------------
 def perform_readiness_checks(firewall: Firewall, hostname: str, file_path: str) -> None:
-    logging.info("Performing readiness checks of target firewall...")
+    logging.info(
+        f"{get_emoji('start')} Performing readiness checks of target firewall..."
+    )
 
     readiness_check = run_assurance(
         firewall,
@@ -1034,7 +1088,7 @@ def perform_readiness_checks(firewall: Firewall, hostname: str, file_path: str) 
     # Check if a readiness check was successfully created
     if isinstance(readiness_check, ReadinessCheckReport):
         # Do something with the readiness check report, e.g., log it, save it, etc.
-        logging.info("Readiness Checks completed")
+        logging.info(f"{get_emoji('success')} Readiness Checks completed")
         readiness_check_report_json = readiness_check.model_dump_json(indent=4)
         logging.debug(readiness_check_report_json)
 
@@ -1043,9 +1097,11 @@ def perform_readiness_checks(firewall: Firewall, hostname: str, file_path: str) 
         with open(file_path, "w") as file:
             file.write(readiness_check_report_json)
 
-        logging.info(f"Readiness checks completed for {hostname}, saved to {file_path}")
+        logging.info(
+            f"{get_emoji('save')} Readiness checks completed for {hostname}, saved to {file_path}"
+        )
     else:
-        logging.error("Failed to create readiness check")
+        logging.error(f"{get_emoji('error')} Failed to create readiness check")
 
 
 # ----------------------------------------------------------------------------
@@ -1075,7 +1131,9 @@ def backup_configuration(
         # Run operational command to retrieve configuration
         config_xml = firewall.op("show config running")
         if config_xml is None:
-            logging.error("Failed to retrieve running configuration.")
+            logging.error(
+                f"{get_emoji('error')} Failed to retrieve running configuration."
+            )
             return False
 
         # Check XML structure
@@ -1084,7 +1142,9 @@ def backup_configuration(
             or len(config_xml) == 0
             or config_xml[0].tag != "result"
         ):
-            logging.error("Unexpected XML structure in configuration data.")
+            logging.error(
+                f"{get_emoji('error')} Unexpected XML structure in configuration data."
+            )
             return False
 
         # Extract the configuration data from the <result><config> tag
@@ -1100,11 +1160,13 @@ def backup_configuration(
         with open(file_path, "w") as file:
             file.write(config_str)
 
-        logging.info(f"Configuration backed up successfully to {file_path}")
+        logging.info(
+            f"{get_emoji('save')} Configuration backed up successfully to {file_path}"
+        )
         return True
 
     except Exception as e:
-        logging.error(f"Error backing up configuration: {e}")
+        logging.error(f"{get_emoji('error')} Error backing up configuration: {e}")
         return False
 
 
@@ -1142,52 +1204,60 @@ def main() -> None:
     # Create our connection to the firewall
     logging.debug("Connecting to PAN-OS firewall...")
     firewall = connect_to_firewall(args)
-    logging.info("Connection established")
+    logging.info(f"{get_emoji('start')} Connection established")
 
     # Refresh system information to ensure we have the latest data
     logging.debug("Refreshing system information...")
     firewall_details = SystemSettings.refreshall(firewall)[0]
     logging.info(
-        f"{firewall.serial} {firewall_details.hostname} {firewall_details.ip_address}"
+        f"{get_emoji('report')} {firewall.serial} {firewall_details.hostname} {firewall_details.ip_address}"
     )
 
     # Determine if the firewall is standalone, HA, or in a cluster
-    logging.debug("Checking if firewall is standalone, HA, or in a cluster...")
+    logging.debug(
+        f"{get_emoji('start')} Checking if firewall is standalone, HA, or in a cluster..."
+    )
     deploy_info, ha_details = get_ha_status(firewall)
-    logging.info(f"Firewall HA mode: {deploy_info}")
-    logging.debug(f"Firewall HA details: {ha_details}")
+    logging.info(f"{get_emoji('report')} Firewall HA mode: {deploy_info}")
+    logging.debug(f"{get_emoji('report')} Firewall HA details: {ha_details}")
 
     # Check to see if the firewall is ready for an upgrade
-    logging.debug("Checking firewall readiness...")
+    logging.debug(f"{get_emoji('start')} Checking firewall readiness...")
     update_available = software_update_check(
         firewall, args["target_version"], ha_details
     )
-    logging.debug("Firewall readiness check complete")
+    logging.debug(f"{get_emoji('report')} Firewall readiness check complete")
 
     # gracefully exit if the firewall is not ready for an upgrade to target version
     if not update_available:
         logging.error(
-            f"Firewall is not ready for upgrade to {args['target_version']}.",
+            f"{get_emoji('error')} Firewall is not ready for upgrade to {args['target_version']}.",
         )
         sys.exit(1)
 
     # Download the target PAN-OS version
-    logging.info(f"Checking if {args['target_version']} is downloaded...")
+    logging.info(
+        f"{get_emoji('start')} Checking if {args['target_version']} is downloaded..."
+    )
     image_downloaded = software_download(firewall, args["target_version"], ha_details)
     if deploy_info == "active" or deploy_info == "passive":
         logging.info(
-            f"{args['target_version']} has been downloaded and sync'd to HA peer."
+            f"{get_emoji('success')} {args['target_version']} has been downloaded and sync'd to HA peer."
         )
     else:
-        logging.info(f"PAN-OS version {args['target_version']} has been downloaded.")
+        logging.info(
+            f"{get_emoji('success')} PAN-OS version {args['target_version']} has been downloaded."
+        )
 
     # Begin snapshots of the network state
     if not image_downloaded:
-        logging.error("Image not downloaded, exiting...")
+        logging.error(f"{get_emoji('error')} Image not downloaded, exiting...")
         sys.exit(1)
 
     # Execute the pre-upgrade snapshot
-    logging.info("Taking a pre-upgrade snapshot of network state information...")
+    logging.info(
+        f"{get_emoji('start')} Taking a pre-upgrade snapshot of network state information..."
+    )
     perform_snapshot(
         firewall,
         firewall_details.hostname,
@@ -1195,7 +1265,9 @@ def main() -> None:
     )
 
     # Execute Readiness Checks
-    logging.info("Checking device to see if its ready for an upgrade...")
+    logging.info(
+        f"{get_emoji('start')} Checking device to see if its ready for an upgrade..."
+    )
     perform_readiness_checks(
         firewall,
         firewall_details.hostname,
@@ -1204,28 +1276,33 @@ def main() -> None:
 
     # If the firewall is in an HA pair, check the HA peer to ensure sync has been enabled
     if ha_details:
-        logging.info("Checking HA peer to ensure the two are in sync...")
+        logging.info(
+            f"{get_emoji('start')} Checking HA peer to ensure the two are in sync..."
+        )
         if ha_details["response"]["result"]["group"]["running-sync"] == "synchronized":
-            logging.info("HA peer sync has been completed")
+            logging.info(f"{get_emoji('success')} HA peer sync has been completed")
         else:
-            logging.error("HA peer state is not in sync")
+            logging.error(f"{get_emoji('error')} HA peer state is not in sync")
+            logging.error(f"{get_emoji('stop')} Halting script.")
             sys.exit(1)
 
     # Back up configuration to local filesystem
-    logging.info("Backing up configuration to local filesystem...")
+    logging.info(
+        f"{get_emoji('start')} Backing up configuration to local filesystem..."
+    )
     backup_config = backup_configuration(
         firewall,
         f'assurance/configurations/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
     )
-    logging.debug(backup_config)
-    logging.info("Configuration backed up successfully")
+    logging.debug(f"{get_emoji('report')} {backup_config}")
 
     # Exit execution is dry_run is True
     if args["dry_run"] is True:
-        logging.info("Dry run complete, exiting...")
+        logging.info(f"{get_emoji('success')} Dry run complete, exiting...")
+        logging.info(f"{get_emoji('stop')} Halting script.")
         sys.exit(0)
     else:
-        logging.info("Not a dry run, continue with upgrade...")
+        logging.info(f"{get_emoji('start')} Not a dry run, continue with upgrade...")
 
 
 if __name__ == "__main__":
