@@ -469,7 +469,9 @@ def determine_upgrade(
         )
 
     logging.info(f"Current PAN-OS version: {firewall.version}")
-    logging.info(f"Target PAN-OS version: {'.'.join(map(str, target_version))}")
+    logging.info(
+        f"Target PAN-OS version: {target_major}.{target_minor}.{target_maintenance}"
+    )
 
     upgrade_needed = current_version < target_version
     if upgrade_needed:
@@ -803,7 +805,7 @@ def run_assurance(
 
         # take snapshots
         try:
-            logging.info("Running snapshots...")
+            logging.debug("Running snapshots...")
             results = snapshot_node.run_snapshots(snapshots_config=actions)
             logging.debug(results)
 
@@ -892,29 +894,29 @@ def main() -> None:
     configure_logging(args["log_level"])
 
     # Create our connection to the firewall
-    logging.info("Connecting to PAN-OS firewall...")
+    logging.debug("Connecting to PAN-OS firewall...")
     firewall = connect_to_firewall(args)
     logging.info("Connection established")
 
     # Refresh system information to ensure we have the latest data
-    logging.info("Refreshing system information...")
+    logging.debug("Refreshing system information...")
     firewall_details = SystemSettings.refreshall(firewall)[0]
     logging.info(
         f"{firewall.serial} {firewall_details.hostname} {firewall_details.ip_address}"
     )
 
     # Determine if the firewall is standalone, HA, or in a cluster
-    logging.info("Checking if firewall is standalone, HA, or in a cluster...")
+    logging.debug("Checking if firewall is standalone, HA, or in a cluster...")
     deploy_info, ha_details = get_ha_status(firewall)
     logging.info(f"Firewall HA mode: {deploy_info}")
     logging.debug(f"Firewall HA details: {ha_details}")
 
     # Check to see if the firewall is ready for an upgrade
-    logging.info("Checking firewall readiness...")
+    logging.debug("Checking firewall readiness...")
     update_available = software_update_check(
         firewall, args["target_version"], ha_details
     )
-    logging.info("Firewall readiness check complete")
+    logging.debug("Firewall readiness check complete")
 
     # gracefully exit if the firewall is not ready for an upgrade to target version
     if not update_available:
