@@ -163,6 +163,6 @@ cython_debug/
 .env
 
 # ignore my personal snapshots
-snapshots/
-reports/
-checks/
+assurance/snapshots/
+assurance/reports/
+assurance/readiness_checks/
