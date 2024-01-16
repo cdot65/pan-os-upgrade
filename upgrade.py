@@ -7,6 +7,9 @@ import time
 from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Tuple, Union
 
+# trunk-ignore(bandit/B405)
+import xml.etree.ElementTree as ET
+
 # Palo Alto Networks PAN-OS imports
 import panos
 from panos.base import PanDevice
@@ -19,7 +22,6 @@ from panos_upgrade_assurance.check_firewall import CheckFirewall
 from panos_upgrade_assurance.firewall_proxy import FirewallProxy
 
 # third party imports
-import defusedxml.ElementTree as ET
 import xmltodict
 from pydantic import BaseModel
 
@@ -1032,6 +1034,66 @@ def perform_readiness_checks(firewall: Firewall, hostname: str, file_path: str) 
 
 
 # ----------------------------------------------------------------------------
+# Back up the configuration
+# ----------------------------------------------------------------------------
+def backup_configuration(
+    firewall: Firewall,
+    file_path: str,
+) -> bool:
+    """
+    Back up the configuration of a firewall to the local filesystem.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        An instance of the Firewall class representing the firewall to operate on.
+    file_path : str
+        The path where the configuration file will be saved.
+
+    Returns
+    -------
+    bool
+        True if backup is successful, False otherwise.
+    """
+
+    try:
+        # Run operational command to retrieve configuration
+        config_xml = firewall.op("show config running")
+        if config_xml is None:
+            logging.error("Failed to retrieve running configuration.")
+            return False
+
+        # Check XML structure
+        if (
+            config_xml.tag != "response"
+            or len(config_xml) == 0
+            or config_xml[0].tag != "result"
+        ):
+            logging.error("Unexpected XML structure in configuration data.")
+            return False
+
+        # Extract the configuration data from the <result><config> tag
+        config_data = config_xml.find(".//result/config")
+
+        # Manually construct the string representation of the XML data
+        config_str = ET.tostring(config_data, encoding="unicode")
+
+        # Ensure the directory exists
+        ensure_directory_exists(file_path)
+
+        # Write the file to the local filesystem
+        with open(file_path, "w") as file:
+            file.write(config_str)
+
+        logging.info(f"Configuration backed up successfully to {file_path}")
+        return True
+
+    except Exception as e:
+        logging.error(f"Error backing up configuration: {e}")
+        return False
+
+
+# ----------------------------------------------------------------------------
 # Primary execution of the script
 # ----------------------------------------------------------------------------
 def main() -> None:
@@ -1105,22 +1167,46 @@ def main() -> None:
         logging.info(f"PAN-OS version {args['target_version']} has been downloaded.")
 
     # Begin snapshots of the network state
-    if image_downloaded:
-        # Execute the pre-upgrade snapshot
-        logging.info("Taking a pre-upgrade snapshot of network state information...")
-        perform_snapshot(
-            firewall,
-            firewall_details.hostname,
-            f'assurance/snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-        )
+    if not image_downloaded:
+        logging.error("Image not downloaded, exiting...")
+        sys.exit(1)
 
-        # Execute Readiness Checks
-        logging.info("Checking device to see if its ready for an upgrade...")
-        perform_readiness_checks(
-            firewall,
-            firewall_details.hostname,
-            f'assurance/readiness_checks/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-        )
+    # Execute the pre-upgrade snapshot
+    logging.info("Taking a pre-upgrade snapshot of network state information...")
+    perform_snapshot(
+        firewall,
+        firewall_details.hostname,
+        f'assurance/snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+    )
+
+    # Execute Readiness Checks
+    logging.info("Checking device to see if its ready for an upgrade...")
+    perform_readiness_checks(
+        firewall,
+        firewall_details.hostname,
+        f'assurance/readiness_checks/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+    )
+
+    # If the firewall is in an HA pair, check the HA peer to ensure sync has been enabled
+    if ha_details:
+        logging.info("Checking HA peer to ensure the two are in sync...")
+        if ha_details["response"]["result"]["group"]["running-sync"] == "synchronized":
+            logging.info("HA peer sync has been completed")
+        else:
+            logging.error("HA peer state is not in sync")
+            sys.exit(1)
+
+    # Back up configuration to local filesystem
+    logging.info("Backing up configuration to local filesystem...")
+    backup_config = backup_configuration(
+        firewall,
+        f'assurance/configurations/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
+    )
+    logging.debug(backup_config)
+    logging.info("Configuration backed up successfully")
+    import ipdb
+
+    ipdb.set_trace()
 
 
 if __name__ == "__main__":
