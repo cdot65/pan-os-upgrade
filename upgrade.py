@@ -455,7 +455,35 @@ def configure_logging(level: str) -> None:
     logger.addHandler(file_handler)
 
 
-def get_emoji(action):
+def get_emoji(action: str) -> str:
+    """
+    Retrieve the corresponding emoji for a given action.
+
+    Maps a specified action string to its corresponding emoji character based on a predefined set
+    of mappings. If the action does not have an associated emoji in the map, an empty string is returned.
+
+    Parameters
+    ----------
+    action : str
+        The action keyword for which the corresponding emoji is desired. Possible actions include
+        'success', 'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
+
+    Returns
+    -------
+    str
+        The emoji character associated with the given action, or an empty string if the action is not recognized.
+
+    Examples
+    --------
+    >>> get_emoji('success')
+    '✅'
+
+    >>> get_emoji('error')
+    '❌'
+
+    >>> get_emoji('unknown')
+    ''
+    """
     emoji_map = {
         "success": "✅",
         "warning": "⚠️",
@@ -525,6 +553,31 @@ def check_readiness_and_log(
     test_name: str,
     test_info: dict,
 ):
+    """
+    Check readiness test results and log the outcome.
+
+    This function evaluates the outcome of a specific readiness test based on its result.
+    It logs the test outcome using different log levels (info, warning, error) depending
+    on the test's importance and its result. In cases where the test result is critical and
+    the test fails, the script may exit.
+
+    Parameters
+    ----------
+    result : dict
+        A dictionary containing the results of readiness tests. Each key is a test name, and
+        the value is another dictionary with 'state' and 'reason' keys.
+    test_name : str
+        The name of the test to check the result for.
+    test_info : dict
+        A dictionary containing information about the test, including a description, the log level,
+        and whether the script should exit on failure.
+
+    Notes
+    -----
+    The function uses the `get_emoji` helper to add relevant emojis to the log messages for
+    better visual distinction of the test outcomes. The test result is considered a pass if
+    the 'state' is True; otherwise, it's a fail or skip, depending on the 'log_level'.
+    """
     test_result = result.get(
         test_name, {"state": False, "reason": "Test not performed"}
     )
@@ -1033,7 +1086,35 @@ def run_assurance(
 # ----------------------------------------------------------------------------
 # Perform the snapshot of the network state
 # ----------------------------------------------------------------------------
-def perform_snapshot(firewall: Firewall, hostname: str, file_path: str) -> None:
+def perform_snapshot(
+    firewall: Firewall,
+    hostname: str,
+    file_path: str,
+) -> None:
+    """
+    Perform a snapshot of the network state on the specified firewall and save it to a file.
+
+    Executes a series of network state information collections (such as arp_table, content_version,
+    ip_sec_tunnels, etc.) on the provided firewall instance. The collected data is then saved as a
+    JSON file to the specified file path. Logs the start, success, or failure of the snapshot operation.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        An instance of the Firewall class representing the firewall to collect the network state from.
+    hostname : str
+        The hostname of the firewall. Used for logging purposes.
+    file_path : str
+        The file path where the network state snapshot JSON will be saved.
+
+    Notes
+    -----
+    - The function leverages the `run_assurance` function for collecting network state information.
+    - If the snapshot is successful, the JSON representation of the network state is saved to the specified file.
+    - If the snapshot fails, an error is logged.
+    - This function also ensures that the directory for the file path exists before saving.
+    """
+
     logging.info(
         f"{get_emoji('start')} Executing snapshot of network state information..."
     )
@@ -1076,7 +1157,36 @@ def perform_snapshot(firewall: Firewall, hostname: str, file_path: str) -> None:
 # ----------------------------------------------------------------------------
 # Perform the readiness checks
 # ----------------------------------------------------------------------------
-def perform_readiness_checks(firewall: Firewall, hostname: str, file_path: str) -> None:
+def perform_readiness_checks(
+    firewall: Firewall,
+    hostname: str,
+    file_path: str,
+) -> None:
+    """
+    Execute and handle the results of readiness checks on a specified firewall.
+
+    Initiates various readiness checks on the target firewall to determine its state and suitability
+    for further operations, such as upgrades. The checks include candidate config, content version,
+    expired licenses, HA status, job status, disk space, NTP synchronization, Panorama connection,
+    and planes clock synchronization. The results are logged, and a detailed report is saved to the
+    specified file path.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        An instance of the Firewall class representing the firewall to perform readiness checks on.
+    hostname : str
+        The hostname of the firewall on which the readiness checks are performed.
+    file_path : str
+        The file path where the readiness check report will be saved.
+
+    Notes
+    -----
+    - If the readiness checks are successful, a ReadinessCheckReport is generated, logged, and saved.
+    - If the readiness checks fail, an error message is logged.
+    - The function uses emojis for logging to enhance readability and user experience.
+    """
+
     logging.debug(
         f"{get_emoji('start')} Executing readiness checks of target firewall..."
     )
@@ -1191,26 +1301,25 @@ def main() -> None:
     """
     Main function of the script, serving as the entry point.
 
-    Handles CLI arguments, configures logging, and establishes a connection to the Firewall appliance.
-    Performs a series of operations, including refreshing system information, checking for software updates,
-    downloading the target PAN-OS version, and collecting network state information for upgrade assurance.
-    It conducts readiness checks and takes a pre-upgrade snapshot of the network state. Logs progress and
-    status throughout the process.
+    Orchestrates the workflow for checking and preparing a PAN-OS firewall for an upgrade. This includes:
+    - Parsing command-line arguments.
+    - Configuring logging based on specified log level.
+    - Connecting to the firewall and refreshing its system information.
+    - Determining the firewall's deployment status (standalone, HA, cluster).
+    - Checking firewall readiness for the target PAN-OS version and downloading it if necessary.
+    - Performing pre-upgrade network state snapshots and readiness checks.
+    - Conducting HA peer synchronization checks and backup of current configuration.
 
-    The function gracefully exits with an error if conditions for the upgrade are not met or if any critical
-    issues are encountered during execution. It enters a debug mode upon successful completion of all operations.
-
-    Operations:
-    - Connects to the Firewall and refreshes system information.
-    - Determines deployment status (standalone, HA, cluster).
-    - Assesses readiness for upgrade and downloads the target PAN-OS version.
-    - Collects network state information and performs readiness checks.
+    The function uses emojis to enhance log readability and provides detailed feedback throughout the process.
+    If the 'dry_run' argument is set to True, the script performs checks without initiating the actual upgrade.
 
     Raises
     ------
     SystemExit
-        If the firewall is not ready for an upgrade to the target version, or
-        if there are other critical issues preventing the continuation of the script.
+        - If the firewall is not ready for an upgrade to the target version.
+        - If there are critical issues preventing the continuation of the script.
+        - If the HA peer state is not synchronized.
+        - Upon completion of a dry run.
     """
     args = parse_arguments()
     configure_logging(args["log_level"])
