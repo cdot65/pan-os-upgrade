@@ -268,4 +268,4 @@ Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot
 [issues-url]: https://github.com/cdot65/pan-os-upgrade/issues
 [license-shield]: https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [license-url]: https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE
-[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/example.jpg
+[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/screenshot.jpg
