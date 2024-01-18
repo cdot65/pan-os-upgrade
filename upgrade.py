@@ -5,7 +5,7 @@ import os
 import sys
 import time
 from logging.handlers import RotatingFileHandler
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 # trunk-ignore(bandit/B405)
 import xml.etree.ElementTree as ET
@@ -14,7 +14,12 @@ import xml.etree.ElementTree as ET
 import panos
 from panos.base import PanDevice
 from panos.device import SystemSettings
-from panos.errors import PanDeviceXapiError
+from panos.errors import (
+    PanDeviceXapiError,
+    PanXapiError,
+    PanConnectionTimeout,
+    PanURLError,
+)
 from panos.firewall import Firewall
 
 # Palo Alto Networks panos-upgrade-assurance imports
@@ -107,7 +112,7 @@ class AssuranceOptions:
         "free_disk_space": {
             "description": "Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.",
             "log_level": "error",
-            "exit_on_failure": True,
+            "exit_on_failure": False,
         },
         "ha": {
             "description": "Checks HA pair status from the perspective of the current device",
@@ -370,6 +375,7 @@ def parse_arguments() -> Args:
         logging.error(
             f"{get_emoji('error')} Hostname must be provided as a --hostname argument or in .env",
         )
+
         sys.exit(1)
 
     # Check for missing target version
@@ -378,6 +384,7 @@ def parse_arguments() -> Args:
             f"{get_emoji('error')} Target version must be provided as a --version argument or in .env",
         )
         logging.error(f"{get_emoji('stop')} Halting script.")
+
         sys.exit(1)
 
     # Ensuring mutual exclusivity
@@ -389,6 +396,7 @@ def parse_arguments() -> Args:
             file=sys.stderr,
         )
         logging.error(f"{get_emoji('stop')} Halting script.")
+
         sys.exit(1)
 
     return arguments
@@ -592,6 +600,7 @@ def check_readiness_and_log(
             logging.error(f"{get_emoji('error')} {log_message}")
             if test_info["exit_on_failure"]:
                 logging.error(f"{get_emoji('stop')} Halting script.")
+
                 sys.exit(1)
         elif test_info["log_level"] == "warning":
             logging.debug(
@@ -632,27 +641,39 @@ def connect_to_firewall(args: dict) -> Firewall:
     SystemExit
         If the target device is a Panorama appliance or if the required credentials are not provided.
     """
-    # Conditional connection logic
-    if args["api_key"]:
-        target_device = PanDevice.create_from_device(
-            args["hostname"],
-            api_key=args["api_key"],
-        )
-    else:
-        target_device = PanDevice.create_from_device(
-            args["hostname"],
-            args["pan_username"],
-            args["pan_password"],
-        )
+    try:
+        # Build a connection using either an API key or username/password combination
+        if args["api_key"]:
+            target_device = PanDevice.create_from_device(
+                args["hostname"],
+                api_key=args["api_key"],
+            )
+        else:
+            target_device = PanDevice.create_from_device(
+                args["hostname"],
+                args["pan_username"],
+                args["pan_password"],
+            )
 
-    if isinstance(target_device, panos.panorama.Panorama):
+        if isinstance(target_device, panos.panorama.Panorama):
+            logging.error(
+                f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
+            )
+            sys.exit(1)
+
+        return target_device
+
+    except PanConnectionTimeout:
         logging.error(
-            f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
+            f"{get_emoji('error')} Connection to the firewall timed out. Please check the hostname and network connectivity."
         )
-        logging.error(f"{get_emoji('stop')} Halting script.")
         sys.exit(1)
 
-    return target_device
+    except Exception as e:
+        logging.error(
+            f"{get_emoji('error')} An error occurred while connecting to the firewall: {e}"
+        )
+        sys.exit(1)
 
 
 # ----------------------------------------------------------------------------
@@ -734,6 +755,7 @@ def determine_upgrade(
             f"{get_emoji('error')} Upgrade is not required or a downgrade was attempted."
         )
         logging.error(f"{get_emoji('stop')} Halting script.")
+
         sys.exit(1)
 
 
@@ -920,6 +942,7 @@ def software_download(
             firewall.software.download(target_version)
         except PanDeviceXapiError as download_error:
             logging.error(f"{get_emoji('error')} {download_error}")
+
             sys.exit(1)
 
         while True:
@@ -955,6 +978,7 @@ def software_download(
 
     else:
         logging.error(f"{get_emoji('error')} Error downloading {target_version}.")
+
         sys.exit(1)
 
 
@@ -969,7 +993,7 @@ def run_assurance(
     config: Dict[str, Union[str, int, float, bool]],
 ) -> Union[SnapshotReport, ReadinessCheckReport, None]:
     """
-    Execute operational tasks on the Firewall and return the results or generate reports.
+    Perform operational tasks on the Firewall and return the results or generate reports.
 
     Handles various operational tasks on the Firewall based on 'operation_type', such as
     performing readiness checks, capturing state snapshots, or generating reports. The function
@@ -984,7 +1008,7 @@ def run_assurance(
     hostname : str
         Hostname of the firewall.
     operation_type : str
-        Type of operation to be executed, e.g., 'readiness_check', 'state_snapshot', 'report'.
+        Type of operation to be performed, e.g., 'readiness_check', 'state_snapshot', 'report'.
     actions : List[str]
         List of specific actions to be performed within the operation type.
     config : Dict[str, Union[str, int, float, bool]]
@@ -1021,11 +1045,12 @@ def run_assurance(
                 logging.error(
                     f"{get_emoji('error')} Invalid action for readiness check: {action}"
                 )
+
                 sys.exit(1)
 
         try:
             logging.info(
-                f"{get_emoji('start')} Executing readiness checks to determine if firewall is ready for upgrade..."
+                f"{get_emoji('start')} Performing readiness checks to determine if firewall is ready for upgrade..."
             )
             result = checks_firewall.run_readiness_checks(actions)
 
@@ -1094,7 +1119,7 @@ def perform_snapshot(
     """
     Perform a snapshot of the network state on the specified firewall and save it to a file.
 
-    Executes a series of network state information collections (such as arp_table, content_version,
+    Performs a series of network state information collections (such as arp_table, content_version,
     ip_sec_tunnels, etc.) on the provided firewall instance. The collected data is then saved as a
     JSON file to the specified file path. Logs the start, success, or failure of the snapshot operation.
 
@@ -1116,7 +1141,7 @@ def perform_snapshot(
     """
 
     logging.info(
-        f"{get_emoji('start')} Executing snapshot of network state information..."
+        f"{get_emoji('start')} Performing snapshot of network state information..."
     )
 
     # take snapshots
@@ -1163,7 +1188,7 @@ def perform_readiness_checks(
     file_path: str,
 ) -> None:
     """
-    Execute and handle the results of readiness checks on a specified firewall.
+    Perform and handle the results of readiness checks on a specified firewall.
 
     Initiates various readiness checks on the target firewall to determine its state and suitability
     for further operations, such as upgrades. The checks include candidate config, content version,
@@ -1188,7 +1213,7 @@ def perform_readiness_checks(
     """
 
     logging.debug(
-        f"{get_emoji('start')} Executing readiness checks of target firewall..."
+        f"{get_emoji('start')} Performing readiness checks of target firewall..."
     )
 
     readiness_check = run_assurance(
@@ -1295,6 +1320,187 @@ def backup_configuration(
 
 
 # ----------------------------------------------------------------------------
+# Perform the upgrade process
+# ----------------------------------------------------------------------------
+def perform_upgrade(
+    firewall: Firewall,
+    hostname: str,
+    target_version: str,
+    ha_details: Optional[dict] = None,
+) -> None:
+    """
+    Perform the upgrade process for the specified firewall.
+
+    Performs the upgrade of the firewall to the target PAN-OS version. This includes initiating the
+    upgrade, handling High Availability (HA) considerations if applicable, and rebooting the firewall.
+    The function logs each step and handles any errors that occur during the process.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        An instance of the Firewall class representing the firewall to be upgraded.
+    hostname : str
+        The hostname of the firewall. Used for logging purposes.
+    target_version : str
+        The target PAN-OS version to upgrade the firewall to.
+    ha_details : Optional[dict]
+        High Availability details of the firewall, if applicable.
+
+    Raises
+    ------
+    SystemExit
+        - If the upgrade job fails.
+        - If HA synchronization fails or times out.
+        - If the firewall reboot process fails or times out.
+    """
+
+    logging.info(
+        f"{get_emoji('start')} Performing upgrade to version {target_version}..."
+    )
+
+    try:
+        install_job = firewall.software.install(target_version, sync=True)
+        if install_job["success"]:
+            logging.info(f"{get_emoji('success')} Upgrade job completed successfully")
+            logging.debug(f"{get_emoji('report')} {install_job}")
+        else:
+            logging.error(f"{get_emoji('error')} Upgrade job failed")
+
+            sys.exit(1)
+
+        # Define timeout and start time
+        timeout = 300  # 5 minutes in seconds
+        ha_suspend_start_time = time.time()
+
+        # First, check if ha_details exists
+        if ha_details:
+            while True:
+                try:
+                    # Check if HA is enabled and synced
+                    if ha_details["response"]["result"]["enabled"] == "yes":
+                        logging.info(
+                            f"{get_emoji('success')} HA peer sync test has been completed"
+                        )
+                        logging.info(
+                            f"{get_emoji('start')} Suspending HA state of firewall..."
+                        )
+                        suspend_job = firewall.op(
+                            "<request><high-availability><state><suspend/></state></high-availability></request>",
+                            cmd_xml=False,
+                        )
+                        suspend_job_result = xml_to_dict(suspend_job)
+                        logging.info(
+                            f"{get_emoji('report')} {suspend_job_result['response']['result']}"
+                        )
+                        break  # Exit the loop as the condition is met
+                    else:
+                        # If HA is enabled but not synced
+                        current_time = time.time()
+                        if current_time - ha_suspend_start_time > timeout:
+                            logging.error(
+                                f"{get_emoji('error')} Timeout reached while waiting for HA sync"
+                            )
+                            break  # Exit the loop after timeout
+
+                        logging.info(
+                            f"{get_emoji('warning')} HA peer sync test was not successful, trying again in ten seconds..."
+                        )
+                        time.sleep(10)
+                        # Re-fetch the HA details here if necessary, to check the current status
+
+                except KeyError:
+                    # KeyError handling if 'enabled' key is not found
+                    logging.error(
+                        f"{get_emoji('error')} KeyError: Problem accessing HA details"
+                    )
+                    break
+
+        else:
+            logging.info(
+                f"{get_emoji('report')} Firewall is not in an HA pair, continuing in standalone mode..."
+            )
+
+    except PanDeviceXapiError as upgrade_error:
+        logging.error(f"{get_emoji('error')} {upgrade_error}")
+
+        sys.exit(1)
+
+
+# ----------------------------------------------------------------------------
+# Perform the reboot process
+# ----------------------------------------------------------------------------
+def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> None:
+    """
+    Perform the reboot process for the specified firewall.
+
+    Initiates the reboot of the firewall and waits until it comes back online. If the firewall is part
+    of a High Availability (HA) setup, it also checks for synchronization with its HA peer after rebooting.
+    The function logs each step and handles any errors that occur during the process.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        An instance of the Firewall class representing the firewall to be rebooted.
+    ha_details : Optional[dict]
+        High Availability details of the firewall, if applicable.
+
+    Raises
+    ------
+    SystemExit
+        - If the reboot process fails or times out.
+    """
+
+    reboot_start_time = time.time()
+    rebooted = False
+
+    logging.info(f"{get_emoji('start')} Rebooting the firewall...")
+    reboot_job = firewall.op(
+        "<request><restart><system/></restart></request>", cmd_xml=False
+    )
+    reboot_job_result = xml_to_dict(reboot_job)
+    logging.info(f"{get_emoji('report')} {reboot_job_result['response']['result']}")
+
+    while not rebooted:
+        try:
+            deploy_info, current_ha_details = get_ha_status(firewall)
+            if current_ha_details and deploy_info in ["active", "passive"]:
+                if (
+                    current_ha_details["response"]["result"]["group"]["running-sync"]
+                    == "synchronized"
+                ):
+                    logging.info(
+                        f"{get_emoji('success')} Firewall rebooted and synchronized with its HA peer in {int(time.time() - reboot_start_time)} seconds"
+                    )
+                    rebooted = True
+                else:
+                    logging.info(
+                        f"{get_emoji('working')} Firewall rebooted but not yet synchronized with its peer. Will try again in 30 seconds."
+                    )
+                    time.sleep(30)
+            elif current_ha_details and deploy_info == "disabled":
+                logging.info(
+                    f"{get_emoji('success')} Firewall rebooted in {int(time.time() - reboot_start_time)} seconds"
+                )
+                rebooted = True
+            else:
+                logging.info(
+                    f"{get_emoji('working')} Waiting for firewall to reboot and synchronize..."
+                )
+                time.sleep(30)
+
+        except (PanXapiError, PanConnectionTimeout, PanURLError):
+            logging.info(f"{get_emoji('working')} Firewall is rebooting...")
+            time.sleep(30)
+
+        # Check if 20 minutes have passed
+        if time.time() - reboot_start_time > 1200:  # 20 minutes in seconds
+            logging.error(
+                f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 20 minutes. Please check the firewall status manually."
+            )
+            break
+
+
+# ----------------------------------------------------------------------------
 # Primary execution of the script
 # ----------------------------------------------------------------------------
 def main() -> None:
@@ -1338,7 +1544,7 @@ def main() -> None:
 
     # Determine if the firewall is standalone, HA, or in a cluster
     logging.debug(
-        f"{get_emoji('start')} Executing test to see if firewall is standalone, HA, or in a cluster..."
+        f"{get_emoji('start')} Performing test to see if firewall is standalone, HA, or in a cluster..."
     )
     deploy_info, ha_details = get_ha_status(firewall)
     logging.info(f"{get_emoji('report')} Firewall HA mode: {deploy_info}")
@@ -1346,7 +1552,7 @@ def main() -> None:
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
-        f"{get_emoji('start')} Executing test to validate firewall's readiness..."
+        f"{get_emoji('start')} Performing test to validate firewall's readiness..."
     )
     update_available = software_update_check(
         firewall, args["target_version"], ha_details
@@ -1358,11 +1564,12 @@ def main() -> None:
         logging.error(
             f"{get_emoji('error')} Firewall is not ready for upgrade to {args['target_version']}.",
         )
+
         sys.exit(1)
 
     # Download the target PAN-OS version
     logging.info(
-        f"{get_emoji('start')} Executing test to see if {args['target_version']} is already downloaded..."
+        f"{get_emoji('start')} Performing test to see if {args['target_version']} is already downloaded..."
     )
     image_downloaded = software_download(firewall, args["target_version"], ha_details)
     if deploy_info == "active" or deploy_info == "passive":
@@ -1377,16 +1584,17 @@ def main() -> None:
     # Begin snapshots of the network state
     if not image_downloaded:
         logging.error(f"{get_emoji('error')} Image not downloaded, exiting...")
+
         sys.exit(1)
 
-    # Execute the pre-upgrade snapshot
+    # Perform the pre-upgrade snapshot
     perform_snapshot(
         firewall,
         firewall_details.hostname,
         f'assurance/snapshots/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
     )
 
-    # Execute Readiness Checks
+    # Perform Readiness Checks
     perform_readiness_checks(
         firewall,
         firewall_details.hostname,
@@ -1396,7 +1604,7 @@ def main() -> None:
     # If the firewall is in an HA pair, check the HA peer to ensure sync has been enabled
     if ha_details:
         logging.info(
-            f"{get_emoji('start')} Executing test to see if HA peer is in sync..."
+            f"{get_emoji('start')} Performing test to see if HA peer is in sync..."
         )
         if ha_details["response"]["result"]["group"]["running-sync"] == "synchronized":
             logging.info(f"{get_emoji('success')} HA peer sync test has been completed")
@@ -1405,11 +1613,12 @@ def main() -> None:
                 f"{get_emoji('error')} HA peer state is not in sync, please try again"
             )
             logging.error(f"{get_emoji('stop')} Halting script.")
+
             sys.exit(1)
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} Executing backup of {firewall_details.hostname}'s configuration to local filesystem..."
+        f"{get_emoji('start')} Performing backup of {firewall_details.hostname}'s configuration to local filesystem..."
     )
     backup_config = backup_configuration(
         firewall,
@@ -1424,6 +1633,17 @@ def main() -> None:
         sys.exit(0)
     else:
         logging.info(f"{get_emoji('start')} Not a dry run, continue with upgrade...")
+
+    # Perform the upgrade
+    perform_upgrade(
+        firewall=firewall,
+        hostname=firewall_details.hostname,
+        target_version=args["target_version"],
+        ha_details=ha_details,
+    )
+
+    # Perform the reboot
+    perform_reboot(firewall=firewall, ha_details=ha_details)
 
 
 if __name__ == "__main__":
