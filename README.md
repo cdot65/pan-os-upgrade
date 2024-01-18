@@ -72,12 +72,18 @@ This project is built with the following technologies:
 * [pan-os-python SDK](https://github.com/PaloAltoNetworks/pan-os-python)
 * [panos-upgrade-assurance](https://github.com/PaloAltoNetworks/pan-os-upgrade-assurance)
 * [Pydantic](https://docs.pydantic.dev/latest/)
-* [defusedxml](https://pypi.org/project/defusedxml/)
 * [xmltodict](https://pypi.org/project/xmltodict/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
+
+## Prerequisites
+
+- Python 3.x
+- Access to a Palo Alto Networks firewall.
+- Required Python packages: (found in [requirements.txt](https://github.com/cdot65/pan-os-upgrade/blob/main/requirements.txt) file).
+
 ## Getting Started
 
 To get started with the PAN-OS upgrade project, you need to set up your environment and install the necessary dependencies.
@@ -118,16 +124,13 @@ pip install -r requirements.txt
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-This script provides a range of functionalities for interacting with PAN-OS devices. Below are some common use cases:
-
-```bash
-python upgrade.py --version 11.0.2-h1 --hostname 192.168.1.1 --username admin --password paloalto123 --log-level debug
-```
+The script can be run from the command line with various options. It requires at least the hostname (or IP address) and the target PAN-OS version for the firewall. Authentication can be done via API key or username and password.
 
 ### CLI Arguments Description
 
 * `--api-key`: API Key for authentication
-* `--hostname`: Hostname of the PAN-OS appliance.
+* `--dry-run`: Perform a dry run of all tests and downloads without performing the actual upgrade.
+* `--hostname`: Hostname or IP address of the PAN-OS firewall.
 * `--log-level`: Set the logging output level (e.g., debug, info, warning).
 * `--password`: Password for authentication.
 * `--username`: Username for authentication.
@@ -138,6 +141,8 @@ python upgrade.py --version 11.0.2-h1 --hostname 192.168.1.1 --username admin --
 As an alternative to passing CLI arguments, which can be a security risk due to your console's history function, you can instead update the variables within the `.env` file of your project.
 
 These environment variables will be used when CLI arguments are not provided, feel free to mix and match CLI arguments and hardcoded values within the .env file. Just note that if you're using an API key for authentication, leave the username and password blank.
+
+> note: CLI arguments will take precedent of .env file
 
 ```env
 # PAN-OS credientials if using an API key, leave username and password blank
@@ -153,6 +158,10 @@ TARGET_VERSION=11.0.2-h3
 
 # manage the levels of logging of the script debug, info, warning, error, critical
 LOG_LEVEL=debug
+
+# dry run will not perform the actual upgrade process
+DRY_RUN=
+
 ```
 
 Then execute your script as follows:
@@ -161,6 +170,14 @@ Then execute your script as follows:
 python upgrade.py
 ```
 
+### Dry Run
+
+To execute a dry run (which performs checks without upgrading):
+
+   ```bash
+   python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.0.0 --dry-run
+   ```
+
 For more details on the usage and examples, refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -168,6 +185,19 @@ For more details on the usage and examples, refer to the [documentation](https:/
 Refer to the [documentation](https://github.com/cdot65/pan-os-upgrade) for more details on usage.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Output
+
+The script generates several files containing the state of the firewall and readiness checks. These files are stored in the `assurance` directory with the following structure:
+
+- `snapshots`: Contains the pre and post-upgrade network state snapshots in JSON format.
+- `readiness_checks`: Contains the results of readiness checks in JSON format.
+- `configurations`: Contains the backup of the firewall's configuration in XML format.
+
+## Logging
+
+Log messages are printed to the console and saved to a rotating log file located in the `logs` directory. The log level can be set via the `--log-level` argument.
+
 
 <!-- TROUBLESHOOTING -->
 ## Troubleshooting
