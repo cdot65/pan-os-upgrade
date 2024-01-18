@@ -19,6 +19,7 @@ lint:
   disabled:
     - isort
   enabled:
+    - flake8@7.0.0
     - bandit@1.7.6
     - black@23.12.1
     - dotenv-linter@3.3.0
