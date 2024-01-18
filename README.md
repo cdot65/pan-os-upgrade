@@ -62,6 +62,8 @@ Key Features:
 * Customizable scripts to fit various network environments and requirements.
 * Extensive interaction with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
+> Note: this script is targeted towards standalone and `active-passive` HA environments, no testing has been performed against `active-active` or clustered firewalls.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
@@ -80,9 +82,9 @@ This project is built with the following technologies:
 
 ## Prerequisites
 
-- Python 3.x
-- Access to a Palo Alto Networks firewall.
-- Required Python packages: (found in [requirements.txt](https://github.com/cdot65/pan-os-upgrade/blob/main/requirements.txt) file).
+* Python 3.x
+* Access to a Palo Alto Networks firewall.
+* Required Python packages: (found in [requirements.txt](https://github.com/cdot65/pan-os-upgrade/blob/main/requirements.txt) file).
 
 ## Getting Started
 
@@ -190,14 +192,13 @@ Refer to the [documentation](https://github.com/cdot65/pan-os-upgrade) for more 
 
 The script generates several files containing the state of the firewall and readiness checks. These files are stored in the `assurance` directory with the following structure:
 
-- `snapshots`: Contains the pre and post-upgrade network state snapshots in JSON format.
-- `readiness_checks`: Contains the results of readiness checks in JSON format.
-- `configurations`: Contains the backup of the firewall's configuration in XML format.
+* `snapshots`: Contains the pre and post-upgrade network state snapshots in JSON format.
+* `readiness_checks`: Contains the results of readiness checks in JSON format.
+* `configurations`: Contains the backup of the firewall's configuration in XML format.
 
 ## Logging
 
 Log messages are printed to the console and saved to a rotating log file located in the `logs` directory. The log level can be set via the `--log-level` argument.
-
 
 <!-- TROUBLESHOOTING -->
 ## Troubleshooting
@@ -267,4 +268,4 @@ Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot
 [issues-url]: https://github.com/cdot65/pan-os-upgrade/issues
 [license-shield]: https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [license-url]: https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE
-[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/example_execution.jpg
+[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/example.jpg
