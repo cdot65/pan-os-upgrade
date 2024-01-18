@@ -1327,6 +1327,8 @@ def perform_upgrade(
     hostname: str,
     target_version: str,
     ha_details: Optional[dict] = None,
+    max_retries: int = 3,  # Maximum number of retry attempts
+    retry_interval: int = 60,  # Time to wait between retries (in seconds)
 ) -> None:
     """
     Perform the upgrade process for the specified firewall.
@@ -1355,18 +1357,48 @@ def perform_upgrade(
     """
 
     logging.info(
-        f"{get_emoji('start')} Performing upgrade to version {target_version}..."
+        f"{get_emoji('start')} Performing upgrade on {hostname} to version {target_version}..."
     )
 
-    try:
-        install_job = firewall.software.install(target_version, sync=True)
-        if install_job["success"]:
-            logging.info(f"{get_emoji('success')} Upgrade job completed successfully")
-            logging.debug(f"{get_emoji('report')} {install_job}")
-        else:
-            logging.error(f"{get_emoji('error')} Upgrade job failed")
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            logging.info(
+                f"{get_emoji('start')} Attempting upgrade {hostname} to version {target_version} (Attempt {attempt + 1} of {max_retries})..."
+            )
+            install_job = firewall.software.install(target_version, sync=True)
 
-            sys.exit(1)
+            if install_job["success"]:
+                logging.info(
+                    f"{get_emoji('success')} {hostname} upgrade completed successfully"
+                )
+                logging.debug(f"{get_emoji('report')} {install_job}")
+                break  # Exit loop on successful upgrade
+            else:
+                logging.error(f"{get_emoji('error')} {hostname} upgrade job failed.")
+                attempt += 1
+                if attempt < max_retries:
+                    logging.info(
+                        f"{get_emoji('warning')} Retrying in {retry_interval} seconds..."
+                    )
+                    time.sleep(retry_interval)
+
+        except PanDeviceXapiError as upgrade_error:
+            logging.error(
+                f"{get_emoji('error')} {hostname} upgrade error: {upgrade_error}"
+            )
+            if "software manager is currently in use" in str(upgrade_error):
+                attempt += 1
+                if attempt < max_retries:
+                    logging.info(
+                        f"{get_emoji('warning')} Software manager is busy. Retrying in {retry_interval} seconds..."
+                    )
+                    time.sleep(retry_interval)
+            else:
+                logging.error(
+                    f"{get_emoji('stop')} Critical error during upgrade. Halting script."
+                )
+                sys.exit(1)
 
         # Define timeout and start time
         timeout = 300  # 5 minutes in seconds
@@ -1419,11 +1451,6 @@ def perform_upgrade(
             logging.info(
                 f"{get_emoji('report')} Firewall is not in an HA pair, continuing in standalone mode..."
             )
-
-    except PanDeviceXapiError as upgrade_error:
-        logging.error(f"{get_emoji('error')} {upgrade_error}")
-
-        sys.exit(1)
 
 
 # ----------------------------------------------------------------------------
