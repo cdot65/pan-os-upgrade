@@ -124,11 +124,11 @@ class AssuranceOptions:
             "log_level": "warning",
             "exit_on_failure": False,
         },
-        "jobs": {
-            "description": "Check for any job with status different than FIN",
-            "log_level": "warning",
-            "exit_on_failure": False,
-        },
+        # "jobs": {
+        #     "description": "Check for any job with status different than FIN",
+        #     "log_level": "warning",
+        #     "exit_on_failure": False,
+        # },
         "ntp_sync": {
             "description": "Check if NTP is synchronized",
             "log_level": "warning",
@@ -659,6 +659,7 @@ def connect_to_firewall(args: dict) -> Firewall:
             logging.error(
                 f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
             )
+
             sys.exit(1)
 
         return target_device
@@ -667,12 +668,14 @@ def connect_to_firewall(args: dict) -> Firewall:
         logging.error(
             f"{get_emoji('error')} Connection to the firewall timed out. Please check the hostname and network connectivity."
         )
+
         sys.exit(1)
 
     except Exception as e:
         logging.error(
             f"{get_emoji('error')} An error occurred while connecting to the firewall: {e}"
         )
+
         sys.exit(1)
 
 
@@ -1064,6 +1067,7 @@ def run_assurance(
 
         except Exception as e:
             logging.error(f"{get_emoji('error')} Error running readiness checks: {e}")
+
             return None
 
     elif operation_type == "state_snapshot":
@@ -1225,7 +1229,7 @@ def perform_readiness_checks(
             "content_version",
             "expired_licenses",
             "ha",
-            "jobs",
+            # "jobs",
             "free_disk_space",
             "ntp_sync",
             "panorama",
@@ -1398,6 +1402,7 @@ def perform_upgrade(
                 logging.error(
                     f"{get_emoji('stop')} Critical error during upgrade. Halting script."
                 )
+
                 sys.exit(1)
 
         # Define timeout and start time
