@@ -10,7 +10,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-    <img src="images/logo.svg" alt="Logo">
+    <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/images/logo.svg?raw=true" alt="Logo">
     <h3 align="center">PAN-OS Automation Project</h3>
     <p align="center">
         Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
@@ -42,8 +42,6 @@
 
 ## About The Project
 
-[![Project Screenshot][product-screenshot]](https://paloaltonetworks.com)
-
 This project is a comprehensive Python-based solution for automating PAN-OS upgrades. It's designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configurations, and system checks of Palo Alto Networks appliances.
 
 Key Features:
@@ -53,6 +51,10 @@ Key Features:
 * Extensive interaction with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
 > Note: this script is targeted towards standalone and `active-passive` HA environments, no testing has been performed against `active-active` or clustered firewalls.
+
+Example Screenshot
+
+![Example Screenshot](https://github.com/cdot65/pan-os-upgrade/blob/main/images/screenshot.jpg?raw=true)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
