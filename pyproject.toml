@@ -1,15 +1,15 @@
 [tool.poetry]
 name = "pan-os-upgrade"
 version = "0.1.0"
-description = "Python script to automate the upgrade process of PAN-OS and Panorama"
+description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
 readme = "README.md"
-packages = [{include = "pan_os_upgrade"}]
+packages = [{ include = "pan_os_upgrade" }]
+include = ['pan_os_upgrade/.env']
 
 [tool.poetry.dependencies]
 python = "^3.11"
-defusedxml = "^0.7.1"
 pan-os-python = "^1.11.0"
 panos-upgrade-assurance = "^0.3.1"
 pydantic = "^2.5.3"
@@ -18,6 +18,9 @@ pydantic = "^2.5.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
+
+[tool.poetry.scripts]
+pan-os-upgrade = 'pan_os_upgrade.upgrade:main'
 
 [build-system]
 requires = ["poetry-core"]
