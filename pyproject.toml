@@ -18,6 +18,8 @@ pydantic = "^2.5.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
+sphinx = "^7.2.6"
+sphinx-material = "^0.0.36"
 
 [tool.poetry.scripts]
 pan-os-upgrade = 'pan_os_upgrade.upgrade:main'
