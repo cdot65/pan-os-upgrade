@@ -163,7 +163,5 @@ cython_debug/
 .env
 
 # ignore my personal snapshots
-assurance/configurations/
-assurance/readiness_checks/
-assurance/reports/
-assurance/snapshots/
+pan_os_upgrade/assurance
+pan_os_upgrade/logs
