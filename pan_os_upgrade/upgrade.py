@@ -15,10 +15,11 @@ import panos
 from panos.base import PanDevice
 from panos.device import SystemSettings
 from panos.errors import (
-    PanDeviceXapiError,
-    PanXapiError,
     PanConnectionTimeout,
+    PanDeviceError,
+    PanDeviceXapiError,
     PanURLError,
+    PanXapiError,
 )
 from panos.firewall import Firewall
 
@@ -1386,11 +1387,12 @@ def perform_upgrade(
                     )
                     time.sleep(retry_interval)
 
-        except PanDeviceXapiError as upgrade_error:
+        except PanDeviceError as upgrade_error:
             logging.error(
                 f"{get_emoji('error')} {hostname} upgrade error: {upgrade_error}"
             )
-            if "software manager is currently in use" in str(upgrade_error):
+            error_message = str(upgrade_error)
+            if "software manager is currently in use" in error_message:
                 attempt += 1
                 if attempt < max_retries:
                     logging.info(
@@ -1401,60 +1403,7 @@ def perform_upgrade(
                 logging.error(
                     f"{get_emoji('stop')} Critical error during upgrade. Halting script."
                 )
-
                 sys.exit(1)
-
-        # Define timeout and start time
-        timeout = 300  # 5 minutes in seconds
-        ha_suspend_start_time = time.time()
-
-        # First, check if ha_details exists
-        if ha_details:
-            while True:
-                try:
-                    # Check if HA is enabled and synced
-                    if ha_details["response"]["result"]["enabled"] == "yes":
-                        logging.info(
-                            f"{get_emoji('success')} HA peer sync test has been completed"
-                        )
-                        logging.info(
-                            f"{get_emoji('start')} Suspending HA state of firewall..."
-                        )
-                        suspend_job = firewall.op(
-                            "<request><high-availability><state><suspend/></state></high-availability></request>",
-                            cmd_xml=False,
-                        )
-                        suspend_job_result = xml_to_dict(suspend_job)
-                        logging.info(
-                            f"{get_emoji('report')} {suspend_job_result['response']['result']}"
-                        )
-                        break  # Exit the loop as the condition is met
-                    else:
-                        # If HA is enabled but not synced
-                        current_time = time.time()
-                        if current_time - ha_suspend_start_time > timeout:
-                            logging.error(
-                                f"{get_emoji('error')} Timeout reached while waiting for HA sync"
-                            )
-                            break  # Exit the loop after timeout
-
-                        logging.info(
-                            f"{get_emoji('warning')} HA peer sync test was not successful, trying again in ten seconds..."
-                        )
-                        time.sleep(10)
-                        # Re-fetch the HA details here if necessary, to check the current status
-
-                except KeyError:
-                    # KeyError handling if 'enabled' key is not found
-                    logging.error(
-                        f"{get_emoji('error')} KeyError: Problem accessing HA details"
-                    )
-                    break
-
-        else:
-            logging.info(
-                f"{get_emoji('report')} Firewall is not in an HA pair, continuing in standalone mode..."
-            )
 
 
 # ----------------------------------------------------------------------------
