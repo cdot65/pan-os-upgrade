@@ -6,6 +6,7 @@ authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
 readme = "README.md"
 packages = [{ include = "pan_os_upgrade" }]
+include = ['pan_os_upgrade/.env']
 
 [tool.poetry.dependencies]
 python = "^3.11"
