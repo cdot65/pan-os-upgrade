@@ -13,7 +13,7 @@
     <img src="images/logo.svg" alt="Logo">
     <h3 align="center">PAN-OS Automation Project</h3>
     <p align="center">
-        Automating PAN-OS upgrades using Python
+        Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
         <br />
         <a href="https://github.com/cdot65/pan-os-upgrade"><strong>Explore the docs »</strong></a>
         <br />
@@ -23,33 +23,23 @@
         <a href="https://github.com/cdot65/pan-os-upgrade/issues">Request Feature</a>
     </p>
 </div>
-
 <!-- TABLE OF CONTENTS -->
 <details>
     <summary>Table of Contents</summary>
     <ol>
-        <li>
-            <a href="#about-the-project">About The Project</a>
-            <ul>
-                <li><a href="#built-with">Built With</a></li>
-            </ul>
-        </li>
-        <li>
-            <a href="#getting-started">Getting Started</a>
-            <ul>
-                <li><a href="#prerequisites">Prerequisites</a></li>
-                <li><a href="#installation">Installation</a></li>
-            </ul>
-        </li>
+        <li><a href="#about-the-project">About The Project</a></li>
+        <li><a href="#getting-started">Getting Started</a></li>
         <li><a href="#usage">Usage</a></li>
+        <li><a href="#output">Output</a></li>
+        <li><a href="#logging">Logging</a></li>
         <li><a href="#contributing">Contributing</a></li>
         <li><a href="#license">License</a></li>
         <li><a href="#contact">Contact</a></li>
         <li><a href="#acknowledgments">Acknowledgments</a></li>
     </ol>
 </details>
-
 <!-- ABOUT THE PROJECT -->
+
 ## About The Project
 
 [![Project Screenshot][product-screenshot]](https://paloaltonetworks.com)
@@ -66,59 +56,125 @@ Key Features:
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### Built With
-
-This project is built with the following technologies:
-
-* [Python](https://python.org/)
-* [pan-os-python SDK](https://github.com/PaloAltoNetworks/pan-os-python)
-* [panos-upgrade-assurance](https://github.com/PaloAltoNetworks/pan-os-upgrade-assurance)
-* [Pydantic](https://docs.pydantic.dev/latest/)
-* [xmltodict](https://pypi.org/project/xmltodict/)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 <!-- GETTING STARTED -->
-
-## Prerequisites
-
-* Python 3.x
-* Access to a Palo Alto Networks firewall.
-* Required Python packages: (found in [requirements.txt](https://github.com/cdot65/pan-os-upgrade/blob/main/requirements.txt) file).
-
 ## Getting Started
 
-To get started with the PAN-OS upgrade project, you need to set up your environment and install the necessary dependencies.
+This guide will help you set up the pan_os_upgrade library in your environment, especially focusing on users who are new to Python and virtual environments.
+
+### Prerequisites
+
+* Python 3.8 or newer.
+* Access to a Palo Alto Networks firewall.
+* An active internet connection to download the package from PyPI.
 
 ### Installation
 
-Clone the repository
+The pan_os_upgrade library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
 
-```bash
-git clone https://github.com/cdot65/pan-os-upgrade.git
-cd pan-os-upgrade
+#### Using `python3 -m venv` (Recommended for Beginners)
+
+1. Create a Virtual Environment:
+
+    ```bash
+    python3 -m venv panos_env
+    ```
+
+    This command creates a new directory panos_env which contains a copy of the Python interpreter, the standard library, and various supporting files.
+
+2. Activate the Virtual Environment:
+
+    On Windows:
+
+    ```bash
+    panos_env\Scripts\activate
+    ```
+
+    On macOS and Linux:
+
+    ```bash
+    source panos_env/bin/activate
+    ```
+
+    After activation, your command line will indicate that you are now in the virtual environment.
+
+3. Install pan_os_upgrade:
+
+    Within the activated environment, use pip to install the package:
+
+    ```bash
+    pip install pan_os_upgrade
+    ```
+
+### Using Poetry (Advanced Users)
+
+Poetry is a tool for dependency management and packaging in Python. It allows you to declare the libraries your project depends on and it will manage (install/update) them for you.
+
+1. Install Poetry:
+
+    Follow [the official instructions](https://python-poetry.org/docs/) to install Poetry on your system.
+
+2. Create a New Project using Poetry:
+
+    ```bash
+    poetry new panos_project
+    cd panos_project
+    ```
+
+3. Add pan_os_upgrade as a Dependency:
+
+    ```bash
+    poetry add pan_os_upgrade
+    ```
+
+    This command will create a virtual environment and install the pan_os_upgrade package along with its dependencies.
+
+4. Activate the Poetry Shell:
+
+    To activate the virtual environment created by Poetry, use:
+
+    ```bash
+    poetry shell
+    ```
+
+### Setting Up Your Environment
+
+After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or an .env file.
+
+#### Option 1: Using an .env File
+
+Update the `.env` file in your project directory and fill it with your firewall's details:
+
+```env
+# PAN-OS credentials - use either API key or username/password combination
+PAN_USERNAME=admin
+PAN_PASSWORD=paloalto123
+API_KEY=
+
+# Hostname or IP address of the firewall
+HOSTNAME=firewall1.example.com
+
+# Target PAN-OS version for the upgrade
+TARGET_VERSION=11.0.2-h3
+
+# Logging level (e.g., debug, info, warning, error, critical)
+LOG_LEVEL=debug
+
+# Set to true for a dry run
+DRY_RUN=false
 ```
 
-Before running the script, ensure you have Python installed on your system. If you're new to Python, here's how you can set up a virtual environment, which allows us to install Python packages without having them conflict with our system's Python environment:
+#### Option 2: Using Command-Line Arguments
 
-* Setting up a virtual environment
-
-If you have Poetry on your machine, simply type `poetry install` and `poetry shell` to activate this project's virtual environment.
-
-If Poetry is not installed, then you can build and activate the Python virtual enviornment manually.
+Alternatively, you can pass these details as command-line arguments when running the script:
 
 ```bash
-python3 -m venv venv
+pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
 
-```bash
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-```
-
-Once the virutal environment has been created and activated, install the required packages
+For a dry run:
 
 ```bash
-pip install -r requirements.txt
+pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -138,56 +194,13 @@ The script can be run from the command line with various options. It requires at
 * `--username`: Username for authentication.
 * `--version`: Target PAN-OS version to upgrade to.
 
-### Define Variables Within .env
-
-As an alternative to passing CLI arguments, which can be a security risk due to your console's history function, you can instead update the variables within the `.env` file of your project.
-
-These environment variables will be used when CLI arguments are not provided, feel free to mix and match CLI arguments and hardcoded values within the .env file. Just note that if you're using an API key for authentication, leave the username and password blank.
-
-> note: CLI arguments will take precedent of .env file
-
-```env
-# PAN-OS credientials if using an API key, leave username and password blank
-PAN_USERNAME=admin
-PAN_PASSWORD=paloalto123
-API_KEY=
-
-# hostname or IP address
-HOSTNAME=firewall1.example.com
-
-# target PAN-OS version
-TARGET_VERSION=11.0.2-h3
-
-# manage the levels of logging of the script debug, info, warning, error, critical
-LOG_LEVEL=debug
-
-# dry run will not perform the actual upgrade process
-DRY_RUN=
-
-```
-
-Then execute your script as follows:
-
-```bash
-python upgrade.py
-```
-
-### Dry Run
-
-To execute a dry run (which performs checks without upgrading):
-
-   ```bash
-   python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.0.0 --dry-run
-   ```
-
-For more details on the usage and examples, refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/).
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 Refer to the [documentation](https://github.com/cdot65/pan-os-upgrade) for more details on usage.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- OUTPUT -->
 ## Output
 
 The script generates several files containing the state of the firewall and readiness checks. These files are stored in the `assurance` directory with the following structure:
@@ -196,6 +209,7 @@ The script generates several files containing the state of the firewall and read
 * `readiness_checks`: Contains the results of readiness checks in JSON format.
 * `configurations`: Contains the backup of the firewall's configuration in XML format.
 
+<!-- LOGGING -->
 ## Logging
 
 Log messages are printed to the console and saved to a rotating log file located in the `logs` directory. The log level can be set via the `--log-level` argument.
@@ -207,9 +221,6 @@ Encountered an issue? Here are some common problems and solutions:
 
 * **Problem**: Script fails to connect to the PAN-OS device.
   * **Solution**: Check if the hostname and credentials are correct. Ensure network connectivity to the PAN-OS device.
-
-* **Problem**: Error regarding missing dependencies.
-  * **Solution**: Ensure all required packages are installed using `pip install -r requirements.txt`.
 
 * **Problem**: Script hangs during execution.
   * **Solution**: Check the firewall and network settings. Ensure the PAN-OS device is responding correctly.
