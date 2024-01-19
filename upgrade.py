@@ -31,7 +31,7 @@ import xmltodict
 from pydantic import BaseModel
 
 # project imports
-from models import SnapshotReport, ReadinessCheckReport
+from models import SnapshotReport, ReadinessCheckReport, ManagedDevices, FromAPIResponseMixin
 
 
 # ----------------------------------------------------------------------------
@@ -309,6 +309,13 @@ def parse_arguments() -> Args:
         type=str,
         default=None,
         help="Hostname of the PAN-OS appliance",
+    )
+    auth_group.add_argument(
+        "--panorama",
+        dest="hostname",
+        type=str,
+        default=None,
+        help="Hostname or IP address of the Panorama appliance",
     )
     auth_group.add_argument(
         "--api-key",
@@ -1499,6 +1506,53 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
             )
             break
 
+
+def flatten_xml_to_dict(element: ET.Element):
+    """Converts the given element into a dict by recursing through it until it finds an element containing only text.
+
+    This method also flattens the XML structure to make it simpler to 'fit' to model definitions.
+    """
+    result = {}
+    for child_element in element:
+        child_tag = child_element.tag
+
+        if child_element.text and len(child_element) == 0:
+            result[child_tag] = child_element.text
+        else:
+            if child_tag in result:
+                if type(result.get(child_tag)) is not list:
+                    result[child_tag] = [result.get(child_tag), flatten_xml_to_dict(child_element)]
+                else:
+                    result[child_tag].append(flatten_xml_to_dict(child_element))
+            else:
+                if child_tag == "entry":
+                    # Always assume entries are a list.
+                    result[child_tag] = [flatten_xml_to_dict(child_element)]
+                else:
+                    result[child_tag] = flatten_xml_to_dict(child_element)
+
+    return result
+
+
+def model_from_api_response(element: ET.Element, model: type[FromAPIResponseMixin]) -> FromAPIResponseMixin:
+    """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
+
+    Makes handling operational commands easy!
+
+    Parameters
+    ----------
+    element : Element
+        XML Element to flatten
+    model   : type[FromAPIResponseMixin]
+        Model to flatten into. Must be a child that inherits from Pydantics `BaseModel`.
+    Returns
+    -------
+
+    type[FromAPIResponseMixin]
+        The model, populated with relevant field data.
+    """
+    result_dict = flatten_xml_to_dict(element)
+    return model.from_api_response(result_dict)
 
 # ----------------------------------------------------------------------------
 # Primary execution of the script

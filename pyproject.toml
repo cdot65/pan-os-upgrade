@@ -18,6 +18,7 @@ pydantic = "^2.5.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
+pytest = "^7.4.4"
 
 [build-system]
 requires = ["poetry-core"]
