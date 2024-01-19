@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 @pytest.fixture
 def show_devices_all_fixture():
     from xml.etree.ElementTree import fromstring
+
     return fromstring(
         """
         <response status="success">
@@ -81,6 +82,7 @@ def panorama():
     """A real Panorama host for use in integration testing. If not available, this fixture will skip dependent
     integration tests."""
     from upgrade import load_environment_variables
+
     try:
         load_environment_variables(".dev.env")
     except FileNotFoundError:
@@ -95,28 +97,27 @@ def panorama():
     if not all([username, password, panorama]):
         pytest.skip("Integration test skipped - no Panorama available")
 
-    return Panorama(
-        api_username=username,
-        api_password=password,
-        hostname=panorama
-    )
-
+    return Panorama(api_username=username, api_password=password, hostname=panorama)
 
 
 class TestModelCreation:
     def test_model_from_api_response_managed_devices(self, show_devices_all_fixture):
         from upgrade import model_from_api_response
         from models import ManagedDevices
+
         test_xml = show_devices_all_fixture
 
-        assert model_from_api_response(test_xml, ManagedDevices) == ManagedDevices(**{
-            'devices': [{
-                "hostname": "pantf-outbound-fw000000",
-                "serial": "111111111111111",
-                "connected": True
+        assert model_from_api_response(test_xml, ManagedDevices) == ManagedDevices(
+            **{
+                "devices": [
+                    {
+                        "hostname": "pantf-outbound-fw000000",
+                        "serial": "111111111111111",
+                        "connected": True,
+                    }
+                ]
             }
-            ]
-        })
+        )
 
 
 class TestPanoramaMethods:
@@ -130,8 +131,15 @@ class TestPanoramaMethods:
     def test_get_managed_devices(self, show_devices_all_fixture):
         from upgrade import get_managed_devices
         from models.devices import ManagedDevice
+
         mock_panorama = MagicMock()
         mock_panorama.op = MagicMock(return_value=show_devices_all_fixture)
 
         devices = get_managed_devices(mock_panorama)
-        assert devices == [ManagedDevice(hostname='pantf-outbound-fw000000', serial='111111111111111', connected=True)]
+        assert devices == [
+            ManagedDevice(
+                hostname="pantf-outbound-fw000000",
+                serial="111111111111111",
+                connected=True,
+            )
+        ]

@@ -4,6 +4,7 @@ from typing import Self
 
 class FromAPIResponseMixin:
     """Mixin class to identify models that can be parsed directly from the XML returned by a given API response."""
+
     pass
 
     @classmethod

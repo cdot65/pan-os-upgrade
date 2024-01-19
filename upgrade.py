@@ -32,7 +32,12 @@ import xmltodict
 from pydantic import BaseModel
 
 # project imports
-from models import SnapshotReport, ReadinessCheckReport, ManagedDevices, FromAPIResponseMixin
+from models import (
+    SnapshotReport,
+    ReadinessCheckReport,
+    ManagedDevices,
+    FromAPIResponseMixin,
+)
 
 
 # ----------------------------------------------------------------------------
@@ -1522,7 +1527,10 @@ def flatten_xml_to_dict(element: ET.Element):
         else:
             if child_tag in result:
                 if type(result.get(child_tag)) is not list:
-                    result[child_tag] = [result.get(child_tag), flatten_xml_to_dict(child_element)]
+                    result[child_tag] = [
+                        result.get(child_tag),
+                        flatten_xml_to_dict(child_element),
+                    ]
                 else:
                     result[child_tag].append(flatten_xml_to_dict(child_element))
             else:
@@ -1535,7 +1543,9 @@ def flatten_xml_to_dict(element: ET.Element):
     return result
 
 
-def model_from_api_response(element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]):
+def model_from_api_response(
+    element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]
+):
     """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
 
     Makes handling operational commands easy!
@@ -1564,12 +1574,15 @@ def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
     filters : **kwargs
         Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
     """
-    managed_devices = model_from_api_response(panorama.op("show devices all"), ManagedDevices)
+    managed_devices = model_from_api_response(
+        panorama.op("show devices all"), ManagedDevices
+    )
     devices = managed_devices.devices
     for filter_key, filter_value in filters.items():
         devices = [d for d in devices if getattr(d, filter_key) == filter_value]
 
     return devices
+
 
 # ----------------------------------------------------------------------------
 # Primary execution of the script
