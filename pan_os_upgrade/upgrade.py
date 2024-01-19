@@ -32,7 +32,7 @@ import xmltodict
 from pydantic import BaseModel
 
 # project imports
-from models import SnapshotReport, ReadinessCheckReport
+from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport
 
 
 # ----------------------------------------------------------------------------
