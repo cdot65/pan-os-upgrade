@@ -18,6 +18,9 @@ black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
 
+[tool.poetry.scripts]
+pan-os-upgrade = 'pan_os_upgrade.upgrade:main'
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
