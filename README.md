@@ -61,7 +61,7 @@ Example Screenshot
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This guide will help you set up the pan_os_upgrade library in your environment, especially focusing on users who are new to Python and virtual environments.
+This guide will help you set up the `pan-os-upgrade` library in your environment, especially focusing on users who are new to Python and virtual environments.
 
 ### Prerequisites
 
@@ -71,7 +71,7 @@ This guide will help you set up the pan_os_upgrade library in your environment, 
 
 ### Installation
 
-The pan_os_upgrade library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
+The `pan-os-upgrade` library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
 
 #### Using `python3 -m venv` (Recommended for Beginners)
 
@@ -99,12 +99,12 @@ The pan_os_upgrade library is available on PyPI and can be installed within a Py
 
     After activation, your command line will indicate that you are now in the virtual environment.
 
-3. Install pan_os_upgrade:
+3. Install `pan-os-upgrade`:
 
     Within the activated environment, use pip to install the package:
 
     ```bash
-    pip install pan_os_upgrade
+    pip install pan-os-upgrade
     ```
 
 ### Using Poetry (Advanced Users)
@@ -122,13 +122,13 @@ Poetry is a tool for dependency management and packaging in Python. It allows yo
     cd panos_project
     ```
 
-3. Add pan_os_upgrade as a Dependency:
+3. Add `pan-os-upgrade` as a Dependency:
 
     ```bash
-    poetry add pan_os_upgrade
+    poetry add pan-os-upgrade
     ```
 
-    This command will create a virtual environment and install the pan_os_upgrade package along with its dependencies.
+    This command will create a virtual environment and install the `pan-os-upgrade` package along with its dependencies.
 
 4. Activate the Poetry Shell:
 
@@ -144,7 +144,7 @@ After setting up the virtual environment and installing the package, you can con
 
 #### Option 1: Using an .env File
 
-Update the `.env` file in your project directory and fill it with your firewall's details:
+Create a `.env` file in your local directory and fill it with your firewall's details:
 
 ```env
 # PAN-OS credentials - use either API key or username/password combination
