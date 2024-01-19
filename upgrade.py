@@ -21,6 +21,7 @@ from panos.errors import (
     PanURLError,
 )
 from panos.firewall import Firewall
+from panos.panorama import Panorama
 
 # Palo Alto Networks panos-upgrade-assurance imports
 from panos_upgrade_assurance.check_firewall import CheckFirewall
@@ -1534,7 +1535,7 @@ def flatten_xml_to_dict(element: ET.Element):
     return result
 
 
-def model_from_api_response(element: ET.Element, model: type[FromAPIResponseMixin]) -> FromAPIResponseMixin:
+def model_from_api_response(element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]):
     """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
 
     Makes handling operational commands easy!
@@ -1553,6 +1554,22 @@ def model_from_api_response(element: ET.Element, model: type[FromAPIResponseMixi
     """
     result_dict = flatten_xml_to_dict(element)
     return model.from_api_response(result_dict)
+
+
+def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
+    """Returns a list of managed devices from Panorama, based on any configured filters.
+
+    Parameters
+    ----------
+    filters : **kwargs
+        Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
+    """
+    managed_devices = model_from_api_response(panorama.op("show devices all"), ManagedDevices)
+    devices = managed_devices.devices
+    for filter_key, filter_value in filters.items():
+        devices = [d for d in devices if getattr(d, filter_key) == filter_value]
+
+    return devices
 
 # ----------------------------------------------------------------------------
 # Primary execution of the script
