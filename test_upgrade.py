@@ -143,3 +143,6 @@ class TestPanoramaMethods:
                 connected=True,
             )
         ]
+
+        assert not get_managed_devices(mock_panorama, hostname="badhostname")
+        assert get_managed_devices(mock_panorama, serial="111111111111111")
