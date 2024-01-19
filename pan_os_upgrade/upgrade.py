@@ -111,7 +111,7 @@ class AssuranceOptions:
         },
         "free_disk_space": {
             "description": "Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.",
-            "log_level": "error",
+            "log_level": "warning",
             "exit_on_failure": False,
         },
         "ha": {
@@ -393,7 +393,6 @@ def parse_arguments() -> Args:
     elif not (arguments["pan_username"] and arguments["pan_password"]):
         logging.error(
             f"{get_emoji('error')} Provide either API key --api-key argument or both --username and --password",
-            file=sys.stderr,
         )
         logging.error(f"{get_emoji('stop')} Halting script.")
 
@@ -1516,7 +1515,7 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
                 rebooted = True
             else:
                 logging.info(
-                    f"{get_emoji('working')} Waiting for firewall to reboot and synchronize..."
+                    f"{get_emoji('working')} Firewall is responding to requests but hasn't finished its reboot process..."
                 )
                 time.sleep(30)
 
@@ -1559,6 +1558,20 @@ def main() -> None:
         - If the HA peer state is not synchronized.
         - Upon completion of a dry run.
     """
+
+    # Create necessary directories
+    directories = [
+        "logs",
+        "assurance",
+        "assurance/configurations",
+        "assurance/readiness_checks",
+        "assurance/reports",
+        "assurance/snapshots",
+    ]
+    for dir in directories:
+        ensure_directory_exists(os.path.join(dir, "dummy_file"))
+
+    # Configure logging right after directory setup
     args = parse_arguments()
     configure_logging(args["log_level"])
 
