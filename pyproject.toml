@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-os-upgrade"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
@@ -18,6 +18,8 @@ pydantic = "^2.5.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
+sphinx = "^7.2.6"
+sphinx-material = "^0.0.36"
 
 [tool.poetry.scripts]
 pan-os-upgrade = 'pan_os_upgrade.upgrade:main'

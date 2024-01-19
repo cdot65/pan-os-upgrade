@@ -1,3 +1,38 @@
+"""
+upgrade.py: A script to automate the upgrade process of PAN-OS firewalls.
+
+This module contains the functionality to perform automated upgrade procedures on Palo Alto Networks firewalls.
+It includes handling for various PAN-OS operations, system settings management, error handling specific to PAN-OS,
+and interactions with the panos-upgrade-assurance tool. The module is designed to be used as a standalone script or
+integrated into larger automation workflows.
+
+Imports:
+    Standard Libraries:
+        argparse: For parsing command-line arguments.
+        logging: For providing a logging interface.
+        os: For interacting with the operating system.
+        sys: For accessing system-specific parameters and functions.
+        time: For time-related functions.
+        RotatingFileHandler (logging.handlers): For handling log file rotation.
+
+    External Libraries:
+        xml.etree.ElementTree (ET): For XML tree manipulation.
+        panos: For interacting with Palo Alto Networks devices.
+        PanDevice, SystemSettings (panos.base, panos.device): For base PAN-OS device operations.
+        PanConnectionTimeout, PanDeviceError, PanDeviceXapiError, PanURLError, PanXapiError (panos.errors):
+            For handling specific PAN-OS errors.
+        Firewall (panos.firewall): For handling firewall-specific operations.
+
+    panos-upgrade-assurance package:
+        CheckFirewall, FirewallProxy (panos_upgrade_assurance): For performing checks and acting as a proxy to the firewall.
+
+    Third-party libraries:
+        xmltodict: For converting XML data to Python dictionaries.
+        BaseModel (pydantic): For creating Pydantic base models.
+
+    Project-specific imports:
+        SnapshotReport, ReadinessCheckReport (pan_os_upgrade.models): For handling snapshot and readiness check reports.
+"""
 # standard library imports
 import argparse
 import logging
@@ -38,6 +73,24 @@ from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport
 # ----------------------------------------------------------------------------
 # Define logging levels
 # ----------------------------------------------------------------------------
+# A dictionary mapping string representations of logging levels to their
+# corresponding numeric values in the logging module.
+#
+# This dictionary is used to configure the logging level of the application
+# based on user input or configuration settings. Each key is a string that
+# represents a logging level, and the corresponding value is the numeric
+# level from the logging module.
+#
+# Keys:
+#     debug (str): Corresponds to logging.DEBUG, for detailed diagnostic information.
+#     info (str): Corresponds to logging.INFO, for general informational messages.
+#     warning (str): Corresponds to logging.WARNING, for warning messages about potential issues.
+#     error (str): Corresponds to logging.ERROR, for error messages indicating a problem.
+#     critical (str): Corresponds to logging.CRITICAL, for critical issues that may prevent program execution.
+#
+# Example:
+#     To set the logging level to 'debug':
+#     logger.setLevel(LOGGING_LEVELS['debug'])
 LOGGING_LEVELS = {
     "debug": logging.DEBUG,
     "info": logging.INFO,
@@ -52,26 +105,47 @@ LOGGING_LEVELS = {
 # ----------------------------------------------------------------------------
 class AssuranceOptions:
     """
-    Configuration options for the panos-upgrade-assurance process.
+    A class encapsulating configuration options for the panos-upgrade-assurance process in PAN-OS appliances.
 
-    This class encapsulates various configurations used in the upgrade assurance process for PAN-OS appliances.
-    It includes definitions for readiness checks, state snapshots, and reports, which are crucial in the upgrade
-    process of PAN-OS appliances.
+    This class is a central repository for various configurations used in the upgrade assurance process.
+    It includes definitions for readiness checks, state snapshots, and report types, which are crucial
+    components in managing and ensuring the successful upgrade of PAN-OS appliances.
 
     Attributes
     ----------
     READINESS_CHECKS : dict
-        A dictionary mapping each readiness check to its description, log level, and whether to exit on failure.
-        This provides a more detailed context for each check, allowing for tailored logging and error handling.
+        A dictionary mapping the names of readiness checks to their properties. Each property is a
+        dictionary containing a description of the check, the log level to use when reporting the
+        outcome of the check, and a flag indicating whether to exit the process upon failure of the check.
+        - `active_support`: Verifies if active support is available for the appliance.
+        - `arp_entry_exist`: Checks for a specific ARP entry in the ARP table.
+        - `candidate_config`: Checks for pending changes on the device.
+        - `certificates_requirements`: Verifies if certificates' keys meet minimum size requirements.
+        - ... (other checks follow a similar structure)
 
     REPORTS : list of str
-        A list of report types that can be generated for the PAN-OS appliance. These reports provide detailed
-        information on various aspects of the appliance, including ARP table, content version, IPsec tunnels,
-        license details, and more.
+        A list of strings where each string represents a type of report that can be generated
+        for the PAN-OS appliance. These reports provide insight into various aspects of the appliance's state.
+        Includes reports like 'arp_table', 'content_version', 'ip_sec_tunnels', etc.
 
     STATE_SNAPSHOTS : list of str
-        A list of state snapshot types to capture from the PAN-OS appliance. These snapshots record critical
-        data regarding the appliance's current state, such as ARP table, content version, IPsec tunnels, etc.
+        A list of strings where each string represents a type of state snapshot that can be captured
+        from the PAN-OS appliance. These snapshots record essential data about the appliance's current state,
+        such as 'arp_table', 'content_version', 'ip_sec_tunnels', etc.
+
+    Examples
+    --------
+    To access the log level for the 'active_support' readiness check:
+        >>> log_level = AssuranceOptions.READINESS_CHECKS['active_support']['log_level']
+        >>> print(log_level)
+        warning
+
+    To iterate over all report types:
+        >>> for report in AssuranceOptions.REPORTS:
+        >>>     print(report)
+        arp_table
+        content_version
+        ...
     """
 
     READINESS_CHECKS = {
@@ -178,46 +252,57 @@ class AssuranceOptions:
 # ----------------------------------------------------------------------------
 class Args(BaseModel):
     """
-    A model representing the arguments needed for connecting to and
-    configuring the Firewall appliance.
+    Represents the command-line arguments for connecting and configuring a Firewall appliance.
 
-    This class uses Pydantic (or similar) for data validation, ensuring that
-    the provided data types and formats meet the expected criteria for each
-    field.
+    This class, utilizing Pydantic for data validation, ensures that the provided arguments meet
+    the expected data types and formats. It serves as a structured way to define and access
+    configuration settings and command-line options required for the operation of the upgrade script.
 
     Attributes
     ----------
-    api_key : str, optional
-        API key for authentication with the Firewall appliance.
-        Default is None.
-    dry_run : bool, optional
-        Flag to indicate whether the script should perform a dry run.
-        Default is False.
-    hostname : str, optional
-        Hostname or IP address of the Firewall appliance.
-        Default is None.
-    log_level : str, optional
-        The logging level for the script.
-        Accepted values are 'debug', 'info', 'warning', 'error', and 'critical'
-        Default is 'info'.
-    password : str, optional
-        Password for authentication with the Firewall appliance.
-        Default is None.
-    target_version : str, optional
-        The target PAN-OS version to upgrade to.
-        Default is None.
-    username : str, optional
-        Username for authentication with the Firewall appliance.
-        Default is None.
+    api_key : Optional[str]
+        The API key used for authenticating with the Firewall appliance. If not provided,
+        defaults to None. This field is optional and mutually exclusive with username/password authentication.
+
+    dry_run : bool
+        Indicates whether the script should perform a dry run without making actual changes.
+        Defaults to False. Useful for testing and validation purposes.
+
+    hostname : Optional[str]
+        The hostname or IP address of the Firewall appliance. Required for establishing a connection.
+        If not provided, defaults to None.
+
+    log_level : str
+        The logging level for the script's output. Valid options are 'debug', 'info', 'warning',
+        'error', and 'critical'. Defaults to 'info'. This controls the verbosity of the script's logging.
+
+    password : Optional[str]
+        The password for authentication with the Firewall appliance. Required if using username/password
+        authentication. Defaults to None.
+
+    target_version : Optional[str]
+        The target PAN-OS version for the upgrade. Specifies the version to which the appliance should be upgraded.
+        If not provided, defaults to None.
+
+    username : Optional[str]
+        The username for authentication with the Firewall appliance. Required if using username/password
+        authentication. Defaults to None.
+
+    Example
+    -------
+    Creating an instance of Args with command-line parameters:
+        >>> args = Args(api_key="yourapikey", hostname="192.168.1.1", target_version="10.0.1")
+        >>> print(args.hostname)
+        192.168.1.1
     """
 
-    api_key: str = None
+    api_key: Optional[str] = None
     dry_run: bool = False
-    hostname: str = None
+    hostname: Optional[str] = None
     log_level: str = "info"
-    password: str = None
-    target_version: str = None
-    username: str = None
+    password: Optional[str] = None
+    target_version: Optional[str] = None
+    username: Optional[str] = None
 
 
 # ----------------------------------------------------------------------------
@@ -225,36 +310,39 @@ class Args(BaseModel):
 # ----------------------------------------------------------------------------
 def load_environment_variables(file_path: str) -> None:
     """
-    Load environment variables from a given file.
+    Load key-value pairs as environment variables from a specified file.
 
-    Reads a file line by line, checking for non-commented and non-empty lines. Each line is split into a key-value pair
-    and set as an environment variable. Lines beginning with '#' are treated as comments and ignored.
+    This function processes a file line by line, setting each key-value pair as an environment variable.
+    It ignores lines that start with a '#' as they are considered comments. The function is useful for
+    initializing environment variables from a configuration file, typically named '.env'. This allows for
+    dynamic configuration of the script based on external settings.
 
     Parameters
     ----------
     file_path : str
-        The file path of the environment variables file. The file should contain key-value pairs in the format KEY=VALUE.
-        Lines starting with '#' are treated as comments and are ignored.
+        The path to the file containing the environment variables. Each non-comment line in the file
+        should be in the format 'KEY=VALUE'. Comment lines should start with '#'.
 
     Raises
     ------
     FileNotFoundError
-        If the file at the given file_path does not exist, this error is raised.
+        If the file specified by 'file_path' does not exist, a FileNotFoundError is raised.
 
-    Example
-    -------
-    Given a file named '.env' with the following content:
-    ```
-    # PAN-OS credentials if using an API key, leave user and password blank
-    PAN_USERNAME=admin
-    PAN_PASSWORD=password123
-    API_KEY=
-    HOSTNAME=panorama.example.com
-    TARGET_VERSION=
-    LOG_LEVEL=debug
-    ```
-    Calling `load_environment_variables('.env')` will set the environment variables
-    PAN_USERNAME, PAN_PASSWORD, API_KEY, HOSTNAME, TARGET_VERSION, and LOG_LEVEL.
+    Examples
+    --------
+    Assuming a '.env' file with the following contents:
+        # Example .env file
+        PAN_USERNAME=admin
+        PAN_PASSWORD=password123
+        API_KEY=
+        HOSTNAME=panorama.example.com
+        TARGET_VERSION=10.1.1
+        LOG_LEVEL=debug
+        DRY_RUN=True
+
+    Using the function to load these environment variables:
+        >>> load_environment_variables('.env')
+        # Environment variables are now set based on the contents of '.env'.
     """
     if os.path.exists(file_path):
         with open(file_path) as f:
@@ -270,27 +358,34 @@ def load_environment_variables(file_path: str) -> None:
 # ----------------------------------------------------------------------------
 def parse_arguments() -> Args:
     """
-    Parse command-line arguments for interacting with a Firewall appliance.
+    Parses command-line arguments for configuring the Firewall appliance interaction.
 
-    Sets up an argument parser for the script, defining command-line arguments for configuration.
-    Supports log level, hostname, username, password, API key, and target PAN-OS version.
-    If necessary arguments are not provided, attempts to load them from a `.env` file.
+    This function sets up an argument parser to define and process command-line arguments necessary for the script's
+    operation. It handles authentication details (like hostname, username, password, API key), operational flags (such as dry-run),
+    and logging level. If required arguments are not provided via the command line, the function attempts to load them from a `.env` file.
 
-    Ensures mutual exclusivity between API key and username/password combinations. If neither
-    CLI arguments nor .env file configurations provide the necessary information, the script
-    exits and displays an error.
+    The function ensures mutual exclusivity between using an API key and a username/password combination for authentication.
+    If crucial arguments like hostname or target version are missing, or if the authentication information is incomplete,
+    the script logs an error and exits.
 
     Returns
     -------
     Args
-        An instance of the Args model class populated with the parsed arguments or environment
-        variables. Contains fields for API key, hostname, log level, username, target version, and password.
+        An instance of the Args class, populated with the parsed arguments and environment variables. It contains
+        fields such as api_key, hostname, log_level, username, target_version, and password.
 
     Raises
     ------
     SystemExit
-        If the hostname or target version is not provided either as CLI arguments or in the .env file,
-        or if neither the API key nor both username and password are provided.
+        - If essential arguments like hostname or target version are not provided either via CLI or in the .env file.
+        - If neither an API key nor both username and password are provided for authentication.
+
+    Example
+    -------
+    Command-line usage example:
+        $ python upgrade.py --hostname 192.168.0.1 --username admin --password secret --version 10.0.0
+
+    This would parse the arguments and return an Args instance with the specified values.
     """
     # Load environment variables first
     load_environment_variables(".env")
@@ -407,24 +502,24 @@ def parse_arguments() -> Args:
 # ----------------------------------------------------------------------------
 def configure_logging(level: str) -> None:
     """
-    Configure the logging for the script.
+    Configures the logging system for the script with a specified logging level.
 
-    Sets up logging with a specified level. It initializes a logger, sets its level based on the input,
-    and adds two handlers: one for console output and another for file output. The file output is managed
-    with a RotatingFileHandler, which keeps up to three backups and a maximum file size of 1MB each.
+    This function sets up the global logging configuration for the script. It initializes a logger,
+    sets the logging level based on the input, and adds two handlers: one for console output and
+    another for file output. File logging uses a RotatingFileHandler to manage log file size and backups.
 
     Parameters
     ----------
     level : str
-        A string representing the desired logging level. Valid values are defined in the LOGGING_LEVELS
-        dictionary and include 'debug', 'info', 'warning', 'error', and 'critical'. The input is
-        case-insensitive. If an invalid level is provided, it defaults to 'info'.
+        The logging level to be set for the logger. Valid options are 'debug', 'info', 'warning',
+        'error', and 'critical', as defined in the LOGGING_LEVELS dictionary. The function handles the
+        input case-insensitively and defaults to 'info' if an invalid level is provided.
 
     Notes
     -----
-    The logging configuration includes:
-    - A console handler that logs messages to the standard output.
-    - A file handler that logs messages to 'logs/upgrade.log', with log rotation.
+    - Console Handler: Logs messages to the standard output.
+    - File Handler: Logs messages to 'logs/upgrade.log'. The log file is rotated when it reaches 1MB,
+      with up to three backup files being kept.
     """
     logging_level = getattr(logging, level.upper(), None)
 
@@ -465,21 +560,23 @@ def configure_logging(level: str) -> None:
 
 def get_emoji(action: str) -> str:
     """
-    Retrieve the corresponding emoji for a given action.
+    Retrieves the emoji character associated with a given action keyword.
 
-    Maps a specified action string to its corresponding emoji character based on a predefined set
-    of mappings. If the action does not have an associated emoji in the map, an empty string is returned.
+    This function maps a specified action keyword to its corresponding emoji character. The mapping
+    is defined in a predefined dictionary, 'emoji_map'. If the specified action is not recognized,
+    the function returns an empty string.
 
     Parameters
     ----------
     action : str
-        The action keyword for which the corresponding emoji is desired. Possible actions include
-        'success', 'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
+        The action keyword for which the emoji is desired. Supported actions include 'success',
+        'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
 
     Returns
     -------
     str
-        The emoji character associated with the given action, or an empty string if the action is not recognized.
+        The emoji character corresponding to the given action. Returns an empty string if the
+        action is not recognized in the emoji_map.
 
     Examples
     --------
@@ -489,8 +586,8 @@ def get_emoji(action: str) -> str:
     >>> get_emoji('error')
     '❌'
 
-    >>> get_emoji('unknown')
-    ''
+    >>> get_emoji('start')
+    '🚀'
     """
     emoji_map = {
         "success": "✅",
@@ -509,25 +606,36 @@ def get_emoji(action: str) -> str:
 # ----------------------------------------------------------------------------
 # Helper function to flip XML objects into Python dictionaries
 # ----------------------------------------------------------------------------
-def xml_to_dict(xml_object) -> dict:
+def xml_to_dict(xml_object: ET.Element) -> dict:
     """
-    Convert an XML object into a Python dictionary.
+    Converts an XML object to a Python dictionary for easy manipulation and access.
 
-    This function takes an XML object, typically obtained from parsing XML data, and converts it into a Python dictionary
-    for easier access and manipulation. The conversion is done using the xmltodict library, which transforms the XML tree
-    structure into a dictionary format, maintaining elements as keys and their contents as values. This is particularly useful
-    for processing and interacting with XML data in a more Pythonic way.
+    This function uses the 'xmltodict' library to convert an XML object into a Python dictionary.
+    The conversion preserves the XML tree structure, representing elements as keys and their contents
+    as values in the dictionary. This utility is especially useful for processing and handling XML data
+    in Python, facilitating access to XML elements and attributes in a Pythonic manner.
 
     Parameters
     ----------
     xml_object : ET.Element
-        An XML object to convert into a Python dictionary. This is typically an ElementTree Element.
+        The XML object to be converted. It should be an instance of ElementTree.Element, typically obtained
+        from parsing XML data using the ElementTree API.
 
     Returns
     -------
     dict
-        A Python dictionary representation of the XML object. The structure of the dictionary corresponds to the structure
-        of the XML, with tags as keys and their contents as values.
+        A dictionary representation of the provided XML object. The dictionary's structure mirrors the XML's
+        structure, with tags as keys and their textual content as values.
+
+    Example
+    -------
+    Converting an XML object to a dictionary:
+        >>> xml_data = ET.Element('root', attrib={'id': '1'})
+        >>> sub_element = ET.SubElement(xml_data, 'child')
+        >>> sub_element.text = 'content'
+        >>> xml_dict = xml_to_dict(xml_data)
+        >>> print(xml_dict)
+        {'root': {'@id': '1', 'child': 'content'}}
     """
     xml_string = ET.tostring(xml_object)
     xml_dict = xmltodict.parse(xml_string)
@@ -539,14 +647,24 @@ def xml_to_dict(xml_object) -> dict:
 # ----------------------------------------------------------------------------
 def ensure_directory_exists(file_path: str):
     """
-    Ensure that the directory for the given file path exists.
+    Ensures the existence of the directory for a specified file path, creating it if necessary.
 
-    Creates the directory (and any necessary parent directories) if it does not already exist.
+    This function checks if the directory for a given file path exists. If it does not exist, the function
+    creates the directory along with any necessary parent directories. This is particularly useful for
+    ensuring that the file system is prepared for file operations that require specific directory structures.
 
     Parameters
     ----------
     file_path : str
-        The file path for which to ensure the directory exists.
+        The file path whose directory needs to be verified and potentially created. The function extracts
+        the directory part of the file path to check its existence.
+
+    Example
+    -------
+    Ensuring a directory exists for a file path:
+        >>> file_path = '/path/to/directory/file.txt'
+        >>> ensure_directory_exists(file_path)
+        # If '/path/to/directory/' does not exist, it is created.
     """
     directory = os.path.dirname(file_path)
     if not os.path.exists(directory):
@@ -562,29 +680,38 @@ def check_readiness_and_log(
     test_info: dict,
 ):
     """
-    Check readiness test results and log the outcome.
+    Evaluates and logs the results of a specified readiness test.
 
-    This function evaluates the outcome of a specific readiness test based on its result.
-    It logs the test outcome using different log levels (info, warning, error) depending
-    on the test's importance and its result. In cases where the test result is critical and
-    the test fails, the script may exit.
+    This function assesses the outcome of a particular readiness test by examining its result.
+    It logs the outcome using varying log levels (info, warning, error), determined by the
+    test's importance and its result. If a test is marked as critical and fails, the script
+    may terminate execution.
 
     Parameters
     ----------
     result : dict
-        A dictionary containing the results of readiness tests. Each key is a test name, and
-        the value is another dictionary with 'state' and 'reason' keys.
+        A dictionary where each key corresponds to a readiness test name. The value is another dictionary
+        containing two keys: 'state' (a boolean indicating the test's success or failure) and 'reason'
+        (a string explaining the outcome).
+
     test_name : str
-        The name of the test to check the result for.
+        The name of the test to evaluate. This name should correspond to a key in the 'result' dictionary.
+
     test_info : dict
-        A dictionary containing information about the test, including a description, the log level,
-        and whether the script should exit on failure.
+        Information about the test, including its description, log level (info, warning, error), and a flag
+        indicating whether to exit the script upon test failure (exit_on_failure).
 
     Notes
     -----
-    The function uses the `get_emoji` helper to add relevant emojis to the log messages for
-    better visual distinction of the test outcomes. The test result is considered a pass if
-    the 'state' is True; otherwise, it's a fail or skip, depending on the 'log_level'.
+    - The function utilizes the `get_emoji` helper function to add appropriate emojis to log messages,
+      enhancing readability and user experience.
+    - If 'state' in the test result is True, the test is logged as passed. Otherwise, it is either
+      logged as failed or skipped, based on the specified log level in 'test_info'.
+
+    Raises
+    ------
+    SystemExit
+        If a critical test (marked with "exit_on_failure": True) fails, the script will raise SystemExit.
     """
     test_result = result.get(
         test_name, {"state": False, "reason": "Test not performed"}
@@ -615,31 +742,42 @@ def check_readiness_and_log(
 # ----------------------------------------------------------------------------
 def connect_to_firewall(args: dict) -> Firewall:
     """
-    Establish a connection to the Firewall appliance.
+    Establishes a connection to a Firewall appliance using provided credentials.
 
-    Connects to a Firewall appliance using credentials provided in 'args'. The connection
-    can be established either using an API key or a combination of username and password.
-    This function ensures the target device is a Firewall and not a Panorama appliance.
-
-    If the connection is successful, it returns an instance of the Firewall class. If the
-    target device is a Panorama appliance or if the connection fails, the script logs an
-    error message and exits.
+    This function attempts to connect to a Firewall appliance, which can be authenticated either using an
+    API key or a combination of a username and password. It ensures that the target device is indeed a
+    Firewall and not a Panorama appliance. On successful connection, it returns a Firewall object. If the
+    connection fails or if the target device is a Panorama appliance, the script logs an error and terminates.
 
     Parameters
     ----------
     args : dict
-        A dictionary containing the arguments for connecting to the Firewall appliance.
-        Keys should include 'api_key', 'hostname', 'pan_username', and 'pan_password'.
+        A dictionary of arguments required for establishing the connection. Expected keys are:
+        - 'api_key': The API key for authentication (optional if username and password are provided).
+        - 'hostname': The hostname or IP address of the Firewall appliance.
+        - 'pan_username': Username for authentication (required if API key is not provided).
+        - 'pan_password': Password for authentication (required if API key is not provided).
 
     Returns
     -------
     Firewall
-        An instance of the Firewall class representing the connection to the Firewall appliance.
+        An instance of the Firewall class representing the established connection to the Firewall appliance.
 
     Raises
     ------
     SystemExit
-        If the target device is a Panorama appliance or if the required credentials are not provided.
+        - If the target device is a Panorama appliance.
+        - If the connection to the Firewall appliance fails (e.g., due to timeout or incorrect credentials).
+
+    Examples
+    --------
+    Connecting to a Firewall using an API key:
+        >>> connect_to_firewall({'api_key': 'apikey123', 'hostname': '192.168.0.1'})
+        <Firewall object>
+
+    Connecting to a Firewall using username and password:
+        >>> connect_to_firewall({'pan_username': 'admin', 'pan_password': 'password', 'hostname': '192.168.0.1'})
+        <Firewall object>
     """
     try:
         # Build a connection using either an API key or username/password combination
@@ -689,31 +827,38 @@ def determine_upgrade(
     target_maintenance: Union[int, str],
 ) -> None:
     """
-    Determine if an upgrade is needed based on the target and current PAN-OS versions.
+    Determines if an upgrade to a specified PAN-OS version is necessary.
 
-    Compares the major, minor, maintenance, and hotfix versions of the current PAN-OS on the firewall
-    with the specified target version. Logs the current and target versions and decides if an upgrade
-    is required. If the current version is lower than the target version, it logs that an upgrade is
-    required. If the current version is equal to or higher than the target version, it logs that no
-    upgrade is needed or a downgrade was attempted.
+    This function compares the current PAN-OS version of the firewall against a target version
+    specified by the major, minor, and maintenance/hotfix levels. It logs both the current and
+    target versions, then assesses whether an upgrade is required. The function concludes that an
+    upgrade is needed if the current version is lower than the target version. Conversely, if the
+    current version is equal to or higher than the target version, it indicates that no upgrade is
+    necessary or that a downgrade attempt has been made.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to be checked.
+        The Firewall instance whose PAN-OS version is to be compared.
     target_major : int
-        The major version of the target PAN-OS.
+        The major version number of the target PAN-OS.
     target_minor : int
-        The minor version of the target PAN-OS.
+        The minor version number of the target PAN-OS.
     target_maintenance : Union[int, str]
-        The maintenance (and optionally hotfix) version of the target PAN-OS. Can be an integer or a
-        string (to include hotfix information).
+        The maintenance version number of the target PAN-OS. Can be an integer or a string
+        (including hotfix information).
 
     Raises
     ------
     SystemExit
-        If the current version is equal to or higher than the target version, indicating no upgrade
-        is needed or a downgrade was attempted.
+        If the current PAN-OS version is equal to or higher than the target version, suggesting
+        that no upgrade is needed or that a downgrade was attempted.
+
+    Notes
+    -----
+    - The function uses a nested `parse_version` function to convert version strings to a tuple of
+      integers for comparison.
+    - The logging includes emojis for better visual distinction of the messages.
     """
 
     def parse_version(version: str) -> Tuple[int, int, int, int]:
@@ -771,34 +916,41 @@ def software_update_check(
     ha_details: dict,
 ) -> bool:
     """
-    Check if a specific PAN-OS software version is available for the firewall.
+    Checks if the specified PAN-OS version is available and ready for download on the firewall.
 
-    Retrieves the current PAN-OS version of the firewall and available versions for upgrade.
-    Logs the current version and available versions. If the target version is available and
-    its base image is already downloaded, it logs this information and returns True. If the
-    target version is not available or its base image is not downloaded, it logs an error and
-    returns False. Additionally, it checks if the target version is newer than the current version.
+    This function retrieves the current PAN-OS version of the firewall and lists available versions
+    for upgrade. It compares these with the target version. If the target version is available and
+    its base image is already downloaded on the firewall, the function logs this information and
+    returns True. If the target version is not available or its base image is not downloaded, an
+    error is logged, and the function returns False. The function also verifies that the target
+    version is a newer version compared to the current one on the firewall.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to check.
+        The Firewall object representing the firewall to be checked.
     target_version : str
-        The target PAN-OS version to check availability for.
+        The desired target PAN-OS version for the upgrade.
     ha_details : dict
-        A dictionary containing high-availability details of the firewall.
+        High-availability details of the firewall, used to determine if HA synchronization is required.
 
     Returns
     -------
     bool
-        True if the target version is available for upgrade and its base image is downloaded.
-        False if the target version is not available or its base image is not downloaded.
+        True if the target version is available and its base image is downloaded, False otherwise.
 
     Raises
     ------
     SystemExit
-        If the target version is older than or equal to the current version, indicating no
-        upgrade is needed or a downgrade was attempted.
+        If the target version is older than or equal to the current version, indicating no upgrade is
+        needed or a downgrade was attempted.
+
+    Example
+    --------
+    Checking if a specific PAN-OS version is available for download:
+        >>> firewall = Firewall(hostname='192.168.0.1', api_key='apikey')
+        >>> software_update_check(firewall, '10.1.0', ha_details={})
+        True or False depending on the availability of the version
     """
     # parse target version
     target_major, target_minor, target_maintenance = target_version.split(".")
@@ -839,31 +991,40 @@ def software_update_check(
 # ----------------------------------------------------------------------------
 # Determine if the firewall is standalone, HA, or in a cluster
 # ----------------------------------------------------------------------------
-def get_ha_status(firewall: Firewall) -> Tuple:
+def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     """
-    Determine the high-availability (HA) status of a Firewall appliance.
+    Determines the High-Availability (HA) status and configuration of a Firewall appliance.
 
-    Retrieves and logs the HA deployment information of the specified Firewall. This function checks
-    whether the Firewall is standalone, part of an HA pair, or in a cluster configuration. It also
-    extracts additional HA details if available.
+    This function checks and logs the HA deployment status of the specified Firewall. It identifies
+    whether the Firewall is in a standalone setup, part of an HA pair, or in a cluster configuration.
+    Additional details about the HA configuration are also retrieved and logged if available.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to check.
+        The Firewall instance whose HA status is to be determined.
 
     Returns
     -------
-    tuple
-        A tuple containing two elements:
-        1. A string indicating the deployment type (e.g., 'standalone', 'active/passive', 'active/active').
-        2. A dictionary with detailed HA information if available, or None otherwise.
+    Tuple[str, Optional[dict]]
+        A tuple containing:
+        1. A string indicating the HA deployment type (e.g., 'standalone', 'active/passive', 'active/active').
+        2. A dictionary with detailed HA configuration information, if available; otherwise, None.
 
     Example
     -------
-    >>> fw = Firewall(hostname='192.168.1.1', api_key='apikey')
-    >>> get_ha_status(fw)
-    ('active/passive', {'ha_details': ...})
+    Retrieving HA status of a Firewall:
+        >>> fw = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> ha_status, ha_details = get_ha_status(fw)
+        >>> print(ha_status)
+        'active/passive'
+        >>> print(ha_details)
+        {'ha_details': {...}}
+
+    Notes
+    -----
+    - The function utilizes the 'show_highavailability_state' method of the Firewall class to fetch HA details.
+    - The 'xml_to_dict' helper function is used to convert XML data into a more accessible dictionary format.
     """
     logging.debug(
         f"{get_emoji('start')} Getting {firewall.serial} deployment information..."
@@ -890,36 +1051,44 @@ def software_download(
     ha_details: dict,
 ) -> bool:
     """
-    Initiate and monitor the download of a specific PAN-OS software version for the firewall.
+    Initiates and monitors the download of a specified PAN-OS software version on the firewall.
 
-    Starts the download process for the specified target PAN-OS version on the provided firewall instance.
-    Continuously checks and logs the download progress. If the download is successful, returns True.
-    If the download process encounters an error or fails, the function logs the appropriate message
-    and returns False. In case of exceptions during the download process, the script exits.
+    This function starts the download process for the given target PAN-OS version on the specified
+    firewall. It continually checks and logs the download's progress. If the download is successful,
+    it returns True. If the download process encounters errors or fails, these are logged, and the
+    function returns False. Exceptions during the download process lead to script termination.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall on which the software is to be downloaded.
+        The Firewall instance on which the software is to be downloaded.
     target_version : str
-        The target PAN-OS version to be downloaded.
+        The PAN-OS version targeted for download.
     ha_details : dict
-        High-availability details of the firewall, used to determine if HA synchronization is required.
+        High-availability details of the firewall, determining if HA synchronization is needed.
 
     Returns
     -------
     bool
-        True if the target version is successfully downloaded, False if the download fails or an error occurs.
+        True if the download is successful, False if the download fails or encounters an error.
 
     Raises
     ------
     SystemExit
-        If an exception occurs during the download process or if the script encounters a critical error.
+        Raised if an exception occurs during the download process or if a critical error is encountered.
+
+    Example
+    --------
+    Initiating a PAN-OS version download:
+        >>> firewall = Firewall(hostname='192.168.0.1', api_key='apikey')
+        >>> software_download(firewall, '10.1.0', ha_details={})
+        True or False depending on the success of the download
 
     Notes
     -----
-    The function checks if the target version is already downloaded before initiating the download.
-    It also provides logging about the HA state if relevant HA details are provided.
+    - Before initiating the download, the function checks if the target version is already available on the firewall.
+    - It uses the 'download' method of the Firewall's software attribute to perform the download.
+    - The function sleeps for 30 seconds between each status check to allow time for the download to progress.
     """
 
     if firewall.software.versions[target_version]["downloaded"]:
@@ -996,45 +1165,49 @@ def run_assurance(
     config: Dict[str, Union[str, int, float, bool]],
 ) -> Union[SnapshotReport, ReadinessCheckReport, None]:
     """
-    Perform operational tasks on the Firewall and return the results or generate reports.
+    Executes specified operational tasks on the firewall and returns the results or reports.
 
-    Handles various operational tasks on the Firewall based on 'operation_type', such as
-    performing readiness checks, capturing state snapshots, or generating reports. The function
-    operates according to the specified 'actions' and 'config'. If the operation is successful,
-    it returns the results or an SnapshotReport object. If an invalid operation type or action
-    is specified, or an error occurs, the function logs an error and returns None.
+    This function handles different operational tasks on the firewall based on the provided
+    'operation_type'. It supports operations like performing readiness checks, capturing state
+    snapshots, and generating reports. The operation is executed according to the 'actions' and
+    'config' specified. Successful operations return results or a report object. Invalid operations
+    or errors during execution result in logging an error and returning None.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to operate on.
+        The firewall instance on which to perform the operations.
     hostname : str
-        Hostname of the firewall.
+        The hostname of the firewall.
     operation_type : str
-        Type of operation to be performed, e.g., 'readiness_check', 'state_snapshot', 'report'.
+        The type of operation to perform (e.g., 'readiness_check', 'state_snapshot', 'report').
     actions : List[str]
-        List of specific actions to be performed within the operation type.
+        A list of actions to be performed for the specified operation type.
     config : Dict[str, Union[str, int, float, bool]]
-        Configuration settings for the specified action.
+        Configuration settings for the specified actions.
 
     Returns
     -------
-    Union[SnapshotReport, None]
-        The results of the operation as an SnapshotReport object, or None if an invalid
-        operation type or action is specified, or if an error occurs.
+    Union[SnapshotReport, ReadinessCheckReport, None]
+        The results of the operation as a report object, or None if the operation type or action is invalid, or an error occurs.
 
     Raises
     ------
     SystemExit
-        If an invalid action is provided for the specified operation type or if an exception
-        occurs during the execution of the operation.
+        Raised if an invalid action is specified for the operation type or if an exception occurs during execution.
+
+    Example
+    --------
+    Performing a state snapshot operation:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> run_assurance(firewall, 'firewall1', 'state_snapshot', ['arp_table', 'ip_sec_tunnels'], {})
+        SnapshotReport object or None
 
     Notes
     -----
-    - 'readiness_check' verifies the firewall's readiness for upgrade tasks.
-    - 'state_snapshot' captures the current state of the firewall.
-    - 'report' generates a report based on the specified action. Implementation details for
-      report generation should be completed as per requirements.
+    - The 'readiness_check' operation verifies the firewall's readiness for upgrade-related tasks.
+    - The 'state_snapshot' operation captures the current state of the firewall.
+    - The 'report' operation generates a report based on the specified actions. This is pending implementation.
     """
     # setup Firewall client
     proxy_firewall = FirewallProxy(firewall)
@@ -1121,27 +1294,34 @@ def perform_snapshot(
     file_path: str,
 ) -> None:
     """
-    Perform a snapshot of the network state on the specified firewall and save it to a file.
+    Executes a network state snapshot on the specified firewall and saves it as a JSON file.
 
-    Performs a series of network state information collections (such as arp_table, content_version,
-    ip_sec_tunnels, etc.) on the provided firewall instance. The collected data is then saved as a
-    JSON file to the specified file path. Logs the start, success, or failure of the snapshot operation.
+    This function collects various network state information from the firewall, such as ARP table, content version,
+    IPsec tunnels, etc. The collected data is then serialized into JSON format and saved to the provided file path.
+    It logs the beginning of the operation, its success, or any failures encountered during the snapshot creation.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to collect the network state from.
+        The firewall instance from which to collect the network state information.
     hostname : str
-        The hostname of the firewall. Used for logging purposes.
+        Hostname of the firewall, used primarily for logging purposes.
     file_path : str
-        The file path where the network state snapshot JSON will be saved.
+        Path to the file where the snapshot JSON will be saved.
 
     Notes
     -----
-    - The function leverages the `run_assurance` function for collecting network state information.
-    - If the snapshot is successful, the JSON representation of the network state is saved to the specified file.
-    - If the snapshot fails, an error is logged.
-    - This function also ensures that the directory for the file path exists before saving.
+    - Utilizes the `run_assurance` function to collect the required network state information.
+    - Ensures the existence of the directory where the snapshot file will be saved.
+    - Logs a success message and the JSON representation of the snapshot if the operation is successful.
+    - Logs an error message if the snapshot creation fails.
+
+    Example
+    --------
+    Creating a network state snapshot:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> perform_snapshot(firewall, 'firewall1', '/path/to/snapshot.json')
+        # Snapshot file is saved to the specified path.
     """
 
     logging.info(
@@ -1192,28 +1372,35 @@ def perform_readiness_checks(
     file_path: str,
 ) -> None:
     """
-    Perform and handle the results of readiness checks on a specified firewall.
+    Executes readiness checks on a specified firewall and saves the results as a JSON file.
 
-    Initiates various readiness checks on the target firewall to determine its state and suitability
-    for further operations, such as upgrades. The checks include candidate config, content version,
-    expired licenses, HA status, job status, disk space, NTP synchronization, Panorama connection,
-    and planes clock synchronization. The results are logged, and a detailed report is saved to the
-    specified file path.
+    This function initiates a series of readiness checks on the firewall to assess its state before
+    proceeding with operations like upgrades. The checks cover aspects like configuration status,
+    content version, license validity, HA status, and more. The results of these checks are logged,
+    and a detailed report is generated and saved to the provided file path.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to perform readiness checks on.
+        The firewall instance on which to perform the readiness checks.
     hostname : str
-        The hostname of the firewall on which the readiness checks are performed.
+        Hostname of the firewall, used primarily for logging purposes.
     file_path : str
-        The file path where the readiness check report will be saved.
+        Path to the file where the readiness check report JSON will be saved.
 
     Notes
     -----
-    - If the readiness checks are successful, a ReadinessCheckReport is generated, logged, and saved.
-    - If the readiness checks fail, an error message is logged.
-    - The function uses emojis for logging to enhance readability and user experience.
+    - Utilizes the `run_assurance` function to perform the readiness checks.
+    - Ensures the existence of the directory where the report file will be saved.
+    - Logs the outcome of the readiness checks and saves the report in JSON format.
+    - Logs an error message if the readiness check creation fails.
+
+    Example
+    --------
+    Conducting readiness checks:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> perform_readiness_checks(firewall, 'firewall1', '/path/to/readiness_report.json')
+        # Readiness report is saved to the specified path.
     """
 
     logging.debug(
@@ -1265,19 +1452,41 @@ def backup_configuration(
     file_path: str,
 ) -> bool:
     """
-    Back up the configuration of a firewall to the local filesystem.
+    Backs up the current running configuration of a specified firewall to a local file.
+
+    This function retrieves the running configuration from the firewall and saves it as an XML file
+    at the specified file path. It checks the validity of the retrieved XML data and logs the success
+    or failure of the backup process.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to operate on.
+        The firewall instance from which the configuration is to be backed up.
     file_path : str
-        The path where the configuration file will be saved.
+        The path where the configuration backup file will be saved.
 
     Returns
     -------
     bool
-        True if backup is successful, False otherwise.
+        Returns True if the backup is successfully created, False otherwise.
+
+    Raises
+    ------
+    Exception
+        Raises an exception if any error occurs during the backup process.
+
+    Notes
+    -----
+    - The function verifies the XML structure of the retrieved configuration.
+    - Ensures the directory for the backup file exists.
+    - The backup file is saved in XML format.
+
+    Example
+    --------
+    Backing up the firewall configuration:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> backup_configuration(firewall, '/path/to/config_backup.xml')
+        # Configuration is backed up to the specified file.
     """
 
     try:
@@ -1335,29 +1544,46 @@ def perform_upgrade(
     retry_interval: int = 60,  # Time to wait between retries (in seconds)
 ) -> None:
     """
-    Perform the upgrade process for the specified firewall.
+    Initiates and manages the upgrade process of a firewall to a specified PAN-OS version.
 
-    Performs the upgrade of the firewall to the target PAN-OS version. This includes initiating the
-    upgrade, handling High Availability (HA) considerations if applicable, and rebooting the firewall.
-    The function logs each step and handles any errors that occur during the process.
+    This function attempts to upgrade the firewall to the given PAN-OS version, handling potential issues
+    and retrying if necessary. It deals with High Availability (HA) considerations and ensures that the
+    upgrade process is robust against temporary failures or busy states. The function logs each step of the
+    process and exits the script if critical errors occur.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to be upgraded.
+        The firewall instance to be upgraded.
     hostname : str
-        The hostname of the firewall. Used for logging purposes.
+        The hostname of the firewall, used for logging purposes.
     target_version : str
-        The target PAN-OS version to upgrade the firewall to.
-    ha_details : Optional[dict]
-        High Availability details of the firewall, if applicable.
+        The target PAN-OS version for the upgrade.
+    ha_details : Optional[dict], optional
+        High Availability details of the firewall, by default None.
+    max_retries : int, optional
+        The maximum number of retry attempts for the upgrade, by default 3.
+    retry_interval : int, optional
+        The interval (in seconds) to wait between retry attempts, by default 60.
 
     Raises
     ------
     SystemExit
-        - If the upgrade job fails.
-        - If HA synchronization fails or times out.
-        - If the firewall reboot process fails or times out.
+        Exits the script if the upgrade job fails, if HA synchronization issues occur,
+        or if critical errors are encountered during the upgrade process.
+
+    Notes
+    -----
+    - The function handles retries based on the 'max_retries' and 'retry_interval' parameters.
+    - In case of 'software manager is currently in use' errors, retries are attempted.
+    - Critical errors during the upgrade process lead to script termination.
+
+    Example
+    -------
+    Upgrading a firewall to a specific PAN-OS version:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> perform_upgrade(firewall, '192.168.1.1', '10.2.0', max_retries=2, retry_interval=30)
+        # The firewall is upgraded to PAN-OS version 10.2.0, with retries if necessary.
     """
 
     logging.info(
@@ -1411,23 +1637,37 @@ def perform_upgrade(
 # ----------------------------------------------------------------------------
 def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> None:
     """
-    Perform the reboot process for the specified firewall.
+    Initiates and manages the reboot process for a specified firewall appliance.
 
-    Initiates the reboot of the firewall and waits until it comes back online. If the firewall is part
-    of a High Availability (HA) setup, it also checks for synchronization with its HA peer after rebooting.
-    The function logs each step and handles any errors that occur during the process.
+    This function triggers a reboot of the firewall and monitors its status until it comes back online.
+    If the firewall is part of an HA (High Availability) setup, it ensures synchronization with the HA peer
+    post-reboot. The process includes robust handling of various states and potential errors during reboot,
+    with detailed logging at each step.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class representing the firewall to be rebooted.
-    ha_details : Optional[dict]
-        High Availability details of the firewall, if applicable.
+        The firewall instance to be rebooted.
+    ha_details : Optional[dict], optional
+        High Availability details for the firewall, if applicable, by default None.
 
     Raises
     ------
     SystemExit
-        - If the reboot process fails or times out.
+        Exits the script if the reboot process encounters critical errors or timeouts.
+
+    Notes
+    -----
+    - The function repeatedly checks the firewall's status and HA synchronization (if applicable) post-reboot.
+    - Reboot completion is confirmed when the firewall is online and, in HA setups, synchronized with its peer.
+    - The script terminates if the firewall doesn't come online or synchronize within 20 minutes.
+
+    Example
+    -------
+    Rebooting a firewall and ensuring its operational status:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_key='apikey')
+        >>> perform_reboot(firewall)
+        # The firewall undergoes a reboot and the script monitors until it's back online.
     """
 
     reboot_start_time = time.time()
@@ -1485,27 +1725,34 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
 # ----------------------------------------------------------------------------
 def main() -> None:
     """
-    Main function of the script, serving as the entry point.
+    Main entry point for executing the firewall upgrade script.
 
-    Orchestrates the workflow for checking and preparing a PAN-OS firewall for an upgrade. This includes:
-    - Parsing command-line arguments.
-    - Configuring logging based on specified log level.
-    - Connecting to the firewall and refreshing its system information.
-    - Determining the firewall's deployment status (standalone, HA, cluster).
-    - Checking firewall readiness for the target PAN-OS version and downloading it if necessary.
-    - Performing pre-upgrade network state snapshots and readiness checks.
-    - Conducting HA peer synchronization checks and backup of current configuration.
+    This function orchestrates the entire process of upgrading a PAN-OS firewall. It includes various stages,
+    such as parsing command-line arguments, establishing a connection with the firewall, assessing readiness
+    for upgrade, and executing the upgrade process. The function is designed to handle both dry run and actual
+    upgrade scenarios, providing comprehensive logging throughout.
 
-    The function uses emojis to enhance log readability and provides detailed feedback throughout the process.
-    If the 'dry_run' argument is set to True, the script performs checks without initiating the actual upgrade.
+    Steps:
+    1. Create necessary directories for logs and snapshots.
+    2. Configure logging based on user-defined log level.
+    3. Establish a connection to the firewall and refresh its system info.
+    4. Determine firewall's deployment status and readiness for upgrade.
+    5. Download required PAN-OS version if not present.
+    6. Perform pre-upgrade snapshots and readiness checks.
+    7. Back up current firewall configuration.
+    8. Proceed with upgrade and reboot if not a dry run.
 
-    Raises
-    ------
-    SystemExit
-        - If the firewall is not ready for an upgrade to the target version.
-        - If there are critical issues preventing the continuation of the script.
-        - If the HA peer state is not synchronized.
-        - Upon completion of a dry run.
+    Exits the script in cases such as:
+    - Firewall not ready for the intended upgrade.
+    - Critical issues that prevent script continuation.
+    - Successful completion of a dry run.
+    - HA peer state is not synchronized (for HA setups).
+
+    Example Usage:
+    ```bash
+    python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.2.7
+    ```
+    This command will start the upgrade process for the firewall at '192.168.1.1' to version '10.2.7'.
     """
 
     # Create necessary directories
