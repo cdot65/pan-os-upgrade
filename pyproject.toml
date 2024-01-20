@@ -6,7 +6,6 @@ authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
 readme = "README.md"
 packages = [{ include = "pan_os_upgrade" }]
-include = ['pan_os_upgrade/.env']
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -18,8 +17,8 @@ pydantic = "^2.5.3"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
-sphinx = "^7.2.6"
-sphinx-material = "^0.0.36"
+mkdocs-material = "^9.5.4"
+mkdocstrings = "^0.24.0"
 
 [tool.poetry.scripts]
 pan-os-upgrade = 'pan_os_upgrade.upgrade:main'

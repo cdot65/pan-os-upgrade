@@ -1,0 +1,31 @@
+site_name: PAN-OS Upgrade
+site_description: Automate upgrades of Palo Alto Networks firewalls with Python
+site_url: https://cdot65.github.io/pan-os-upgrade/
+repo_name: cdot65/pan-os-upgrade
+repo_url: https://github.com/cdot65/pan-os-upgrade
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.instant
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          rendering:
+            show_source: true
+nav:
+  - Home: index.md
+  - User Guide:
+      - Introduction: user-guide/introduction.md
+      - Getting Started: user-guide/getting-started.md
+      - Configuration: user-guide/configuration.md
+      - Execution: user-guide/execution.md
+      - Troubleshooting: user-guide/troubleshooting.md
+  - API Reference:
+      - pan_os_upgrade: reference/pan_os_upgrade.md
+  - About:
+      - License: about/license.md
+      - Contributing: about/contributing.md
