@@ -1,45 +1,37 @@
 # Execution Guide for pan-os-upgrade
 
-The `pan-os-upgrade` tool automates the entire process of upgrading PAN-OS firewalls. This guide will walk you through the execution steps, detailing how to use the script with different configuration options, and what to expect in terms of output and logging.
+The `pan-os-upgrade` tool automates the entire process of upgrading PAN-OS firewalls. This guide will walk you through the execution steps, detailing how to use the script with the latest configuration options, and what to expect in terms of output and logging.
 
 ## Execution Options
 
-You can execute `pan-os-upgrade` using two primary methods: either by using a `.env` file or command-line arguments. Each method provides flexibility depending on your preference or automation setup.
-
-### Using a `.env` File
-
-If you have set up a `.env` file as per the configuration guide, simply execute the script without any additional arguments:
-
-<div class="termy">
-
-```console
-pan-os-upgrade
-```
-
-</div>
-
-This command will automatically pick up the configuration details from your `.env` file.
+You can execute `pan-os-upgrade` using command-line arguments to provide configuration details directly.
 
 ### Using Command-Line Arguments
 
-Alternatively, pass the configuration details directly as command-line arguments:
+Execute the script by passing the configuration details as command-line arguments:
 
 <div class="termy">
 
 ```console
-pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
+$ pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
 
 </div>
 
-Here, replace `192.168.1.1`, `admin`, `secret`, and `10.1.0` with your firewall's details and the desired PAN-OS version.
+Replace `192.168.1.1`, `admin`, `secret`, and `10.1.0` with your firewall's details and the desired PAN-OS version.
+
+For a dry run:
+
+```console
+$ pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+```
 
 ## Output
 
 <div class="termy">
 
 ```console
-pan-os-upgrade --hostname 192.168.255.211 --username admin --password secret --version 10.2.0-h2
+pan-os-upgrade --ip-address 192.168.255.211 --username admin --password secret --version 10.2.0-h2
 INFO - ✅ Connection to firewall established
 INFO - 📝 007054000123456 houston 192.168.255.211
 INFO - 📝 Firewall HA mode: disabled
@@ -51,7 +43,7 @@ INFO - ✅ Base image for 10.2.0-h2 is already downloaded
 INFO - 🚀 Performing test to see if 10.2.0-h2 is already downloaded...
 INFO - 🔍 PAN-OS version 10.2.0-h2 is not on the firewall
 INFO - 🚀 PAN-OS version 10.2.0-h2 is beginning download
-INFO - Device 007054000242050 downloading version: 10.2.0-h2
+INFO - Device 007054000123456 downloading version: 10.2.0-h2
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 4 seconds
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 36 seconds
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 71 seconds
@@ -89,6 +81,8 @@ INFO - ✅ Firewall upgraded and rebooted in 542 seconds
 ```
 
 </div>
+
+This output will include detailed logs of the process, such as establishing a connection, checking versions, performing upgrades, and rebooting the firewall.
 
 ## Assurance Functions
 
