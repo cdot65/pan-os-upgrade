@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-os-upgrade"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
@@ -23,7 +23,7 @@ mkdocs-material = "^9.5.4"
 mkdocstrings = "^0.24.0"
 
 [tool.poetry.scripts]
-pan-os-upgrade = 'pan_os_upgrade.upgrade:main'
+pan-os-upgrade = 'pan_os_upgrade.upgrade:app'
 
 [build-system]
 requires = ["poetry-core"]
