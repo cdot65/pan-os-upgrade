@@ -29,3 +29,4 @@ nav:
   - About:
       - License: about/license.md
       - Contributing: about/contributing.md
+      - Release Notes: about/release-notes.md
