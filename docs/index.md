@@ -11,7 +11,7 @@ hide:
   <a href="https://paloaltonetworks.com"><img src="https://github.com/cdot65/pan-os-upgrade/blob/main/images/logo.svg?raw=true" alt="PaloAltoNetworks"></a>
 </p>
 <p align="center">
-    <em><code>pan-os-upgrade</code>, a Python CLI tool to help automate the upgrade process for PAN-OS firewalls</em>
+    <em><code>pan-os-upgrade</code>, a Python CLI tool to help automate the upgrade process for PAN-OS firewalls using Typer</em>
 </p>
 <p align="center">
 <a href="https://github.com/cdot65/pan-os-upgrade/graphs/contributors" target="_blank">
@@ -58,7 +58,8 @@ Python 3.8+
 
 * <a href="https://github.com/PaloAltoNetworks/pan-os-python" target="_blank">pan-os-python</a> for handling all interactions with PAN-OS firewalls.
 * <a href="https://github.com/PaloAltoNetworks/pan-os-upgrade-assurance" target="_blank">panos-upgrade-assurance</a> for performing Readiness Checks, Snapshots, Health Checks, and Reporting.
-* <a href="">Pydantic</a> for handling the data modeling and validation.
+* <a href="https://docs.pydantic.dev/latest/">Pydantic</a> for handling the data modeling and validation.
+* <a href="https://typer.tiangolo.com/">Typer</a> for handling the data modeling and validation.
 
 ## Installation
 
@@ -77,9 +78,9 @@ $ pip install pan-os-upgrade
 <div class="termy">
 
 ```console
-$ pan-os-upgrade --hostname houston.cdot.io --version 10.2.0-h2 --username admin --password paloalto#1
+$ pan-os-upgrade --ip-address 192.168.255.211 --version 10.2.0-h2 --username admin --password paloalto#1
 INFO - ✅ Connection to firewall established
-INFO - 📝 007054000242050 houston 192.168.255.211
+INFO - 📝 007054000123456 houston 192.168.255.211
 INFO - 📝 Firewall HA mode: disabled
 INFO - 📝 Current PAN-OS version: 10.2.0
 INFO - 📝 Target PAN-OS version: 10.2.0-h2
@@ -89,7 +90,7 @@ INFO - ✅ Base image for 10.2.0-h2 is already downloaded
 INFO - 🚀 Performing test to see if 10.2.0-h2 is already downloaded...
 INFO - 🔍 PAN-OS version 10.2.0-h2 is not on the firewall
 INFO - 🚀 PAN-OS version 10.2.0-h2 is beginning download
-INFO - Device 007054000242050 downloading version: 10.2.0-h2
+INFO - Device 007054000123456 downloading version: 10.2.0-h2
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 4 seconds
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 36 seconds
 INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 71 seconds
@@ -108,7 +109,7 @@ INFO - 🚀 Performing backup of houston's configuration to local filesystem...
 INFO - 🚀 Not a dry run, continue with upgrade...
 INFO - 🚀 Performing upgrade on houston to version 10.2.0-h2...
 INFO - 🚀 Attempting upgrade houston to version 10.2.0-h2 (Attempt 1 of 3)...
-INFO - Device 007054000242050 installing version: 10.2.0-h2
+INFO - Device 007054000123456 installing version: 10.2.0-h2
 INFO - ✅ houston upgrade completed successfully
 INFO - 🚀 Rebooting the firewall...
 INFO - 📝 Command succeeded with no output
@@ -122,7 +123,7 @@ INFO - ⚙️ Firewall is rebooting...
 INFO - ⚙️ Firewall is rebooting...
 INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
 INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
-INFO - ✅ Firewall upgraded and rebooted in 343 seconds"
+INFO - ✅ Firewall upgraded and rebooted in 343 seconds
 
 ```
 

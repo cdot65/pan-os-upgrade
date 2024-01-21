@@ -73,7 +73,9 @@ This guide will help you set up the `pan-os-upgrade` library in your environment
 
 The `pan-os-upgrade` library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
 
-#### Using `python3 -m venv` (Recommended for Beginners)
+#### Creating a Python Virtual Environment
+
+The steps below highlight the process for creating, activating, and installing `pan-os-upgrade` into a Python virtual environment. If you're new to Python, it may be beneficial to understand why this is such an important step, [here is a good writeup](https://realpython.com/python-virtual-environments-a-primer/) to prime yourself.
 
 1. Create a Virtual Environment:
 
@@ -107,76 +109,41 @@ The `pan-os-upgrade` library is available on PyPI and can be installed within a 
     pip install pan-os-upgrade
     ```
 
-### Using Poetry (Advanced Users)
-
-Poetry is a tool for dependency management and packaging in Python. It allows you to declare the libraries your project depends on and it will manage (install/update) them for you.
-
-1. Install Poetry:
-
-    Follow [the official instructions](https://python-poetry.org/docs/) to install Poetry on your system.
-
-2. Create a New Project using Poetry:
-
-    ```bash
-    poetry new panos_project
-    cd panos_project
-    ```
-
-3. Add `pan-os-upgrade` as a Dependency:
-
-    ```bash
-    poetry add pan-os-upgrade
-    ```
-
-    This command will create a virtual environment and install the `pan-os-upgrade` package along with its dependencies.
-
-4. Activate the Poetry Shell:
-
-    To activate the virtual environment created by Poetry, use:
-
-    ```bash
-    poetry shell
-    ```
-
 ### Setting Up Your Environment
 
 After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or an .env file.
 
-#### Option 1: Using an .env File
+#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
 
-Create a `.env` file in your local directory and fill it with your firewall's details:
+You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
 
-```env
-# PAN-OS credentials - use either API key or username/password combination
-PAN_USERNAME=admin
-PAN_PASSWORD=paloalto123
-API_KEY=
-
-# Hostname or IP address of the firewall
-HOSTNAME=firewall1.example.com
-
-# Target PAN-OS version for the upgrade
-TARGET_VERSION=11.0.2-h3
-
-# Logging level (e.g., debug, info, warning, error, critical)
-LOG_LEVEL=debug
-
-# Set to true for a dry run
-DRY_RUN=false
+```bash
+$ pan-os-upgrade
+IP address: 192.168.255.1
+Username: admin
+Password:
+Target PAN-OS version: 11.1.1
+INFO - ✅ Connection to firewall established
+INFO - 📝 **021201123456** DataCenter 10.0.0.3
+INFO - 📝 Firewall HA mode: disabled
+INFO - 📝 Current PAN-OS version: 11.0.2
+INFO - 📝 Target PAN-OS version: 11.1.1
+INFO - ✅ Confirmed that moving from 11.0.2 to 11.1.1 is an upgrade
+...continue until completed...
 ```
 
-#### Option 2: Using Command-Line Arguments
+#### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
 
 Alternatively, you can pass these details as command-line arguments when running the script:
 
 ```bash
-pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
+pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
 
 For a dry run:
 
 ```bash
-pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -184,21 +151,28 @@ pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --versi
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-The script can be run from the command line with various options. It requires at least the hostname (or IP address) and the target PAN-OS version for the firewall. Authentication can be done via API key or username and password.
+The script can be run from the command line with various options.
+
+You can view all arguments by passing the `--help` flag:
+
+```bash
+pan-os-upgrade --help
+```
 
 ### CLI Arguments Description
 
-* `--api-key`: API Key for authentication
-* `--dry-run`: Perform a dry run of all tests and downloads without performing the actual upgrade.
-* `--hostname`: Hostname or IP address of the PAN-OS firewall.
-* `--log-level`: Set the logging output level (e.g., debug, info, warning).
-* `--password`: Password for authentication.
-* `--username`: Username for authentication.
-* `--version`: Target PAN-OS version to upgrade to.
+| cli argument   | shorthand | type | description                                                                         |
+| -------------- | --------- | ---- | ----------------------------------------------------------------------------------- |
+| `--dry-run`    | `-d`      | n/a  | Perform a dry run of all tests and downloads without performing the actual upgrade. |
+| `--ip-address` | `-i`      | text | IP address of target firewall.                                                      |
+| `--log-level`  | `-l`      | text | Set the logging output level (e.g., debug, info, warning).                          |
+| `--password`   | `-p`      | text | Password for authentication.                                                        |
+| `--username`   | `-u`      | text | Username for authentication.                                                        |
+| `--version`    | `-v`      | text | Target PAN-OS version to upgrade to.                                                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-Refer to the [documentation](https://github.com/cdot65/pan-os-upgrade) for more details on usage.
+Refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/) for more details on usage.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -227,7 +201,7 @@ Encountered an issue? Here are some common problems and solutions:
 * **Problem**: Script hangs during execution.
   * **Solution**: Check the firewall and network settings. Ensure the PAN-OS device is responding correctly.
 
-For more troubleshooting tips, visit our [FAQ section](#).
+For more troubleshooting tips, visit our [FAQ section](https://cdot65.github.io/pan-os-upgrade/).
 
 <!-- CONTRIBUTING -->
 ## Contributing
@@ -242,14 +216,14 @@ If you have a suggestion that would make this better, please fork the repo and c
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-See [Contributing Guidelines](#) for detailed instructions.
+See [Contributing Guidelines](https://cdot65.github.io/pan-os-upgrade/about/contributing/) for detailed instructions.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- LICENSE -->
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache 2.0 License - see the [LICENSE](https://cdot65.github.io/pan-os-upgrade/about/license/) file for details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
