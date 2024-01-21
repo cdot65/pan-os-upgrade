@@ -57,7 +57,7 @@ Example Execution
 <div class="termy">
 
 ```console
-pan-os-upgrade --ip-address 192.168.255.211 --username admin --password secret --version 10.2.0-h2
+pan-os-upgrade --hostname 192.168.255.211 --username admin --password secret --version 10.2.0-h2
 INFO - ✅ Connection to firewall established
 INFO - 📝 007054000123456 houston 192.168.255.211
 INFO - 📝 Firewall HA mode: disabled
@@ -175,7 +175,7 @@ You can simply get started by issuing `pan-os-upgrade` from your current working
 
 ```bash
 $ pan-os-upgrade
-IP address: 192.168.255.1
+Firewall Hostname or IP: 192.168.255.1
 Username: admin
 Password:
 Target PAN-OS version: 11.1.1
@@ -193,13 +193,13 @@ INFO - ✅ Confirmed that moving from 11.0.2 to 11.1.1 is an upgrade
 Alternatively, you can pass these details as command-line arguments when running the script:
 
 ```bash
-pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0
+pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
 
 For a dry run:
 
 ```bash
-pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -261,14 +261,14 @@ pan-os-upgrade --help
 
 ### CLI Arguments Description
 
-| cli argument   | shorthand | type | description                                                                         |
-| -------------- | --------- | ---- | ----------------------------------------------------------------------------------- |
-| `--dry-run`    | `-d`      | n/a  | Perform a dry run of all tests and downloads without performing the actual upgrade. |
-| `--ip-address` | `-i`      | text | IP address of target firewall.                                                      |
-| `--log-level`  | `-l`      | text | Set the logging output level (e.g., debug, info, warning).                          |
-| `--password`   | `-p`      | text | Password for authentication.                                                        |
-| `--username`   | `-u`      | text | Username for authentication.                                                        |
-| `--version`    | `-v`      | text | Target PAN-OS version to upgrade to.                                                |
+| cli argument  | shorthand | type | description                                                                         |
+| ------------- | --------- | ---- | ----------------------------------------------------------------------------------- |
+| `--dry-run`   | `-d`      | n/a  | Perform a dry run of all tests and downloads without performing the actual upgrade. |
+| `--hostname`  | `-h`      | text | Hostname or IP address of target firewall.                                          |
+| `--log-level` | `-l`      | text | Set the logging output level (e.g., debug, info, warning).                          |
+| `--password`  | `-p`      | text | Password for authentication.                                                        |
+| `--username`  | `-u`      | text | Username for authentication.                                                        |
+| `--version`   | `-v`      | text | Target PAN-OS version to upgrade to.                                                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

@@ -1548,8 +1548,8 @@ def main(
         typer.Option(
             "--hostname",
             "-h",
-            help="Hostname or IP address of target firewall",
-            prompt="Hostname or IP address",
+            help="Hostname or IP of target firewall",
+            prompt="Hostname or IP",
             callback=ip_callback,
         ),
     ],
