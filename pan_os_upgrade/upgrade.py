@@ -76,6 +76,12 @@ from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport
 
 
 # ----------------------------------------------------------------------------
+# Define Typer command-line interface
+# ----------------------------------------------------------------------------
+app = typer.Typer(help="PAN-OS Upgrade script")
+
+
+# ----------------------------------------------------------------------------
 # Define logging levels
 # ----------------------------------------------------------------------------
 LOGGING_LEVELS = {
@@ -1504,6 +1510,7 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
 # ----------------------------------------------------------------------------
 # Primary execution of the script
 # ----------------------------------------------------------------------------
+@app.command()
 def main(
     ip_address: Annotated[
         str,
@@ -1721,4 +1728,4 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()
