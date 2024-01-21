@@ -3,7 +3,7 @@ import os
 
 import pytest
 from unittest.mock import MagicMock
-
+from dotenv import load_dotenv
 
 @pytest.fixture
 def show_devices_all_fixture():
@@ -81,10 +81,9 @@ def show_devices_all_fixture():
 def panorama():
     """A real Panorama host for use in integration testing. If not available, this fixture will skip dependent
     integration tests."""
-    from upgrade import load_environment_variables
 
     try:
-        load_environment_variables(".dev.env")
+        load_dotenv(".dev.env")
     except FileNotFoundError:
         pass
 
@@ -102,8 +101,8 @@ def panorama():
 
 class TestModelCreation:
     def test_model_from_api_response_managed_devices(self, show_devices_all_fixture):
-        from upgrade import model_from_api_response
-        from models import ManagedDevices
+        from pan_os_upgrade.upgrade import model_from_api_response
+        from pan_os_upgrade.models.devices import ManagedDevices
 
         test_xml = show_devices_all_fixture
 
@@ -123,14 +122,14 @@ class TestModelCreation:
 class TestPanoramaMethods:
     def test_get_managed_devices_integration(self, panorama):
         """Validate it works with actual data as well."""
-        from upgrade import get_managed_devices
+        from pan_os_upgrade.upgrade import get_managed_devices
 
         unfiltered = get_managed_devices(panorama)
         assert unfiltered
 
     def test_get_managed_devices(self, show_devices_all_fixture):
-        from upgrade import get_managed_devices
-        from models.devices import ManagedDevice
+        from pan_os_upgrade.upgrade import get_managed_devices
+        from pan_os_upgrade.models.devices import ManagedDevice
 
         mock_panorama = MagicMock()
         mock_panorama.op = MagicMock(return_value=show_devices_all_fixture)

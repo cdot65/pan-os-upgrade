@@ -62,6 +62,7 @@ from panos.errors import (
     PanXapiError,
 )
 from panos.firewall import Firewall
+from panos.panorama import Panorama
 
 # Palo Alto Networks panos-upgrade-assurance imports
 from panos_upgrade_assurance.check_firewall import CheckFirewall
@@ -72,8 +73,7 @@ import xmltodict
 import typer
 
 # project imports
-from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport
-
+from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport, ManagedDevices, FromAPIResponseMixin
 
 # ----------------------------------------------------------------------------
 # Define Typer command-line interface
@@ -1505,6 +1505,78 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
                 f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 20 minutes. Please check the firewall status manually."
             )
             break
+
+
+
+def flatten_xml_to_dict(element: ET.Element):
+    """Converts the given element into a dict by recursing through it until it finds an element containing only text.
+
+    This method also flattens the XML structure to make it simpler to 'fit' to model definitions.
+    """
+    result = {}
+    for child_element in element:
+        child_tag = child_element.tag
+
+        if child_element.text and len(child_element) == 0:
+            result[child_tag] = child_element.text
+        else:
+            if child_tag in result:
+                if type(result.get(child_tag)) is not list:
+                    result[child_tag] = [
+                        result.get(child_tag),
+                        flatten_xml_to_dict(child_element),
+                    ]
+                else:
+                    result[child_tag].append(flatten_xml_to_dict(child_element))
+            else:
+                if child_tag == "entry":
+                    # Always assume entries are a list.
+                    result[child_tag] = [flatten_xml_to_dict(child_element)]
+                else:
+                    result[child_tag] = flatten_xml_to_dict(child_element)
+
+    return result
+
+
+def model_from_api_response(
+    element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]
+):
+    """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
+
+    Makes handling operational commands easy!
+
+    Parameters
+    ----------
+    element : Element
+        XML Element to flatten
+    model   : type[FromAPIResponseMixin]
+        Model to flatten into. Must be a child that inherits from Pydantics `BaseModel`.
+    Returns
+    -------
+
+    type[FromAPIResponseMixin]
+        The model, populated with relevant field data.
+    """
+    result_dict = flatten_xml_to_dict(element)
+    return model.from_api_response(result_dict)
+
+
+def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
+    """Returns a list of managed devices from Panorama, based on any configured filters.
+
+    Parameters
+    ----------
+    filters : **kwargs
+        Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
+    """
+    managed_devices = model_from_api_response(
+        panorama.op("show devices all"), ManagedDevices
+    )
+    devices = managed_devices.devices
+    for filter_key, filter_value in filters.items():
+        devices = [d for d in devices if getattr(d, filter_key) == filter_value]
+
+    return devices
 
 
 # ----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from models.mixins import FromAPIResponseMixin
+from pan_os_upgrade.models.mixins import FromAPIResponseMixin
 
 
 class ManagedDevice(BaseModel):
