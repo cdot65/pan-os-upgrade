@@ -2,28 +2,39 @@
 
 ## Purpose of the Project
 
-The `pan-os-upgrade` CLI tool is designed to streamline and simplify the process of upgrading Palo Alto Networks firewalls. Upgrading firewalls is not only challenging but also a tedious task fraught with potential complications. This tool aims to assist firewall administrators through this complex process by automating several critical steps.
+The `pan-os-upgrade` CLI tool is designed to streamline and simplify the process of upgrading Palo Alto Networks firewalls. This tool offers two distinct workflows to cater to different user preferences and environments: a Python-based workflow and a Docker-based workflow.
 
 ## Problem Statement
 
-Firewall upgrades can be intricate and tedious, with numerous issues that might arise from a variety of situations. The `pan-os-upgrade` tool addresses these challenges by:
+Upgrading firewalls can be intricate and tedious, posing numerous challenges. The `pan-os-upgrade` tool addresses these by:
 
 - Performing a series of readiness checks.
 - Taking snapshots of the current network state.
 - Creating backups of the configuration before initiating the upgrade process.
 
-These steps ensure a smoother and more reliable upgrade process, mitigating the risks associated with manual upgrades.
+## Two Distinct Workflows
+
+### Python Workflow
+
+This workflow is ideal for those who prefer working within a Python environment. It involves setting up a Python virtual environment, installing dependencies, and executing the tool via command-line interface.
+
+- **Advantages**: Offers more control and flexibility, especially for users familiar with Python.
+- **Details**: See the [Python Workflow Getting Started Guide](python/getting-started.md) for detailed instructions on setup and usage.
+
+### Docker Workflow
+
+The Docker workflow simplifies the setup by encapsulating the tool and its dependencies within a Docker container. It's suitable for users seeking an easy-to-deploy solution without configuring a Python environment.
+
+- **Advantages**: Ensures consistent runtime environment, simplifies deployment, and is ideal for users not familiar with Python.
+- **Details**: Refer to the [Docker Workflow Getting Started Guide](docker/getting-started.md) for comprehensive steps on using the Docker container.
 
 ## Key Features
 
-The tool is built with several key features to enhance its efficiency and reliability:
+`pan-os-upgrade` is equipped with several features for efficient and reliable upgrades:
 
-- **Leveraging `panos-upgrade-assurance`**: `pan-os-upgrade` utilizes the `panos-upgrade-assurance` library to manage the more complex aspects of the upgrade process. This includes pre and post-validation of the firewall's state, ensuring the integrity of the network environment, such as routing tables, ARP tables, and network interface statuses.
-
-- **Data Validation with Pydantic**: To minimize bugs and ensure smooth workflow execution, `pan-os-upgrade` incorporates Pydantic for robust data structure validation. This feature plays a crucial role in handling the input and output of data within the automation scripts, reducing instances of errors and enhancing the script's reliability.
+- **Leveraging `panos-upgrade-assurance`**: It utilizes the `panos-upgrade-assurance` library to manage complex aspects of the upgrade process.
+- **Data Validation with Pydantic**: Ensures robust data structure validation, minimizing bugs and streamlining workflow execution.
 
 ## Next Steps
 
-Now that you have an overview of the `pan-os-upgrade` tool and its capabilities, the next step is to get started with setting up and using the tool. The following guide will walk you through the initial setup and basic usage.
-
-Continue to the [Getting Started](getting-started.md) guide to begin using `pan-os-upgrade`.
+With an understanding of `pan-os-upgrade` and its dual workflows, you can choose the approach that best suits your needs. Follow the respective guides to set up and start using the tool for upgrading your Palo Alto Networks firewalls.

@@ -1,6 +1,6 @@
 ---
 hide:
-  - navigation
+    - navigation
 ---
 
 <style>
@@ -8,7 +8,7 @@ hide:
 </style>
 
 <p align="center">
-  <a href="https://paloaltonetworks.com"><img src="https://github.com/cdot65/pan-os-upgrade/blob/main/images/logo.svg?raw=true" alt="PaloAltoNetworks"></a>
+    <a href="https://paloaltonetworks.com"><img src="https://github.com/cdot65/pan-os-upgrade/blob/main/images/logo.svg?raw=true" alt="PaloAltoNetworks"></a>
 </p>
 <p align="center">
     <em><code>pan-os-upgrade</code>, a Python CLI tool to help automate the upgrade process for PAN-OS firewalls using Typer</em>
@@ -36,42 +36,41 @@ hide:
 
 ---
 
-<a href="https://github.com/cdot65/pan-os-upgrade" target="_blank">pan-os-upgrade</a> is a modern Python CLI tool that provides a comprehensive automated workflow for PAN-OS firewalls.
+<a href="https://github.com/cdot65/pan-os-upgrade" target="_blank">pan-os-upgrade</a> is a modern Python CLI tool that provides a comprehensive automated workflow for PAN-OS firewalls. It offers two primary methods of execution: through a Python virtual environment or via a Docker container, catering to various operational requirements and preferences.
 
-The key features of the `pan-os-upgrade` library are:
+## Python Virtual Environment Workflow
 
-* **Easy to Use**: Designed with simplicity in mind, the `pan-os-upgrade` script offers an intuitive interface, minimizing the need for extensive documentation perusal. Users can quickly learn to use the tool, saving valuable time and effort.
+This approach involves setting up a Python virtual environment and running `pan-os-upgrade` within this isolated environment, ensuring compatibility and preventing any conflicts with system-wide Python installations.
 
-* **Resilient**: Built with robust error handling and recovery mechanisms, the script can gracefully manage various nuances and mechanical intricacies of firewall upgrades. This resilience ensures reliable operations even in complex network environments.
+### Python Key Features
 
-* **Robust Workflow Coverage**: Capable of handling a wide range of upgrade workflows, the script is adaptable to different network configurations and requirements. This flexibility makes it suitable for various scenarios, from standalone setups to complex HA environments.
+- Easy and isolated Python environment setup.
+- Full control over the Python version and dependencies.
+- Ideal for users familiar with Python and virtual environments.
 
-* **Strong Typing**: Employing Python’s strong typing features, the script enhances code clarity and reduces the likelihood of type-related bugs. This approach contributes to the overall stability and reliability of the upgrade process.
+### Python Getting Started
 
-* **Data Modeling with Pydantic**: Utilizing Pydantic for data validation, the `pan-os-upgrade` script ensures that input and output data are accurately modeled. This feature significantly reduces bugs and enhances the predictability of operations, leading to smoother upgrade experiences.
+Install `pan-os-upgrade` via pip in a Python virtual environment and configure it using command-line arguments or an interactive shell. Detailed instructions can be found in the [User Guide](user-guide/python/getting-started.md).
 
-## Requirements
+## Docker Container Workflow
 
-Python 3.8+
+Running `pan-os-upgrade` in a Docker container encapsulates the tool and its dependencies in an isolated environment, simplifying setup and ensuring consistency across different systems.
 
-`pan-os-upgrade` stands on the shoulders of giants:
+### Docker Key Features
 
-* <a href="https://github.com/PaloAltoNetworks/pan-os-python" target="_blank">pan-os-python</a> for handling all interactions with PAN-OS firewalls.
-* <a href="https://github.com/PaloAltoNetworks/pan-os-upgrade-assurance" target="_blank">panos-upgrade-assurance</a> for performing Readiness Checks, Snapshots, Health Checks, and Reporting.
-* <a href="https://docs.pydantic.dev/latest/">Pydantic</a> for handling the data modeling and validation.
-* <a href="https://typer.tiangolo.com/">Typer</a> for handling the data modeling and validation.
+- Simplified setup process with Docker.
+- Consistent runtime environment regardless of the host system.
+- Suitable for users who prefer Docker or require containerized environments.
 
-## Installation
+### Docker Getting Started
 
-<div class="termy">
+Pull the `pan-os-upgrade` Docker image, run the container with mounted directories for outputs, and interact with the tool in an isolated environment. More information is available in the [User Guide](user-guide/docker/getting-started.md).
 
-```console
-$ pip install pan-os-upgrade
+---
 
----> 100%
-```
+Visit the [User Guide](user-guide/introduction.md) for detailed insights into setting up and running `pan-os-upgrade` using either Python or Docker workflows.
 
-</div>
+---
 
 ## Example
 
@@ -129,20 +128,18 @@ INFO - ✅ Firewall upgraded and rebooted in 343 seconds
 
 </div>
 
-## Next Steps
+For more examples and usage scenarios, refer to the [Documentation](https://cdot65.github.io/pan-os-upgrade/).
 
-### Getting Started
+---
 
-Visit the [User Guide](user-guide/introduction.md) for detailed insights into getting up and running.
+### Release Notes
 
-### API Documentation
-
-Visit the [Developer Documentation](reference/pan_os_upgrade.md) reference page for detailed documentation on the library's code.
+Updates with each release are tracked at [Release Notes](about/release-notes.md).
 
 ### Contributing
 
-Visit the [Contributing](about/contributing.md) page to understand how you can contribute to the project.
+Contributions are welcome and greatly appreciated. Visit the [Contributing](about/contributing.md) page for guidelines on how to contribute.
 
 ### License
 
-Visit the [License](about/license.md) for information about the project's licensing.
+This project is licensed under the Apache 2.0 License - see the [License](about/license.md) page for details.

@@ -26,7 +26,7 @@ Encountering issues while using the `pan-os-upgrade` tool is not uncommon, espec
 
 **Problem:** The wrong PAN-OS version is downloaded or installed.
 
-**Solution:** Verify the target PAN-OS version specified in the `.env` file or command-line arguments. Ensure compatibility with your firewall model.
+**Solution:** Verify the target PAN-OS version specified in the command-line arguments. Ensure compatibility with your firewall model.
 
 ### 5. Readiness Check Failures
 
