@@ -10,7 +10,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-    <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/images/logo.svg?raw=true" alt="Logo">
+    <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/logo.svg?raw=true" alt="Logo">
     <h3 align="center">PAN-OS Automation Project</h3>
     <p align="center">
         Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
@@ -52,28 +52,84 @@ Key Features:
 
 > Note: this script is targeted towards standalone and `active-passive` HA environments, no testing has been performed against `active-active` or clustered firewalls.
 
-Example Screenshot
+Example Execution
 
-![Example Screenshot](https://github.com/cdot65/pan-os-upgrade/blob/main/images/screenshot.jpg?raw=true)
+<div class="termy">
+
+```console
+pan-os-upgrade --ip-address 192.168.255.211 --username admin --password secret --version 10.2.0-h2
+INFO - ✅ Connection to firewall established
+INFO - 📝 007054000123456 houston 192.168.255.211
+INFO - 📝 Firewall HA mode: disabled
+INFO - 📝 Current PAN-OS version: 10.2.0
+INFO - 📝 Target PAN-OS version: 10.2.0-h2
+INFO - ✅ Confirmed that moving from 10.2.0 to 10.2.0-h2 is an upgrade
+INFO - ✅ Target PAN-OS version 10.2.0-h2 is available for download
+INFO - ✅ Base image for 10.2.0-h2 is already downloaded
+INFO - 🚀 Performing test to see if 10.2.0-h2 is already downloaded...
+INFO - 🔍 PAN-OS version 10.2.0-h2 is not on the firewall
+INFO - 🚀 PAN-OS version 10.2.0-h2 is beginning download
+INFO - Device 007054000123456 downloading version: 10.2.0-h2
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 4 seconds
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 36 seconds
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 71 seconds
+INFO - ✅ 10.2.0-h2 downloaded in 103 seconds
+INFO - ✅ PAN-OS version 10.2.0-h2 has been downloaded.
+INFO - 🚀 Performing snapshot of network state information...
+INFO - ✅ Network snapshot created successfully
+INFO - 🚀 Performing readiness checks to determine if firewall is ready for upgrade...
+INFO - ✅ Passed Readiness Check: Check if there are pending changes on device
+INFO - ✅ Passed Readiness Check: No Expired Licenses
+INFO - ✅ Passed Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+INFO - ✅ Passed Readiness Check: Check if NTP is synchronized
+INFO - ✅ Passed Readiness Check: Check connectivity with the Panorama appliance
+INFO - ✅ Readiness Checks completed
+INFO - 🚀 Performing backup of houston's configuration to local filesystem...
+INFO - 🚀 Not a dry run, continue with upgrade...
+INFO - 🚀 Performing upgrade on houston to version 10.2.0-h2...
+INFO - 🚀 Attempting upgrade houston to version 10.2.0-h2 (Attempt 1 of 3)...
+INFO - Device 007054000123456 installing version: 10.2.0-h2
+INFO - ✅ houston upgrade completed successfully
+INFO - 🚀 Rebooting the firewall...
+INFO - 📝 Command succeeded with no output
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ✅ Firewall upgraded and rebooted in 542 seconds
+```
+
+</div>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This guide will help you set up the `pan-os-upgrade` library in your environment, especially focusing on users who are new to Python and virtual environments.
+There are two primary methods to utilize the `pan-os-upgrade` tool: through a Python virtual environment or via a Docker container. Both methods are outlined below to cater to different preferences or requirements.
 
-### Prerequisites
+### Running with Python Virtual Environment
+
+This approach involves setting up a Python virtual environment on your local machine and running the `pan-os-upgrade` tool within this isolated environment.
+
+#### Python Prerequisites
 
 * Python 3.8 or newer.
 * Access to a Palo Alto Networks firewall.
 * An active internet connection to download the package from PyPI.
 
-### Installation
+#### Installation
 
 The `pan-os-upgrade` library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
 
-#### Creating a Python Virtual Environment
+##### Creating a Python Virtual Environment
 
 The steps below highlight the process for creating, activating, and installing `pan-os-upgrade` into a Python virtual environment. If you're new to Python, it may be beneficial to understand why this is such an important step, [here is a good writeup](https://realpython.com/python-virtual-environments-a-primer/) to prime yourself.
 
@@ -109,11 +165,11 @@ The steps below highlight the process for creating, activating, and installing `
     pip install pan-os-upgrade
     ```
 
-### Setting Up Your Environment
+#### Setting Up Your Environment
 
-After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or an .env file.
+After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or using the interactive shell.
 
-#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
+##### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
 
 You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
 
@@ -132,7 +188,7 @@ INFO - ✅ Confirmed that moving from 11.0.2 to 11.1.1 is an upgrade
 ...continue until completed...
 ```
 
-#### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
+##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
 
 Alternatively, you can pass these details as command-line arguments when running the script:
 
@@ -145,6 +201,50 @@ For a dry run:
 ```bash
 pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Running with Docker
+
+Alternatively, you can run `pan-os-upgrade` as a Docker container. This method ensures that the tool runs in an isolated environment with all its dependencies packaged together.
+
+#### Docker Prerequisites
+
+* Docker installed on your system. You can download it from [Docker's official site](https://www.docker.com/products/docker-desktop).
+
+#### Pulling the Docker Image
+
+First, pull the `pan-os-upgrade` image from GitHub Packages:
+
+```bash
+docker pull ghcr.io/cdot65/pan-os-upgrade:latest
+```
+
+#### Running the Container
+
+To run the container and mount local directories for `assurance` and `logs`, use the following commands:
+
+On macOS and Linux:
+
+```bash
+docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it pan-os-upgrade
+```
+
+On Windows:
+
+```bash
+docker run -v %CD%/assurance:/app/assurance -v %CD%/logs:/app/logs -it pan-os-upgrade
+```
+
+These commands mount the current directory's `assurance` and `logs` subdirectories to the corresponding directories in the container. If these directories don't exist on your host, Docker will create them.
+
+#### Interactive Mode
+
+The container will start in interactive mode, prompting you for the necessary input like IP address, username, password, and target PAN-OS version.
+
+#### Accessing Logs and Output
+
+After the container stops, you can find the logs and other output files in the `assurance` and `logs` directories of your current working directory on your host machine.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -255,4 +355,3 @@ Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot
 [issues-url]: https://github.com/cdot65/pan-os-upgrade/issues
 [license-shield]: https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [license-url]: https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE
-[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/screenshot.jpg

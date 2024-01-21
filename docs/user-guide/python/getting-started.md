@@ -72,4 +72,4 @@ $ pip install pan-os-upgrade
 
 ## Next Steps
 
-With `pan-os-upgrade` successfully installed in your virtual environment, the next step is to configure the library for use with your firewall. Visit the [Configuration Guide](configuration.md) to learn how to set up and configure `pan-os-upgrade` for your specific needs.
+With `pan-os-upgrade` successfully installed in your virtual environment, the next step is to configure the library for use with your firewall. Visit the [Python Execution Guide](execution.md) to learn how to set up and configure `pan-os-upgrade` for your specific needs.

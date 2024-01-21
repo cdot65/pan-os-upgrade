@@ -25,7 +25,7 @@ Before you begin, make sure you have a GitHub account and are familiar with Git 
     git checkout -b feature/YourFeatureName
     ```
 
-4. **Set Up the Development Environment:** Follow the [Getting Started](../user-guide/getting-started.md) to set up your local development environment.
+4. **Set Up the Development Environment:** Follow the [Getting Started](../user-guide/python/getting-started.md) to set up your local development environment.
 
 ---
 

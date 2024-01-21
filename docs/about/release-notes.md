@@ -2,6 +2,24 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.2.2
+
+**Release Date:** *<20240121>*
+
+### What's New
+
+- Optimized for Docker execution.
+- Refreshed documentation to showcase both paths of execution (Python virtual environments and Docker)
+
+## Version 0.2.1
+
+**Release Date:** *<20240121>*
+
+### What's New
+
+- Adjusting the execution of our script to instead reference the Typer app `app()` instead of `main()`.
+- Updated the `pan-os-upgrade` alias within the pyproject.toml file to directly call `app()` instead of `main()`
+
 ## Version 0.2.0
 
 **Release Date:** *<20240121>*
