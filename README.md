@@ -10,10 +10,10 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-    <img src="images/logo.svg" alt="Logo">
+    <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/logo.svg?raw=true" alt="Logo">
     <h3 align="center">PAN-OS Automation Project</h3>
     <p align="center">
-        Automating PAN-OS upgrades using Python
+        Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
         <br />
         <a href="https://github.com/cdot65/pan-os-upgrade"><strong>Explore the docs »</strong></a>
         <br />
@@ -23,36 +23,24 @@
         <a href="https://github.com/cdot65/pan-os-upgrade/issues">Request Feature</a>
     </p>
 </div>
-
 <!-- TABLE OF CONTENTS -->
 <details>
     <summary>Table of Contents</summary>
     <ol>
-        <li>
-            <a href="#about-the-project">About The Project</a>
-            <ul>
-                <li><a href="#built-with">Built With</a></li>
-            </ul>
-        </li>
-        <li>
-            <a href="#getting-started">Getting Started</a>
-            <ul>
-                <li><a href="#prerequisites">Prerequisites</a></li>
-                <li><a href="#installation">Installation</a></li>
-            </ul>
-        </li>
+        <li><a href="#about-the-project">About The Project</a></li>
+        <li><a href="#getting-started">Getting Started</a></li>
         <li><a href="#usage">Usage</a></li>
+        <li><a href="#output">Output</a></li>
+        <li><a href="#logging">Logging</a></li>
         <li><a href="#contributing">Contributing</a></li>
         <li><a href="#license">License</a></li>
         <li><a href="#contact">Contact</a></li>
         <li><a href="#acknowledgments">Acknowledgments</a></li>
     </ol>
 </details>
-
 <!-- ABOUT THE PROJECT -->
-## About The Project
 
-[![Project Screenshot][product-screenshot]](https://paloaltonetworks.com)
+## About The Project
 
 This project is a comprehensive Python-based solution for automating PAN-OS upgrades. It's designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configurations, and system checks of Palo Alto Networks appliances.
 
@@ -64,130 +52,231 @@ Key Features:
 
 > Note: this script is targeted towards standalone and `active-passive` HA environments, no testing has been performed against `active-active` or clustered firewalls.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+Example Execution
 
-### Built With
+<div class="termy">
 
-This project is built with the following technologies:
+```console
+pan-os-upgrade --ip-address 192.168.255.211 --username admin --password secret --version 10.2.0-h2
+INFO - ✅ Connection to firewall established
+INFO - 📝 007054000123456 houston 192.168.255.211
+INFO - 📝 Firewall HA mode: disabled
+INFO - 📝 Current PAN-OS version: 10.2.0
+INFO - 📝 Target PAN-OS version: 10.2.0-h2
+INFO - ✅ Confirmed that moving from 10.2.0 to 10.2.0-h2 is an upgrade
+INFO - ✅ Target PAN-OS version 10.2.0-h2 is available for download
+INFO - ✅ Base image for 10.2.0-h2 is already downloaded
+INFO - 🚀 Performing test to see if 10.2.0-h2 is already downloaded...
+INFO - 🔍 PAN-OS version 10.2.0-h2 is not on the firewall
+INFO - 🚀 PAN-OS version 10.2.0-h2 is beginning download
+INFO - Device 007054000123456 downloading version: 10.2.0-h2
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 4 seconds
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 36 seconds
+INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 71 seconds
+INFO - ✅ 10.2.0-h2 downloaded in 103 seconds
+INFO - ✅ PAN-OS version 10.2.0-h2 has been downloaded.
+INFO - 🚀 Performing snapshot of network state information...
+INFO - ✅ Network snapshot created successfully
+INFO - 🚀 Performing readiness checks to determine if firewall is ready for upgrade...
+INFO - ✅ Passed Readiness Check: Check if there are pending changes on device
+INFO - ✅ Passed Readiness Check: No Expired Licenses
+INFO - ✅ Passed Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+INFO - ✅ Passed Readiness Check: Check if NTP is synchronized
+INFO - ✅ Passed Readiness Check: Check connectivity with the Panorama appliance
+INFO - ✅ Readiness Checks completed
+INFO - 🚀 Performing backup of houston's configuration to local filesystem...
+INFO - 🚀 Not a dry run, continue with upgrade...
+INFO - 🚀 Performing upgrade on houston to version 10.2.0-h2...
+INFO - 🚀 Attempting upgrade houston to version 10.2.0-h2 (Attempt 1 of 3)...
+INFO - Device 007054000123456 installing version: 10.2.0-h2
+INFO - ✅ houston upgrade completed successfully
+INFO - 🚀 Rebooting the firewall...
+INFO - 📝 Command succeeded with no output
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is rebooting...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
+INFO - ✅ Firewall upgraded and rebooted in 542 seconds
+```
 
-* [Python](https://python.org/)
-* [pan-os-python SDK](https://github.com/PaloAltoNetworks/pan-os-python)
-* [panos-upgrade-assurance](https://github.com/PaloAltoNetworks/pan-os-upgrade-assurance)
-* [Pydantic](https://docs.pydantic.dev/latest/)
-* [xmltodict](https://pypi.org/project/xmltodict/)
+</div>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
-
-## Prerequisites
-
-* Python 3.x
-* Access to a Palo Alto Networks firewall.
-* Required Python packages: (found in [requirements.txt](https://github.com/cdot65/pan-os-upgrade/blob/main/requirements.txt) file).
-
 ## Getting Started
 
-To get started with the PAN-OS upgrade project, you need to set up your environment and install the necessary dependencies.
+There are two primary methods to utilize the `pan-os-upgrade` tool: through a Python virtual environment or via a Docker container. Both methods are outlined below to cater to different preferences or requirements.
 
-### Installation
+### Running with Python Virtual Environment
 
-Clone the repository
+This approach involves setting up a Python virtual environment on your local machine and running the `pan-os-upgrade` tool within this isolated environment.
+
+#### Python Prerequisites
+
+* Python 3.8 or newer.
+* Access to a Palo Alto Networks firewall.
+* An active internet connection to download the package from PyPI.
+
+#### Installation
+
+The `pan-os-upgrade` library is available on PyPI and can be installed within a Python virtual environment. A virtual environment is a self-contained directory that contains a Python installation for a particular version of Python, plus a number of additional packages.
+
+##### Creating a Python Virtual Environment
+
+The steps below highlight the process for creating, activating, and installing `pan-os-upgrade` into a Python virtual environment. If you're new to Python, it may be beneficial to understand why this is such an important step, [here is a good writeup](https://realpython.com/python-virtual-environments-a-primer/) to prime yourself.
+
+1. Create a Virtual Environment:
+
+    ```bash
+    python3 -m venv panos_env
+    ```
+
+    This command creates a new directory panos_env which contains a copy of the Python interpreter, the standard library, and various supporting files.
+
+2. Activate the Virtual Environment:
+
+    On Windows:
+
+    ```bash
+    panos_env\Scripts\activate
+    ```
+
+    On macOS and Linux:
+
+    ```bash
+    source panos_env/bin/activate
+    ```
+
+    After activation, your command line will indicate that you are now in the virtual environment.
+
+3. Install `pan-os-upgrade`:
+
+    Within the activated environment, use pip to install the package:
+
+    ```bash
+    pip install pan-os-upgrade
+    ```
+
+#### Setting Up Your Environment
+
+After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or using the interactive shell.
+
+##### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
+
+You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
 
 ```bash
-git clone https://github.com/cdot65/pan-os-upgrade.git
-cd pan-os-upgrade
+$ pan-os-upgrade
+IP address: 192.168.255.1
+Username: admin
+Password:
+Target PAN-OS version: 11.1.1
+INFO - ✅ Connection to firewall established
+INFO - 📝 **021201123456** DataCenter 10.0.0.3
+INFO - 📝 Firewall HA mode: disabled
+INFO - 📝 Current PAN-OS version: 11.0.2
+INFO - 📝 Target PAN-OS version: 11.1.1
+INFO - ✅ Confirmed that moving from 11.0.2 to 11.1.1 is an upgrade
+...continue until completed...
 ```
 
-Before running the script, ensure you have Python installed on your system. If you're new to Python, here's how you can set up a virtual environment, which allows us to install Python packages without having them conflict with our system's Python environment:
+##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
 
-* Setting up a virtual environment
-
-If you have Poetry on your machine, simply type `poetry install` and `poetry shell` to activate this project's virtual environment.
-
-If Poetry is not installed, then you can build and activate the Python virtual enviornment manually.
+Alternatively, you can pass these details as command-line arguments when running the script:
 
 ```bash
-python3 -m venv venv
+pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
+
+For a dry run:
 
 ```bash
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+pan-os-upgrade --ip-address 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
 
-Once the virutal environment has been created and activated, install the required packages
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Running with Docker
+
+Alternatively, you can run `pan-os-upgrade` as a Docker container. This method ensures that the tool runs in an isolated environment with all its dependencies packaged together.
+
+#### Docker Prerequisites
+
+* Docker installed on your system. You can download it from [Docker's official site](https://www.docker.com/products/docker-desktop).
+
+#### Pulling the Docker Image
+
+First, pull the `pan-os-upgrade` image from GitHub Packages:
 
 ```bash
-pip install -r requirements.txt
+docker pull ghcr.io/cdot65/pan-os-upgrade:latest
 ```
+
+#### Running the Container
+
+To run the container and mount local directories for `assurance` and `logs`, use the following commands:
+
+On macOS and Linux:
+
+```bash
+docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it pan-os-upgrade
+```
+
+On Windows:
+
+```bash
+docker run -v %CD%/assurance:/app/assurance -v %CD%/logs:/app/logs -it pan-os-upgrade
+```
+
+These commands mount the current directory's `assurance` and `logs` subdirectories to the corresponding directories in the container. If these directories don't exist on your host, Docker will create them.
+
+#### Interactive Mode
+
+The container will start in interactive mode, prompting you for the necessary input like IP address, username, password, and target PAN-OS version.
+
+#### Accessing Logs and Output
+
+After the container stops, you can find the logs and other output files in the `assurance` and `logs` directories of your current working directory on your host machine.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-The script can be run from the command line with various options. It requires at least the hostname (or IP address) and the target PAN-OS version for the firewall. Authentication can be done via API key or username and password.
+The script can be run from the command line with various options.
+
+You can view all arguments by passing the `--help` flag:
+
+```bash
+pan-os-upgrade --help
+```
 
 ### CLI Arguments Description
 
-* `--api-key`: API Key for authentication
-* `--dry-run`: Perform a dry run of all tests and downloads without performing the actual upgrade.
-* `--hostname`: Hostname or IP address of the PAN-OS firewall.
-* `--log-level`: Set the logging output level (e.g., debug, info, warning).
-* `--password`: Password for authentication.
-* `--username`: Username for authentication.
-* `--version`: Target PAN-OS version to upgrade to.
-
-### Define Variables Within .env
-
-As an alternative to passing CLI arguments, which can be a security risk due to your console's history function, you can instead update the variables within the `.env` file of your project.
-
-These environment variables will be used when CLI arguments are not provided, feel free to mix and match CLI arguments and hardcoded values within the .env file. Just note that if you're using an API key for authentication, leave the username and password blank.
-
-> note: CLI arguments will take precedent of .env file
-
-```env
-# PAN-OS credientials if using an API key, leave username and password blank
-PAN_USERNAME=admin
-PAN_PASSWORD=paloalto123
-API_KEY=
-
-# hostname or IP address
-HOSTNAME=firewall1.example.com
-
-# target PAN-OS version
-TARGET_VERSION=11.0.2-h3
-
-# manage the levels of logging of the script debug, info, warning, error, critical
-LOG_LEVEL=debug
-
-# dry run will not perform the actual upgrade process
-DRY_RUN=
-
-```
-
-Then execute your script as follows:
-
-```bash
-python upgrade.py
-```
-
-### Dry Run
-
-To execute a dry run (which performs checks without upgrading):
-
-   ```bash
-   python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.0.0 --dry-run
-   ```
-
-For more details on the usage and examples, refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/).
+| cli argument   | shorthand | type | description                                                                         |
+| -------------- | --------- | ---- | ----------------------------------------------------------------------------------- |
+| `--dry-run`    | `-d`      | n/a  | Perform a dry run of all tests and downloads without performing the actual upgrade. |
+| `--ip-address` | `-i`      | text | IP address of target firewall.                                                      |
+| `--log-level`  | `-l`      | text | Set the logging output level (e.g., debug, info, warning).                          |
+| `--password`   | `-p`      | text | Password for authentication.                                                        |
+| `--username`   | `-u`      | text | Username for authentication.                                                        |
+| `--version`    | `-v`      | text | Target PAN-OS version to upgrade to.                                                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-Refer to the [documentation](https://github.com/cdot65/pan-os-upgrade) for more details on usage.
+Refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/) for more details on usage.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- OUTPUT -->
 ## Output
 
 The script generates several files containing the state of the firewall and readiness checks. These files are stored in the `assurance` directory with the following structure:
@@ -196,6 +285,7 @@ The script generates several files containing the state of the firewall and read
 * `readiness_checks`: Contains the results of readiness checks in JSON format.
 * `configurations`: Contains the backup of the firewall's configuration in XML format.
 
+<!-- LOGGING -->
 ## Logging
 
 Log messages are printed to the console and saved to a rotating log file located in the `logs` directory. The log level can be set via the `--log-level` argument.
@@ -208,13 +298,10 @@ Encountered an issue? Here are some common problems and solutions:
 * **Problem**: Script fails to connect to the PAN-OS device.
   * **Solution**: Check if the hostname and credentials are correct. Ensure network connectivity to the PAN-OS device.
 
-* **Problem**: Error regarding missing dependencies.
-  * **Solution**: Ensure all required packages are installed using `pip install -r requirements.txt`.
-
 * **Problem**: Script hangs during execution.
   * **Solution**: Check the firewall and network settings. Ensure the PAN-OS device is responding correctly.
 
-For more troubleshooting tips, visit our [FAQ section](#).
+For more troubleshooting tips, visit our [FAQ section](https://cdot65.github.io/pan-os-upgrade/).
 
 <!-- CONTRIBUTING -->
 ## Contributing
@@ -229,14 +316,14 @@ If you have a suggestion that would make this better, please fork the repo and c
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-See [Contributing Guidelines](#) for detailed instructions.
+See [Contributing Guidelines](https://cdot65.github.io/pan-os-upgrade/about/contributing/) for detailed instructions.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- LICENSE -->
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache 2.0 License - see the [LICENSE](https://cdot65.github.io/pan-os-upgrade/about/license/) file for details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -268,4 +355,3 @@ Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot
 [issues-url]: https://github.com/cdot65/pan-os-upgrade/issues
 [license-shield]: https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [license-url]: https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE
-[product-screenshot]: https://github.com/cdot65/pan-os-upgrade/blob/main/images/screenshot.jpg
