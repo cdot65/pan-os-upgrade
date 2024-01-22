@@ -438,7 +438,7 @@ def ip_callback(value: str) -> str:
 # ----------------------------------------------------------------------------
 # Helper function to ensure the directories exist for our snapshots
 # ----------------------------------------------------------------------------
-def ensure_directory_exists(file_path: str):
+def ensure_directory_exists(file_path: str) -> None:
     """
     Ensures the existence of the directory for a specified file path, creating it if necessary.
 
@@ -471,7 +471,7 @@ def check_readiness_and_log(
     result: dict,
     test_name: str,
     test_info: dict,
-):
+)  -> None:
     """
     Evaluates and logs the results of a specified readiness test.
 
@@ -1629,7 +1629,7 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
     return firewalls
 
 
-def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
+def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool,) -> None:
     """
     Upgrades a single target firewall by stepping through the entire upgrade process.
 
