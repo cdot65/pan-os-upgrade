@@ -72,7 +72,6 @@ from panos_upgrade_assurance.firewall_proxy import FirewallProxy
 # third party imports
 import dns.resolver
 import typer
-import xmltodict
 
 # project imports
 from pan_os_upgrade.models import (
@@ -437,51 +436,6 @@ def ip_callback(value: str) -> str:
 
 
 # ----------------------------------------------------------------------------
-# Helper function to convert XML objects into Python dictionaries
-# ----------------------------------------------------------------------------
-def xml_to_dict(xml_object: ET.Element) -> dict:
-    """
-    Converts an XML object to a Python dictionary for easier manipulation and access.
-
-    This function employs the 'xmltodict' library to transform an XML object into a Python dictionary.
-    The conversion process maintains the hierarchical structure of the XML, mapping elements to keys and
-    their contents to corresponding values in the dictionary. This approach is particularly advantageous
-    for handling XML data within Python, as it allows for straightforward access to XML elements and
-    attributes in a manner consistent with Python's data access patterns.
-
-    Parameters
-    ----------
-    xml_object : ET.Element
-        The XML object to be converted. This object should be an instance of ElementTree.Element,
-        usually obtained from parsing XML data using the ElementTree API.
-
-    Returns
-    -------
-    dict
-        A dictionary representing the XML object. The structure of this dictionary mirrors that of
-        the original XML, with element tags as keys and their text content or attributes as values.
-
-    Example
-    -------
-    Example of converting an XML object to a dictionary:
-        >>> xml_data = ET.Element('root', attrib={'id': '1'})
-        >>> sub_element = ET.SubElement(xml_data, 'child')
-        >>> sub_element.text = 'content'
-        >>> xml_dict = xml_to_dict(xml_data)
-        >>> print(xml_dict)
-        {'root': {'@id': '1', 'child': 'content'}}
-
-    Note
-    -----
-    - This utility is independent of the specific XML schema and can be applied to any XML data.
-    """
-
-    xml_string = ET.tostring(xml_object)
-    xml_dict = xmltodict.parse(xml_string)
-    return xml_dict
-
-
-# ----------------------------------------------------------------------------
 # Helper function to ensure the directories exist for our snapshots
 # ----------------------------------------------------------------------------
 def ensure_directory_exists(file_path: str):
@@ -594,7 +548,7 @@ def connect_to_firewall(
 
     Parameters
     ----------
-    - 'ip_address': The IP address of the Firewall appliance.
+    - 'hostname': The DNS Hostname or IP address of the target appliance.
     - 'api_username': Username for authentication.
     - 'api_password': Password for authentication.
 
@@ -850,7 +804,7 @@ def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     Notes
     -----
     - The function utilizes the 'show_highavailability_state' method of the Firewall class to fetch HA details.
-    - The 'xml_to_dict' helper function is used to convert XML data into a more accessible dictionary format.
+    - The 'flatten_xml_to_dict' helper function is used to convert XML data into a more accessible dictionary format.
     """
     logging.debug(
         f"{get_emoji('start')} Getting {firewall.serial} deployment information..."
@@ -859,7 +813,7 @@ def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     logging.debug(f"{get_emoji('report')} Firewall deployment: {deployment_type[0]}")
 
     if deployment_type[1]:
-        ha_details = xml_to_dict(deployment_type[1])
+        ha_details = flatten_xml_to_dict(deployment_type[1])
         logging.debug(
             f"{get_emoji('report')} Firewall deployment details: {ha_details}"
         )
@@ -1503,15 +1457,15 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
     reboot_job = firewall.op(
         "<request><restart><system/></restart></request>", cmd_xml=False
     )
-    reboot_job_result = xml_to_dict(reboot_job)
-    logging.info(f"{get_emoji('report')} {reboot_job_result['response']['result']}")
+    reboot_job_result = flatten_xml_to_dict(reboot_job)
+    logging.info(f"{get_emoji('report')} {reboot_job_result['result']}")
 
     while not rebooted:
         try:
             deploy_info, current_ha_details = get_ha_status(firewall)
             if current_ha_details and deploy_info in ["active", "passive"]:
                 if (
-                    current_ha_details["response"]["result"]["group"]["running-sync"]
+                    current_ha_details["result"]["group"]["running-sync"]
                     == "synchronized"
                 ):
                     logging.info(
@@ -1546,10 +1500,46 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
             break
 
 
-def flatten_xml_to_dict(element: ET.Element):
-    """Converts the given element into a dict by recursing through it until it finds an element containing only text.
+# ----------------------------------------------------------------------------
+# Helper function to convert XML ET.Element into a Python dictionary
+# ----------------------------------------------------------------------------
+def flatten_xml_to_dict(element: ET.Element) -> dict:
+    """
+    Converts a given XML element to a dictionary, flattening the XML structure.
 
-    This method also flattens the XML structure to make it simpler to 'fit' to model definitions.
+    This function recursively processes an XML element, converting it and its children into a dictionary format.
+    The conversion flattens the XML structure, making it easier to adapt to model definitions. It treats elements
+    containing only text as leaf nodes, directly mapping their tags to their text content. For elements with child
+    elements, it continues the recursion. The function handles multiple occurrences of the same tag by aggregating
+    them into a list. Specifically, it always treats elements with the tag 'entry' as lists, reflecting their
+    common usage pattern in PAN-OS XML API responses.
+
+    Parameters
+    ----------
+    element : ET.Element
+        The XML element to be converted. This should be an instance of ElementTree.Element, typically obtained
+        from parsing XML data using the ElementTree API.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the XML element. The dictionary mirrors the structure of the XML,
+        with tags as keys and text content or nested dictionaries as values. Elements with the same tag
+        are aggregated into a list.
+
+    Notes
+    -----
+    - This function is designed to work with PAN-OS XML API responses, which often use the 'entry' tag
+      to denote list items.
+    - The function does not preserve attributes of XML elements; it focuses solely on tags and text content.
+
+    Example
+    -------
+    Converting an XML element with nested children to a dictionary:
+        >>> xml_string = "<root><child>value</child><child><subchild>subvalue</subchild></child></root>"
+        >>> xml_element = ET.fromstring(xml_string)
+        >>> flatten_xml_to_dict(xml_element)
+        {'child': ['value', {'subchild': 'subvalue'}]}
     """
     result = {}
     for child_element in element:
@@ -1639,7 +1629,7 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
     return firewalls
 
 
-def  upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
+def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
     """
     Upgrades a single target firewall by stepping through the entire upgrade process.
 
@@ -1722,7 +1712,7 @@ def  upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: b
         logging.info(
             f"{get_emoji('start')} Performing test to see if HA peer is in sync..."
         )
-        if ha_details["response"]["result"]["group"]["running-sync"] == "synchronized":
+        if ha_details["result"]["group"]["running-sync"] == "synchronized":
             logging.info(f"{get_emoji('success')} HA peer sync test has been completed")
         else:
             logging.error(
@@ -1764,10 +1754,30 @@ def  upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: b
 
 def filter_string_to_dict(filter_string: str) -> dict:
     """
-    Converts key/value string into dictionary
+    Parses a key-value pair string into a dictionary.
+
+    This function takes a string containing key-value pairs separated by commas and splits it into individual
+    components. Each component, representing a key-value pair, is further split at the equals sign ('='). The
+    resulting key-value pairs are then stored in a dictionary.
+
     Parameters
     ----------
-    filter_string: Key/value pair string, ex 'hostname=test,serial=11111'
+    filter_string : str
+        A string containing key-value pairs separated by commas. Each key-value pair should be in the format
+        'key=value'. For example, 'hostname=test,serial=11111'.
+
+    Returns
+    -------
+    dict
+        A dictionary where each key is a substring from 'filter_string' before the '=' character, and each value
+        is the corresponding substring after the '=' character. If 'filter_string' is empty or incorrectly formatted,
+        the function returns an empty dictionary.
+
+    Example
+    -------
+    Converting a key-value pair string to a dictionary:
+        >>> filter_string_to_dict("hostname=test,serial=11111")
+        {'hostname': 'test', 'serial': '11111'}
     """
     result = {}
     for substr in filter_string.split(","):
