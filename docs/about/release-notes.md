@@ -2,10 +2,21 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
-## Version 0.2.3
+## Version 0.2.4
+
+**Release Date:** *<20240122>*
+
+### What's New
+
+- Resolved a bug where console logging was duplicated
+- Simplified the non-debug console log output
+- Removed `requirements.txt` from Docker container image
+
+## Version 0.2.4
 
 **Release Date:** *<20240121>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Improved error handling for network layer transport.
@@ -15,6 +26,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Optimized for Docker execution.
@@ -24,6 +36,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Adjusting the execution of our script to instead reference the Typer app `app()` instead of `main()`.
@@ -33,6 +46,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Allow for simply running `pan-os-upgrade` without arguments, providing an interactive prompt for missing variables
@@ -50,7 +64,8 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240119>*
 
-### Highlights
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
 
 - First official release of the `pan-os-upgrade` tool on PyPi.
 - Made available for wide usage and distribution.
