@@ -745,6 +745,10 @@ def software_update_check(
     # parse version
     major, minor, maintenance = version.split(".")
 
+    # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
+    logging.debug(f"Refreshing running system information")
+    firewall.refresh_system_info()
+
     # check to see if the specified version is older than the current version
     determine_upgrade(firewall, major, minor, maintenance)
 
@@ -1603,7 +1607,7 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
     return firewalls
 
 
-def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
+def  upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
     """
     Upgrades a single target firewall by stepping through the entire upgrade process.
 
@@ -1870,12 +1874,13 @@ def main(
             )
             sys.exit(1)
 
-        logging.info(f"{get_emoji('success')} Connection to panorama established")
+        logging.info(f"{get_emoji('success')} Connection to Panorama established. Firewall connections will bee proxied!")
         firewalls_to_upgrade = get_firewalls_from_panorama(
             device, **filter_string_to_dict(filter)
         )
 
-    # Run the upgrade process for each identified firewall
+    # Run the upgrade process for each identified firewall. Note this runs serially, i.e one after the other.
+    # This is also not yet "HA aware".
     for firewall in firewalls_to_upgrade:
         upgrade_single_firewall(firewall, target_version, dry_run)
 
