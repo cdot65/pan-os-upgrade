@@ -4,7 +4,6 @@ from pan_os_upgrade.models.mixins import FromAPIResponseMixin
 
 class ManagedDevice(BaseModel):
     """Single device from output of `show devices all` on panorama"""
-
     hostname: str
     serial: str
     connected: bool

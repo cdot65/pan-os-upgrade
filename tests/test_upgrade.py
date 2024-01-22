@@ -145,3 +145,8 @@ class TestPanoramaMethods:
 
         assert not get_managed_devices(mock_panorama, hostname="badhostname")
         assert get_managed_devices(mock_panorama, serial="111111111111111")
+
+def test_filter_string_to_dict():
+    from pan_os_upgrade.upgrade import filter_string_to_dict
+    assert filter_string_to_dict("test=x") == {"test": "x"}
+    assert filter_string_to_dict("test=x,test2=y") == {"test": "x", "test2": "y"}

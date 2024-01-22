@@ -541,7 +541,7 @@ def connect_to_firewall(
     ip_address: str,
     api_username: str,
     api_password: str,
-) -> Firewall:
+) -> PanDevice:
     """
     Establishes a connection to a Firewall appliance using provided credentials.
 
@@ -579,13 +579,6 @@ def connect_to_firewall(
             api_username,
             api_password,
         )
-
-        if isinstance(target_device, panos.panorama.Panorama):
-            logging.error(
-                f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
-            )
-
-            sys.exit(1)
 
         return target_device
 
@@ -1566,6 +1559,7 @@ def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
 
     Parameters
     ----------
+    panorama: Panorama Object
     filters : **kwargs
         Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
     """
@@ -1579,117 +1573,28 @@ def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
     return devices
 
 
-# ----------------------------------------------------------------------------
-# Primary execution of the script
-# ----------------------------------------------------------------------------
-@app.command()
-def main(
-    ip_address: Annotated[
-        str,
-        typer.Option(
-            "--ip-address",
-            "-i",
-            help="IP address of target firewall",
-            prompt="IP address",
-            callback=ip_callback,
-        ),
-    ],
-    username: Annotated[
-        str,
-        typer.Option(
-            "--username",
-            "-u",
-            help="Username for authentication with the Firewall appliance",
-            prompt="Username",
-        ),
-    ],
-    password: Annotated[
-        str,
-        typer.Option(
-            "--password",
-            "-p",
-            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-            prompt="Password",
-            hide_input=True,
-        ),
-    ],
-    target_version: Annotated[
-        str,
-        typer.Option(
-            "--version",
-            "-v",
-            help="Target PAN-OS version to upgrade to",
-            prompt="Target PAN-OS version",
-        ),
-    ],
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-d",
-            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-        ),
-    ] = False,
-    log_level: Annotated[
-        str,
-        typer.Option("--log-level", "-l", help="Set the logging output level"),
-    ] = "info",
-):
+def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
+    """Returns a list of `Firewall` objects by getting the managed device list from panorama (based on the given
+    filters) then building and attaching them to Panorama.
+
+    This function causes the underlying API calls to be proxied via Panorama.
+
+    Parameters
+    ----------
+    panorama: Panorama Object
+    filters : **kwargs
+        Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
     """
-    Main entry point for executing the firewall upgrade script.
+    firewalls = []
+    for managed_device in get_managed_devices(panorama, **filters).devices:
+        firewall = Firewall(serial=managed_device.serial)
+        firewalls.append(firewall)
+        panorama.add(firewall)
 
-    This function orchestrates the entire process of upgrading a PAN-OS firewall. It includes various stages,
-    such as parsing command-line arguments, establishing a connection with the firewall, assessing readiness
-    for upgrade, and executing the upgrade process. The function is designed to handle both dry run and actual
-    upgrade scenarios, providing comprehensive logging throughout.
+    return firewalls
 
-    Steps:
-    1. Create necessary directories for logs and snapshots.
-    2. Configure logging based on user-defined log level.
-    3. Establish a connection to the firewall and refresh its system info.
-    4. Determine firewall's deployment status and readiness for upgrade.
-    5. Download required PAN-OS version if not present.
-    6. Perform pre-upgrade snapshots and readiness checks.
-    7. Back up current firewall configuration.
-    8. Proceed with upgrade and reboot if not a dry run.
 
-    Exits the script in cases such as:
-    - Firewall not ready for the intended upgrade.
-    - Critical issues that prevent script continuation.
-    - Successful completion of a dry run.
-    - HA peer state is not synchronized (for HA setups).
-
-    Example Usage:
-    ```bash
-    python upgrade.py --ip-address 192.168.1.1 --username admin --password secret --version 10.2.7
-    ```
-    This command will start the upgrade process for the firewall at '192.168.1.1' to version '10.2.7'.
-    """
-
-    # Create necessary directories
-    directories = [
-        "logs",
-        "assurance",
-        "assurance/configurations",
-        "assurance/readiness_checks",
-        "assurance/reports",
-        "assurance/snapshots",
-    ]
-    for dir in directories:
-        ensure_directory_exists(os.path.join(dir, "dummy_file"))
-
-    # Configure logging right after directory setup
-    configure_logging(log_level)
-
-    # Create our connection to the firewall
-    logging.debug(f"{get_emoji('start')} Connecting to PAN-OS firewall...")
-    firewall = connect_to_firewall(
-        ip_address=ip_address,
-        api_username=username,
-        api_password=password,
-    )
-    logging.info(f"{get_emoji('success')} Connection to firewall established")
-
+def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
     # Refresh system information to ensure we have the latest data
     logging.debug(f"{get_emoji('start')} Refreshing system information...")
     firewall_details = SystemSettings.refreshall(firewall)[0]
@@ -1797,6 +1702,154 @@ def main(
 
     # Perform the reboot
     perform_reboot(firewall=firewall, ha_details=ha_details)
+
+def filter_string_to_dict(filter_string: str) -> dict:
+    """
+    Converts key/value string into dictionary
+    Parameters
+    ----------
+    filter_string: Key/value pair string, ex 'hostname=test,serial=11111'
+    """
+    result = {}
+    for substr in filter_string.split(","):
+        k, v = substr.split("=")
+        result[k] = v
+
+    return result
+
+# ----------------------------------------------------------------------------
+# Primary execution of the script
+# ----------------------------------------------------------------------------
+@app.command()
+def main(
+    ip_address: Annotated[
+        str,
+        typer.Option(
+            "--ip-address",
+            "-i",
+            help="IP address of target firewall",
+            prompt="IP address",
+            callback=ip_callback,
+        ),
+    ],
+    username: Annotated[
+        str,
+        typer.Option(
+            "--username",
+            "-u",
+            help="Username for authentication with the Firewall appliance",
+            prompt="Username",
+        ),
+    ],
+    password: Annotated[
+        str,
+        typer.Option(
+            "--password",
+            "-p",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+            prompt="Password",
+            hide_input=True,
+        ),
+    ],
+    target_version: Annotated[
+        str,
+        typer.Option(
+            "--version",
+            "-v",
+            help="Target PAN-OS version to upgrade to",
+            prompt="Target PAN-OS version",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-d",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+        ),
+    ] = False,
+    filter: Annotated[
+        str,
+        typer.Option(
+            "--filter",
+            "-f",
+            help="Filter string - when connecting to Panorama, defines which devices we are to upgrade.",
+        ),
+    ] = "",
+    log_level: Annotated[
+        str,
+        typer.Option("--log-level", "-l", help="Set the logging output level"),
+    ] = "info",
+):
+    """
+    Main entry point for executing the firewall upgrade script.
+
+    This function orchestrates the entire process of upgrading a PAN-OS firewall. It includes various stages,
+    such as parsing command-line arguments, establishing a connection with the firewall, assessing readiness
+    for upgrade, and executing the upgrade process. The function is designed to handle both dry run and actual
+    upgrade scenarios, providing comprehensive logging throughout.
+
+    Steps:
+    1. Create necessary directories for logs and snapshots.
+    2. Configure logging based on user-defined log level.
+    3. Establish a connection to the firewall and refresh its system info.
+    4. Determine firewall's deployment status and readiness for upgrade.
+    5. Download required PAN-OS version if not present.
+    6. Perform pre-upgrade snapshots and readiness checks.
+    7. Back up current firewall configuration.
+    8. Proceed with upgrade and reboot if not a dry run.
+
+    Exits the script in cases such as:
+    - Firewall not ready for the intended upgrade.
+    - Critical issues that prevent script continuation.
+    - Successful completion of a dry run.
+    - HA peer state is not synchronized (for HA setups).
+
+    Example Usage:
+    ```bash
+    python upgrade.py --ip-address 192.168.1.1 --username admin --password secret --version 10.2.7
+    ```
+    This command will start the upgrade process for the firewall at '192.168.1.1' to version '10.2.7'.
+    """
+
+    # Create necessary directories
+    directories = [
+        "logs",
+        "assurance",
+        "assurance/configurations",
+        "assurance/readiness_checks",
+        "assurance/reports",
+        "assurance/snapshots",
+    ]
+    for dir in directories:
+        ensure_directory_exists(os.path.join(dir, "dummy_file"))
+
+    # Configure logging right after directory setup
+    configure_logging(log_level)
+
+    # Create our connection to the firewall
+    logging.debug(f"{get_emoji('start')} Connecting to PAN-OS device...")
+    device = connect_to_firewall(
+        ip_address=ip_address,
+        api_username=username,
+        api_password=password,
+    )
+
+    firewalls_to_upgrade = []
+    if type(device) is Firewall:
+        logging.info(f"{get_emoji('success')} Connection to firewall established")
+        firewalls_to_upgrade.append(device)
+    elif type(device) is Panorama:
+        if not filter:
+            logging.error(f"{get_emoji('error')} Specified device is Panorama, but no filter string was provided.")
+            sys.exit(1)
+
+        logging.info(f"{get_emoji('success')} Connection to panorama established")
+        firewalls_to_upgrade = get_firewalls_from_panorama(device, **filter_string_to_dict(filter))
+
+    # Run the upgrade process for each identified firewall
+    for firewall in firewalls_to_upgrade:
+        upgrade_single_firewall(firewall, target_version, dry_run)
 
 
 if __name__ == "__main__":
