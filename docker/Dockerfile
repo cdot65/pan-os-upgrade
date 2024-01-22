@@ -10,12 +10,9 @@ RUN apk add --no-cache gcc musl-dev libffi-dev make
 # Set the working directory in the container to /app
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt /app/
-
 # Install any needed packages specified in requirements.txt
-# Note: The requirements.txt should contain pan-os-upgrade==0.2.3
-RUN pip install --no-cache-dir pan-os-upgrade==0.2.3
+# Note: The requirements.txt should contain pan-os-upgrade==0.2.4
+RUN pip install --no-cache-dir pan-os-upgrade==0.2.4
 
 # Set the locale to avoid issues with emoji rendering
 ENV LANG C.UTF-8
