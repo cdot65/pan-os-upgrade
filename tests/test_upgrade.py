@@ -145,6 +145,9 @@ class TestPanoramaMethods:
 
         assert not get_managed_devices(mock_panorama, hostname="badhostname")
         assert get_managed_devices(mock_panorama, serial="111111111111111")
+        # regex tests
+        assert get_managed_devices(mock_panorama, hostname="pantf.*")
+        assert not get_managed_devices(mock_panorama, hostname="badregex.*")
 
 def test_filter_string_to_dict():
     from pan_os_upgrade.upgrade import filter_string_to_dict

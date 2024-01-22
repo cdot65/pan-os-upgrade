@@ -43,6 +43,7 @@ import logging
 import os
 import sys
 import time
+import re
 from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
@@ -1568,7 +1569,7 @@ def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
     )
     devices = managed_devices.devices
     for filter_key, filter_value in filters.items():
-        devices = [d for d in devices if getattr(d, filter_key) == filter_value]
+        devices = [d for d in devices if re.match(filter_value, getattr(d, filter_key))]
 
     return devices
 
