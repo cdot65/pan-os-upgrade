@@ -23,3 +23,9 @@ from .routes import RouteEntry
 
 # trunk-ignore(ruff/F401)
 from .session_stats import SessionStats
+
+# trunk-ignore(ruff/F401)
+from .devices import ManagedDevice, ManagedDevices
+
+# trunk-ignore(ruff/F401)
+from .mixins import FromAPIResponseMixin

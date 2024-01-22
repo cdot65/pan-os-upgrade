@@ -43,6 +43,7 @@ import logging
 import os
 import sys
 import time
+import re
 from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
@@ -51,7 +52,6 @@ from typing_extensions import Annotated
 import xml.etree.ElementTree as ET
 
 # Palo Alto Networks PAN-OS imports
-import panos
 from panos.base import PanDevice
 from panos.device import SystemSettings
 from panos.errors import (
@@ -62,6 +62,7 @@ from panos.errors import (
     PanXapiError,
 )
 from panos.firewall import Firewall
+from panos.panorama import Panorama
 
 # Palo Alto Networks panos-upgrade-assurance imports
 from panos_upgrade_assurance.check_firewall import CheckFirewall
@@ -70,11 +71,15 @@ from panos_upgrade_assurance.firewall_proxy import FirewallProxy
 # third party imports
 import dns.resolver
 import typer
-import xmltodict
 
 # project imports
-from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport
-
+from pan_os_upgrade.models import (
+    SnapshotReport,
+    ReadinessCheckReport,
+    ManagedDevice,
+    ManagedDevices,
+    FromAPIResponseMixin,
+)
 
 # ----------------------------------------------------------------------------
 # Define Typer command-line interface
@@ -244,7 +249,7 @@ class AssuranceOptions:
 # ----------------------------------------------------------------------------
 # Setting up logging
 # ----------------------------------------------------------------------------
-def configure_logging(level: str) -> None:
+def configure_logging(level: str, encoding: str = "utf-8") -> None:
     """
     Configures the logging system for the script with a specified logging level.
 
@@ -258,6 +263,9 @@ def configure_logging(level: str) -> None:
         The logging level to be set for the logger. Valid options are 'debug', 'info', 'warning',
         'error', and 'critical', as defined in the LOGGING_LEVELS dictionary. The function handles the
         input case-insensitively and defaults to 'info' if an invalid level is provided.
+
+    encoding: str
+        String encoding for file-based log handler. Defaults to 'utf-8'.
 
     Notes
     -----
@@ -281,6 +289,7 @@ def configure_logging(level: str) -> None:
         "logs/upgrade.log",
         maxBytes=1024 * 1024,
         backupCount=3,
+        encoding=encoding,
     )
 
     # Create formatters and add them to the handlers
@@ -429,54 +438,9 @@ def ip_callback(value: str) -> str:
 
 
 # ----------------------------------------------------------------------------
-# Helper function to convert XML objects into Python dictionaries
-# ----------------------------------------------------------------------------
-def xml_to_dict(xml_object: ET.Element) -> dict:
-    """
-    Converts an XML object to a Python dictionary for easier manipulation and access.
-
-    This function employs the 'xmltodict' library to transform an XML object into a Python dictionary.
-    The conversion process maintains the hierarchical structure of the XML, mapping elements to keys and
-    their contents to corresponding values in the dictionary. This approach is particularly advantageous
-    for handling XML data within Python, as it allows for straightforward access to XML elements and
-    attributes in a manner consistent with Python's data access patterns.
-
-    Parameters
-    ----------
-    xml_object : ET.Element
-        The XML object to be converted. This object should be an instance of ElementTree.Element,
-        usually obtained from parsing XML data using the ElementTree API.
-
-    Returns
-    -------
-    dict
-        A dictionary representing the XML object. The structure of this dictionary mirrors that of
-        the original XML, with element tags as keys and their text content or attributes as values.
-
-    Example
-    -------
-    Example of converting an XML object to a dictionary:
-        >>> xml_data = ET.Element('root', attrib={'id': '1'})
-        >>> sub_element = ET.SubElement(xml_data, 'child')
-        >>> sub_element.text = 'content'
-        >>> xml_dict = xml_to_dict(xml_data)
-        >>> print(xml_dict)
-        {'root': {'@id': '1', 'child': 'content'}}
-
-    Note
-    -----
-    - This utility is independent of the specific XML schema and can be applied to any XML data.
-    """
-
-    xml_string = ET.tostring(xml_object)
-    xml_dict = xmltodict.parse(xml_string)
-    return xml_dict
-
-
-# ----------------------------------------------------------------------------
 # Helper function to ensure the directories exist for our snapshots
 # ----------------------------------------------------------------------------
-def ensure_directory_exists(file_path: str):
+def ensure_directory_exists(file_path: str) -> None:
     """
     Ensures the existence of the directory for a specified file path, creating it if necessary.
 
@@ -509,7 +473,7 @@ def check_readiness_and_log(
     result: dict,
     test_name: str,
     test_info: dict,
-):
+) -> None:
     """
     Evaluates and logs the results of a specified readiness test.
 
@@ -575,7 +539,7 @@ def connect_to_firewall(
     hostname: str,
     api_username: str,
     api_password: str,
-) -> Firewall:
+) -> PanDevice:
     """
     Establishes a connection to a Firewall appliance using provided credentials.
 
@@ -586,7 +550,7 @@ def connect_to_firewall(
 
     Parameters
     ----------
-    - 'hostname': The DNS hostname or IP address of the firewall appliance.
+    - 'hostname': The DNS Hostname or IP address of the target appliance.
     - 'api_username': Username for authentication.
     - 'api_password': Password for authentication.
 
@@ -613,13 +577,6 @@ def connect_to_firewall(
             api_username,
             api_password,
         )
-
-        if isinstance(target_device, panos.panorama.Panorama):
-            logging.error(
-                f"{get_emoji('error')} You are targeting a Panorama appliance, please target a firewall."
-            )
-
-            sys.exit(1)
 
         return target_device
 
@@ -776,6 +733,10 @@ def software_update_check(
     # parse version
     major, minor, maintenance = version.split(".")
 
+    # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
+    logging.debug("Refreshing running system information")
+    firewall.refresh_system_info()
+
     # check to see if the specified version is older than the current version
     determine_upgrade(firewall, major, minor, maintenance)
 
@@ -845,7 +806,7 @@ def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     Notes
     -----
     - The function utilizes the 'show_highavailability_state' method of the Firewall class to fetch HA details.
-    - The 'xml_to_dict' helper function is used to convert XML data into a more accessible dictionary format.
+    - The 'flatten_xml_to_dict' helper function is used to convert XML data into a more accessible dictionary format.
     """
     logging.debug(
         f"{get_emoji('start')} Getting {firewall.serial} deployment information..."
@@ -854,7 +815,7 @@ def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     logging.debug(f"{get_emoji('report')} Firewall deployment: {deployment_type[0]}")
 
     if deployment_type[1]:
-        ha_details = xml_to_dict(deployment_type[1])
+        ha_details = flatten_xml_to_dict(deployment_type[1])
         logging.debug(
             f"{get_emoji('report')} Firewall deployment details: {ha_details}"
         )
@@ -1498,15 +1459,15 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
     reboot_job = firewall.op(
         "<request><restart><system/></restart></request>", cmd_xml=False
     )
-    reboot_job_result = xml_to_dict(reboot_job)
-    logging.info(f"{get_emoji('report')} {reboot_job_result['response']['result']}")
+    reboot_job_result = flatten_xml_to_dict(reboot_job)
+    logging.info(f"{get_emoji('report')} {reboot_job_result['result']}")
 
     while not rebooted:
         try:
             deploy_info, current_ha_details = get_ha_status(firewall)
             if current_ha_details and deploy_info in ["active", "passive"]:
                 if (
-                    current_ha_details["response"]["result"]["group"]["running-sync"]
+                    current_ha_details["result"]["group"]["running-sync"]
                     == "synchronized"
                 ):
                     logging.info(
@@ -1542,116 +1503,152 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
 
 
 # ----------------------------------------------------------------------------
-# Primary execution of the script
+# Helper function to convert XML ET.Element into a Python dictionary
 # ----------------------------------------------------------------------------
-@app.command()
-def main(
-    hostname: Annotated[
-        str,
-        typer.Option(
-            "--hostname",
-            "-h",
-            help="Hostname or IP of target firewall",
-            prompt="Hostname or IP",
-            callback=ip_callback,
-        ),
-    ],
-    username: Annotated[
-        str,
-        typer.Option(
-            "--username",
-            "-u",
-            help="Username for authentication with the Firewall appliance",
-            prompt="Username",
-        ),
-    ],
-    password: Annotated[
-        str,
-        typer.Option(
-            "--password",
-            "-p",
-            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-            prompt="Password",
-            hide_input=True,
-        ),
-    ],
-    target_version: Annotated[
-        str,
-        typer.Option(
-            "--version",
-            "-v",
-            help="Target PAN-OS version to upgrade to",
-            prompt="Target PAN-OS version",
-        ),
-    ],
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-d",
-            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-        ),
-    ] = False,
-    log_level: Annotated[
-        str,
-        typer.Option("--log-level", "-l", help="Set the logging output level"),
-    ] = "info",
-):
+def flatten_xml_to_dict(element: ET.Element) -> dict:
     """
-    Main entry point for executing the firewall upgrade script.
+    Converts a given XML element to a dictionary, flattening the XML structure.
 
-    This function orchestrates the entire process of upgrading a PAN-OS firewall. It includes various stages,
-    such as parsing command-line arguments, establishing a connection with the firewall, assessing readiness
-    for upgrade, and executing the upgrade process. The function is designed to handle both dry run and actual
-    upgrade scenarios, providing comprehensive logging throughout.
+    This function recursively processes an XML element, converting it and its children into a dictionary format.
+    The conversion flattens the XML structure, making it easier to adapt to model definitions. It treats elements
+    containing only text as leaf nodes, directly mapping their tags to their text content. For elements with child
+    elements, it continues the recursion. The function handles multiple occurrences of the same tag by aggregating
+    them into a list. Specifically, it always treats elements with the tag 'entry' as lists, reflecting their
+    common usage pattern in PAN-OS XML API responses.
 
-    Steps:
-    1. Create necessary directories for logs and snapshots.
-    2. Configure logging based on user-defined log level.
-    3. Establish a connection to the firewall and refresh its system info.
-    4. Determine firewall's deployment status and readiness for upgrade.
-    5. Download required PAN-OS version if not present.
-    6. Perform pre-upgrade snapshots and readiness checks.
-    7. Back up current firewall configuration.
-    8. Proceed with upgrade and reboot if not a dry run.
+    Parameters
+    ----------
+    element : ET.Element
+        The XML element to be converted. This should be an instance of ElementTree.Element, typically obtained
+        from parsing XML data using the ElementTree API.
 
-    Exits the script in cases such as:
-    - Firewall not ready for the intended upgrade.
-    - Critical issues that prevent script continuation.
-    - Successful completion of a dry run.
-    - HA peer state is not synchronized (for HA setups).
+    Returns
+    -------
+    dict
+        A dictionary representation of the XML element. The dictionary mirrors the structure of the XML,
+        with tags as keys and text content or nested dictionaries as values. Elements with the same tag
+        are aggregated into a list.
 
-    Example Usage:
-    ```bash
-    python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.2.7
-    ```
-    This command will start the upgrade process for the firewall at '192.168.1.1' to version '10.2.7'.
+    Notes
+    -----
+    - This function is designed to work with PAN-OS XML API responses, which often use the 'entry' tag
+      to denote list items.
+    - The function does not preserve attributes of XML elements; it focuses solely on tags and text content.
+
+    Example
+    -------
+    Converting an XML element with nested children to a dictionary:
+        >>> xml_string = "<root><child>value</child><child><subchild>subvalue</subchild></child></root>"
+        >>> xml_element = ET.fromstring(xml_string)
+        >>> flatten_xml_to_dict(xml_element)
+        {'child': ['value', {'subchild': 'subvalue'}]}
     """
+    result = {}
+    for child_element in element:
+        child_tag = child_element.tag
 
-    # Create necessary directories
-    directories = [
-        "logs",
-        "assurance",
-        "assurance/configurations",
-        "assurance/readiness_checks",
-        "assurance/reports",
-        "assurance/snapshots",
-    ]
-    for dir in directories:
-        ensure_directory_exists(os.path.join(dir, "dummy_file"))
+        if child_element.text and len(child_element) == 0:
+            result[child_tag] = child_element.text
+        else:
+            if child_tag in result:
+                if not isinstance(result.get(child_tag), list):
+                    result[child_tag] = [
+                        result.get(child_tag),
+                        flatten_xml_to_dict(child_element),
+                    ]
+                else:
+                    result[child_tag].append(flatten_xml_to_dict(child_element))
+            else:
+                if child_tag == "entry":
+                    # Always assume entries are a list.
+                    result[child_tag] = [flatten_xml_to_dict(child_element)]
+                else:
+                    result[child_tag] = flatten_xml_to_dict(child_element)
 
-    # Configure logging right after directory setup
-    configure_logging(log_level)
+    return result
 
-    # Create our connection to the firewall
-    logging.debug(f"{get_emoji('start')} Connecting to PAN-OS firewall...")
-    firewall = connect_to_firewall(
-        hostname=hostname,
-        api_username=username,
-        api_password=password,
+
+def model_from_api_response(
+    element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]
+) -> FromAPIResponseMixin:
+    """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
+
+    Makes handling operational commands easy!
+
+    Parameters
+    ----------
+    element : Element
+        XML Element to flatten
+    model   : type[FromAPIResponseMixin]
+        Model to flatten into. Must be a child that inherits from Pydantics `BaseModel`.
+    Returns
+    -------
+
+    type[FromAPIResponseMixin]
+        The model, populated with relevant field data.
+    """
+    result_dict = flatten_xml_to_dict(element)
+    return model.from_api_response(result_dict)
+
+
+def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
+    """Returns a list of managed devices from Panorama, based on any configured filters.
+
+    Parameters
+    ----------
+    panorama: Panorama Object
+    filters : **kwargs
+        Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
+    """
+    managed_devices = model_from_api_response(
+        panorama.op("show devices all"), ManagedDevices
     )
-    logging.info(f"{get_emoji('success')} Connection to firewall established")
+    devices = managed_devices.devices
+    for filter_key, filter_value in filters.items():
+        devices = [d for d in devices if re.match(filter_value, getattr(d, filter_key))]
 
+    return devices
+
+
+def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
+    """Returns a list of `Firewall` objects by getting the managed device list from panorama (based on the given
+    filters) then building and attaching them to Panorama.
+
+    This function causes the underlying API calls to be proxied via Panorama.
+
+    Parameters
+    ----------
+    panorama: Panorama Object
+    filters : **kwargs
+        Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
+    """
+    firewalls = []
+    for managed_device in get_managed_devices(panorama, **filters):
+        firewall = Firewall(serial=managed_device.serial)
+        firewalls.append(firewall)
+        panorama.add(firewall)
+
+    return firewalls
+
+
+def upgrade_single_firewall(
+    firewall: Firewall,
+    target_version: str,
+    dry_run: bool,
+) -> None:
+    """
+    Upgrades a single target firewall by stepping through the entire upgrade process.
+
+    Parameters
+    ----------
+    firewall : pan-os-python `Firewall` object instance
+    target_version : The software version to upgrade to
+    dry_run :
+
+    Returns
+    -------
+
+    """
     # Refresh system information to ensure we have the latest data
     logging.debug(f"{get_emoji('start')} Refreshing system information...")
     firewall_details = SystemSettings.refreshall(firewall)[0]
@@ -1721,7 +1718,7 @@ def main(
         logging.info(
             f"{get_emoji('start')} Performing test to see if HA peer is in sync..."
         )
-        if ha_details["response"]["result"]["group"]["running-sync"] == "synchronized":
+        if ha_details["result"]["group"]["running-sync"] == "synchronized":
             logging.info(f"{get_emoji('success')} HA peer sync test has been completed")
         else:
             logging.error(
@@ -1759,6 +1756,183 @@ def main(
 
     # Perform the reboot
     perform_reboot(firewall=firewall, ha_details=ha_details)
+
+
+def filter_string_to_dict(filter_string: str) -> dict:
+    """
+    Parses a key-value pair string into a dictionary.
+
+    This function takes a string containing key-value pairs separated by commas and splits it into individual
+    components. Each component, representing a key-value pair, is further split at the equals sign ('='). The
+    resulting key-value pairs are then stored in a dictionary.
+
+    Parameters
+    ----------
+    filter_string : str
+        A string containing key-value pairs separated by commas. Each key-value pair should be in the format
+        'key=value'. For example, 'hostname=test,serial=11111'.
+
+    Returns
+    -------
+    dict
+        A dictionary where each key is a substring from 'filter_string' before the '=' character, and each value
+        is the corresponding substring after the '=' character. If 'filter_string' is empty or incorrectly formatted,
+        the function returns an empty dictionary.
+
+    Example
+    -------
+    Converting a key-value pair string to a dictionary:
+        >>> filter_string_to_dict("hostname=test,serial=11111")
+        {'hostname': 'test', 'serial': '11111'}
+    """
+    result = {}
+    for substr in filter_string.split(","):
+        k, v = substr.split("=")
+        result[k] = v
+
+    return result
+
+
+# ----------------------------------------------------------------------------
+# Primary execution of the script
+# ----------------------------------------------------------------------------
+@app.command()
+def main(
+    hostname: Annotated[
+        str,
+        typer.Option(
+            "--hostname",
+            "-h",
+            help="Hostname or IP of target firewall",
+            prompt="Hostname or IP",
+            callback=ip_callback,
+        ),
+    ],
+    username: Annotated[
+        str,
+        typer.Option(
+            "--username",
+            "-u",
+            help="Username for authentication with the Firewall appliance",
+            prompt="Username",
+        ),
+    ],
+    password: Annotated[
+        str,
+        typer.Option(
+            "--password",
+            "-p",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+            prompt="Password",
+            hide_input=True,
+        ),
+    ],
+    target_version: Annotated[
+        str,
+        typer.Option(
+            "--version",
+            "-v",
+            help="Target PAN-OS version to upgrade to",
+            prompt="Target PAN-OS version",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-d",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+        ),
+    ] = False,
+    filter: Annotated[
+        str,
+        typer.Option(
+            "--filter",
+            "-f",
+            help="Filter string - when connecting to Panorama, defines which devices we are to upgrade.",
+        ),
+    ] = "",
+    log_level: Annotated[
+        str,
+        typer.Option("--log-level", "-l", help="Set the logging output level"),
+    ] = "info",
+):
+    """
+    Main entry point for executing the firewall upgrade script.
+
+    This function orchestrates the entire process of upgrading a PAN-OS firewall. It includes various stages,
+    such as parsing command-line arguments, establishing a connection with the firewall, assessing readiness
+    for upgrade, and executing the upgrade process. The function is designed to handle both dry run and actual
+    upgrade scenarios, providing comprehensive logging throughout.
+
+    Steps:
+    1. Create necessary directories for logs and snapshots.
+    2. Configure logging based on user-defined log level.
+    3. Establish a connection to the firewall and refresh its system info.
+    4. Determine firewall's deployment status and readiness for upgrade.
+    5. Download required PAN-OS version if not present.
+    6. Perform pre-upgrade snapshots and readiness checks.
+    7. Back up current firewall configuration.
+    8. Proceed with upgrade and reboot if not a dry run.
+
+    Exits the script in cases such as:
+    - Firewall not ready for the intended upgrade.
+    - Critical issues that prevent script continuation.
+    - Successful completion of a dry run.
+    - HA peer state is not synchronized (for HA setups).
+
+    Example Usage:
+    ```bash
+    python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.2.7
+    ```
+    This command will start the upgrade process for the firewall at '192.168.1.1' to version '10.2.7'.
+    """
+
+    # Create necessary directories
+    directories = [
+        "logs",
+        "assurance",
+        "assurance/configurations",
+        "assurance/readiness_checks",
+        "assurance/reports",
+        "assurance/snapshots",
+    ]
+    for dir in directories:
+        ensure_directory_exists(os.path.join(dir, "dummy_file"))
+
+    # Configure logging right after directory setup
+    configure_logging(log_level)
+
+    # Create our connection to the firewall
+    logging.debug(f"{get_emoji('start')} Connecting to PAN-OS device...")
+    device = connect_to_firewall(
+        hostname=hostname,
+        api_username=username,
+        api_password=password,
+    )
+
+    firewalls_to_upgrade = []
+    if type(device) is Firewall:
+        logging.info(f"{get_emoji('success')} Connection to firewall established")
+        firewalls_to_upgrade.append(device)
+    elif type(device) is Panorama:
+        if not filter:
+            logging.error(
+                f"{get_emoji('error')} Specified device is Panorama, but no filter string was provided."
+            )
+            sys.exit(1)
+
+        logging.info(
+            f"{get_emoji('success')} Connection to Panorama established. Firewall connections will be proxied!"
+        )
+        firewalls_to_upgrade = get_firewalls_from_panorama(
+            device, **filter_string_to_dict(filter)
+        )
+
+    # Run the upgrade process for each identified firewall. Note this runs serially, i.e one after the other.
+    # This is also not yet "HA aware".
+    for firewall in firewalls_to_upgrade:
+        upgrade_single_firewall(firewall, target_version, dry_run)
 
 
 if __name__ == "__main__":
