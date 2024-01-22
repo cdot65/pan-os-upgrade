@@ -40,7 +40,7 @@ Encountering issues during the Docker execution of `pan-os-upgrade` can happen, 
 
 **Problem:** The script within the Docker container cannot connect to the PAN-OS device.
 
-**Solution:** Verify network settings and ensure the Docker container has network access. Check firewall settings and IP address.
+**Solution:** Verify network settings and ensure the Docker container has network access. Check firewall settings, Hostname, and IP address.
 
 ### 7. Docker Version Compatibility
 

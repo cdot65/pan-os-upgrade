@@ -14,8 +14,8 @@ WORKDIR /app
 COPY requirements.txt /app/
 
 # Install any needed packages specified in requirements.txt
-# Note: The requirements.txt should contain pan-os-upgrade==0.2.2
-RUN pip install --no-cache-dir pan-os-upgrade==0.2.2
+# Note: The requirements.txt should contain pan-os-upgrade==0.2.3
+RUN pip install --no-cache-dir pan-os-upgrade==0.2.3
 
 # Set the locale to avoid issues with emoji rendering
 ENV LANG C.UTF-8

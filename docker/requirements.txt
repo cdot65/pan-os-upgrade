@@ -1,1 +1,1 @@
-pan-os-upgrade==0.2.2
+pan-os-upgrade==0.2.3

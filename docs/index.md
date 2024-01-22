@@ -77,7 +77,7 @@ Visit the [User Guide](user-guide/introduction.md) for detailed insights into se
 <div class="termy">
 
 ```console
-$ pan-os-upgrade --ip-address 192.168.255.211 --version 10.2.0-h2 --username admin --password paloalto#1
+$ pan-os-upgrade --hostname 192.168.255.211 --version 10.2.0-h2 --username admin --password paloalto#1
 INFO - ✅ Connection to firewall established
 INFO - 📝 007054000123456 houston 192.168.255.211
 INFO - 📝 Firewall HA mode: disabled

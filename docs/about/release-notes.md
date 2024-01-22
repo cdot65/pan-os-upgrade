@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.2.3
+
+**Release Date:** *<20240121>*
+
+### What's New
+
+- Improved error handling for network layer transport.
+- Included new dependency [DNS Python](https://www.dnspython.org/) for hostname lookup
+
 ## Version 0.2.2
 
 **Release Date:** *<20240121>*
