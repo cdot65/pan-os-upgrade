@@ -74,13 +74,18 @@ import xmltodict
 import typer
 
 # project imports
-from pan_os_upgrade.models import SnapshotReport, ReadinessCheckReport, ManagedDevices, FromAPIResponseMixin
+from pan_os_upgrade.models import (
+    SnapshotReport,
+    ReadinessCheckReport,
+    ManagedDevice,
+    ManagedDevices,
+    FromAPIResponseMixin,
+)
 
 # ----------------------------------------------------------------------------
 # Define Typer command-line interface
 # ----------------------------------------------------------------------------
 app = typer.Typer(help="PAN-OS Upgrade script")
-
 
 # ----------------------------------------------------------------------------
 # Define logging levels
@@ -244,7 +249,7 @@ class AssuranceOptions:
 # ----------------------------------------------------------------------------
 # Setting up logging
 # ----------------------------------------------------------------------------
-def configure_logging(level: str) -> None:
+def configure_logging(level: str, encoding: str = "utf-8") -> None:
     """
     Configures the logging system for the script with a specified logging level.
 
@@ -258,6 +263,9 @@ def configure_logging(level: str) -> None:
         The logging level to be set for the logger. Valid options are 'debug', 'info', 'warning',
         'error', and 'critical', as defined in the LOGGING_LEVELS dictionary. The function handles the
         input case-insensitively and defaults to 'info' if an invalid level is provided.
+
+    encoding: str
+        String encoding for file-based log handler. Defaults to 'utf-8'.
 
     Notes
     -----
@@ -277,6 +285,7 @@ def configure_logging(level: str) -> None:
         "logs/upgrade.log",
         maxBytes=1024 * 1024,
         backupCount=3,
+        encoding=encoding
     )
 
     # Create formatters and add them to the handlers
@@ -1501,7 +1510,6 @@ def perform_reboot(firewall: Firewall, ha_details: Optional[dict] = None) -> Non
             break
 
 
-
 def flatten_xml_to_dict(element: ET.Element):
     """Converts the given element into a dict by recursing through it until it finds an element containing only text.
 
@@ -1555,7 +1563,7 @@ def model_from_api_response(
     return model.from_api_response(result_dict)
 
 
-def get_managed_devices(panorama: Panorama, **filters) -> ManagedDevices:
+def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
     """Returns a list of managed devices from Panorama, based on any configured filters.
 
     Parameters
@@ -1587,7 +1595,7 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
         Keyword argument filters. Keywords must match parameters of `ManagedDevice` model class.
     """
     firewalls = []
-    for managed_device in get_managed_devices(panorama, **filters).devices:
+    for managed_device in get_managed_devices(panorama, **filters):
         firewall = Firewall(serial=managed_device.serial)
         firewalls.append(firewall)
         panorama.add(firewall)
@@ -1596,6 +1604,19 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
 
 
 def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool):
+    """
+    Upgrades a single target firewall by stepping through the entire upgrade process.
+
+    Parameters
+    ----------
+    firewall : pan-os-python `Firewall` object instance
+    target_version : The software version to upgrade to
+    dry_run :
+
+    Returns
+    -------
+
+    """
     # Refresh system information to ensure we have the latest data
     logging.debug(f"{get_emoji('start')} Refreshing system information...")
     firewall_details = SystemSettings.refreshall(firewall)[0]
@@ -1704,6 +1725,7 @@ def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bo
     # Perform the reboot
     perform_reboot(firewall=firewall, ha_details=ha_details)
 
+
 def filter_string_to_dict(filter_string: str) -> dict:
     """
     Converts key/value string into dictionary
@@ -1717,6 +1739,7 @@ def filter_string_to_dict(filter_string: str) -> dict:
         result[k] = v
 
     return result
+
 
 # ----------------------------------------------------------------------------
 # Primary execution of the script
@@ -1842,11 +1865,15 @@ def main(
         firewalls_to_upgrade.append(device)
     elif type(device) is Panorama:
         if not filter:
-            logging.error(f"{get_emoji('error')} Specified device is Panorama, but no filter string was provided.")
+            logging.error(
+                f"{get_emoji('error')} Specified device is Panorama, but no filter string was provided."
+            )
             sys.exit(1)
 
         logging.info(f"{get_emoji('success')} Connection to panorama established")
-        firewalls_to_upgrade = get_firewalls_from_panorama(device, **filter_string_to_dict(filter))
+        firewalls_to_upgrade = get_firewalls_from_panorama(
+            device, **filter_string_to_dict(filter)
+        )
 
     # Run the upgrade process for each identified firewall
     for firewall in firewalls_to_upgrade:
