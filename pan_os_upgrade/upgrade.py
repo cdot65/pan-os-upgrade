@@ -52,7 +52,6 @@ from typing_extensions import Annotated
 import xml.etree.ElementTree as ET
 
 # Palo Alto Networks PAN-OS imports
-import panos
 from panos.base import PanDevice
 from panos.device import SystemSettings
 from panos.errors import (
@@ -286,7 +285,7 @@ def configure_logging(level: str, encoding: str = "utf-8") -> None:
         "logs/upgrade.log",
         maxBytes=1024 * 1024,
         backupCount=3,
-        encoding=encoding
+        encoding=encoding,
     )
 
     # Create formatters and add them to the handlers
@@ -471,7 +470,7 @@ def check_readiness_and_log(
     result: dict,
     test_name: str,
     test_info: dict,
-)  -> None:
+) -> None:
     """
     Evaluates and logs the results of a specified readiness test.
 
@@ -732,7 +731,7 @@ def software_update_check(
     major, minor, maintenance = version.split(".")
 
     # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
-    logging.debug(f"Refreshing running system information")
+    logging.debug("Refreshing running system information")
     firewall.refresh_system_info()
 
     # check to see if the specified version is older than the current version
@@ -1549,7 +1548,7 @@ def flatten_xml_to_dict(element: ET.Element) -> dict:
             result[child_tag] = child_element.text
         else:
             if child_tag in result:
-                if type(result.get(child_tag)) is not list:
+                if not isinstance(result.get(child_tag), list):
                     result[child_tag] = [
                         result.get(child_tag),
                         flatten_xml_to_dict(child_element),
@@ -1629,7 +1628,11 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
     return firewalls
 
 
-def upgrade_single_firewall(firewall: Firewall, target_version: str, dry_run: bool,) -> None:
+def upgrade_single_firewall(
+    firewall: Firewall,
+    target_version: str,
+    dry_run: bool,
+) -> None:
     """
     Upgrades a single target firewall by stepping through the entire upgrade process.
 
@@ -1916,7 +1919,9 @@ def main(
             )
             sys.exit(1)
 
-        logging.info(f"{get_emoji('success')} Connection to Panorama established. Firewall connections will bee proxied!")
+        logging.info(
+            f"{get_emoji('success')} Connection to Panorama established. Firewall connections will be proxied!"
+        )
         firewalls_to_upgrade = get_firewalls_from_panorama(
             device, **filter_string_to_dict(filter)
         )
