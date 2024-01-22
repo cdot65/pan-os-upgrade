@@ -267,9 +267,13 @@ def configure_logging(level: str) -> None:
     """
     logging_level = getattr(logging, level.upper(), None)
 
-    # Create a logger
+    # Get the root logger
     logger = logging.getLogger()
     logger.setLevel(logging_level)
+
+    # Remove any existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
 
     # Create handlers (console and file handler)
     console_handler = logging.StreamHandler()
@@ -288,12 +292,11 @@ def configure_logging(level: str) -> None:
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
     else:
-        console_format = logging.Formatter(
-            "%(levelname)s - %(message)s",
-        )
+        console_format = logging.Formatter("%(message)s")
         file_format = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
+
     console_handler.setFormatter(console_format)
     file_handler.setFormatter(file_format)
 
