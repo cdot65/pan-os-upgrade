@@ -1567,7 +1567,7 @@ def flatten_xml_to_dict(element: ET.Element) -> dict:
 
 def model_from_api_response(
     element: Union[ET.Element, ET.ElementTree], model: type[FromAPIResponseMixin]
-):
+) -> FromAPIResponseMixin:
     """Flattens a given XML Element, retrieved from an API response, into a Pydantic model.
 
     Makes handling operational commands easy!
