@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-os-upgrade"
-version = "0.2.4"
+version = "0.25"
 description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"

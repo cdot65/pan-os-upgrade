@@ -7,7 +7,7 @@ Welcome to the `pan-os-upgrade` library! This guide is designed to help you set 
 Before you begin, ensure you have the following:
 
 - Python 3.8 or newer.
-- Access to a Palo Alto Networks firewall.
+- Access to a Palo Alto Networks firewall or Panorama appliance.
 - An active internet connection for downloading the package from PyPI.
 
 ## Installation
