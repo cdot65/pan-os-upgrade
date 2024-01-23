@@ -2,10 +2,22 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.2.5
+
+**Release Date:** *<20240123>*
+
+### What's New
+
+- Supports the ability to connect to Panorama as a proxy for firewall connections
+- Added new `--filter` CLI option for Panorama connections
+- Resolved issue where standalone firewalls were not properly signaling their completion
+- Added additional validation step to ensure the upgraded firewall matches the target version after reboot
+
 ## Version 0.2.4
 
 **Release Date:** *<20240122>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Resolved a bug where console logging was duplicated

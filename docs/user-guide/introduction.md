@@ -34,6 +34,7 @@ The Docker workflow simplifies the setup by encapsulating the tool and its depen
 
 - **Leveraging `panos-upgrade-assurance`**: It utilizes the `panos-upgrade-assurance` library to manage complex aspects of the upgrade process.
 - **Data Validation with Pydantic**: Ensures robust data structure validation, minimizing bugs and streamlining workflow execution.
+- **Flexible Connection Methods**: Connect to firewalls directly or by targeting a Panorama appliance with a `--filter` CLI option.
 
 ## Next Steps
 

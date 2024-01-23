@@ -1,6 +1,6 @@
 # Troubleshooting Guide for Docker Execution of pan-os-upgrade
 
-Encountering issues during the Docker execution of `pan-os-upgrade` can happen, especially when dealing with different system environments. This guide aims to address common problems and their solutions.
+Encountering issues during the Docker execution of `pan-os-upgrade` can happen, especially when dealing with different system environments or connecting to firewalls through Panorama as a proxy. This guide aims to address common problems and their solutions.
 
 ## Common Issues and Solutions
 
@@ -47,6 +47,12 @@ Encountering issues during the Docker execution of `pan-os-upgrade` can happen, 
 **Problem:** Issues running `pan-os-upgrade` due to Docker version incompatibility.
 
 **Solution:** Ensure you are using a compatible version of Docker. Update Docker to the latest version if necessary.
+
+### 8. Panorama Connection and Filter Challenges
+
+**Problem:** Issues connecting to firewalls through Panorama using the `--filter` option.
+
+**Solution:** Ensure the filter syntax is correctly formatted and the specified criteria accurately reflect your firewall configuration in Panorama. Double-check network connectivity to Panorama and ensure the filters match the attributes of the firewalls you intend to upgrade.
 
 ## General Tips
 

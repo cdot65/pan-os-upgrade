@@ -47,6 +47,7 @@ This project is a comprehensive Python-based solution for automating PAN-OS upgr
 Key Features:
 
 * Automates routine tasks, reducing manual errors and saving time.
+* Connect to firewalls directly or through a Panorama appliance as a proxy.
 * Customizable scripts to fit various network environments and requirements.
 * Extensive interaction with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
@@ -173,19 +174,119 @@ After setting up the virtual environment and installing the package, you can con
 
 You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
 
-```bash
+```console
 $ pan-os-upgrade
-Firewall Hostname or IP: 192.168.255.1
-Username: admin
+Hostname or IP: houston.cdot.io
+Username: cdot
 Password:
-Target PAN-OS version: 11.1.1
-INFO - ✅ Connection to firewall established
-INFO - 📝 **021201123456** DataCenter 10.0.0.3
-INFO - 📝 Firewall HA mode: disabled
-INFO - 📝 Current PAN-OS version: 11.0.2
-INFO - 📝 Target PAN-OS version: 11.1.1
-INFO - ✅ Confirmed that moving from 11.0.2 to 11.1.1 is an upgrade
-...continue until completed...
+Target PAN-OS version: 10.2.3-h4
+✅ Connection to firewall established
+📝 007054000123456 houston 192.168.255.211
+📝 Firewall HA mode: disabled
+📝 Current PAN-OS version: 10.2.3-h2
+📝 Target PAN-OS version: 10.2.3-h4
+✅ Confirmed that moving from 10.2.3-h2 to 10.2.3-h4 is an upgrade
+✅ PAN-OS version 10.2.3-h4 is available for download
+✅ Base image for 10.2.3-h4 is already downloaded
+🚀 Performing test to see if 10.2.3-h4 is already downloaded...
+🔍 PAN-OS version 10.2.3-h4 is not on the firewall
+🚀 PAN-OS version 10.2.3-h4 is beginning download
+Device 007054000123456 downloading version: 10.2.3-h4
+Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 4 seconds
+Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 36 seconds
+Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 68 seconds
+Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 101 seconds
+✅ 10.2.3-h4 downloaded in 134 seconds
+✅ PAN-OS version 10.2.3-h4 has been downloaded.
+🚀 Performing snapshot of network state information...
+✅ Network snapshot created successfully
+🚀 Performing readiness checks to determine if firewall is ready for upgrade...
+✅ Passed Readiness Check: Check if there are pending changes on device
+✅ Passed Readiness Check: No Expired Licenses
+✅ Passed Readiness Check: Check if NTP is synchronized
+✅ Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ Readiness Checks completed
+🚀 Performing backup of houston's configuration to local filesystem...
+🚀 Not a dry run, continue with upgrade...
+🚀 Performing upgrade on houston to version 10.2.3-h4...
+🚀 Attempting upgrade houston to version 10.2.3-h4 (Attempt 1 of 3)...
+Device 007054000123456 installing version: 10.2.3-h4
+❌ houston upgrade error: Device 007054000123456 attempt to install version 10.2.3-h4 failed: ['Failed to install 10.2.3-h4 with the following errors.\nSW version is 10.2.3-h4\nThe software manager is currently in use. Please try again later.\nFailed to install   version  10.2.3-h4  type  panos\n\n']
+⚠️ Software manager is busy. Retrying in 60 seconds...
+🚀 Attempting upgrade houston to version 10.2.3-h4 (Attempt 2 of 3)...
+Device 007054000123456 installing version: 10.2.3-h4
+✅ houston upgrade completed successfully
+🚀 Rebooting the standalone firewall...
+📝 Command succeeded with no output
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+📝 Firewall version: 10.2.3-h4
+✅ Firewall rebooted in 473 seconds
+```
+
+As an alternative to targeting firewalls directly, you can target a Panorama appliance to act as the communication proxy. If you'd like to go down this path, make sure that you add an extra CLI option of `--filter` and pass a string representation of your filter.
+
+As of version 0.2.5, the available filters are:
+
+| filter type | description                                       | example                             |
+| ----------- | ------------------------------------------------- | ----------------------------------- |
+| hostname    | use the firewall's hostname as selection criteria | `--filter "hostname=houston"`       |
+| serial      | use the firewall's serial as selection criteria   | `--filter "serial=007054000123456"` |
+
+```console
+$ pan-os-upgrade --filter 'hostname=houston'
+Hostname or IP: panorama.cdot.io
+Username: cdot
+Password:
+Target PAN-OS version: 10.2.3-h2
+✅ Connection to Panorama established. Firewall connections will be proxied!
+📝 007054000123456 houston 192.168.255.211
+📝 Firewall HA mode: disabled
+📝 Current PAN-OS version: 10.2.3
+📝 Target PAN-OS version: 10.2.3-h2
+✅ Confirmed that moving from 10.2.3 to 10.2.3-h2 is an upgrade
+✅ PAN-OS version 10.2.3-h2 is available for download
+✅ Base image for 10.2.3-h2 is already downloaded
+🚀 Performing test to see if 10.2.3-h2 is already downloaded...
+🔍 PAN-OS version 10.2.3-h2 is not on the firewall
+🚀 PAN-OS version 10.2.3-h2 is beginning download
+Device 007054000123456 downloading version: 10.2.3-h2
+Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 8 seconds
+Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 42 seconds
+Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 75 seconds
+Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 110 seconds
+Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 151 seconds
+✅ 10.2.3-h2 downloaded in 182 seconds
+✅ PAN-OS version 10.2.3-h2 has been downloaded.
+🚀 Performing snapshot of network state information...
+✅ Network snapshot created successfully
+🚀 Performing readiness checks to determine if firewall is ready for upgrade...
+✅ Passed Readiness Check: Check if there are pending changes on device
+✅ Passed Readiness Check: No Expired Licenses
+✅ Passed Readiness Check: Check if NTP is synchronized
+✅ Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ Readiness Checks completed
+🚀 Performing backup of houston's configuration to local filesystem...
+🚀 Not a dry run, continue with upgrade...
+🚀 Performing upgrade on houston to version 10.2.3-h2...
+🚀 Attempting upgrade houston to version 10.2.3-h2 (Attempt 1 of 3)...
+Device 007054000123456 installing version: 10.2.3-h2
+✅ houston upgrade completed successfully
+🚀 Rebooting the standalone firewall...
+📝 Command succeeded with no output
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+⚙️ Firewall is rebooting...
+📝 Firewall version: 10.2.3-h2
+✅ Firewall rebooted in 484 seconds
 ```
 
 ##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
@@ -200,6 +301,12 @@ For a dry run:
 
 ```bash
 pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+```
+
+If you're targeting a Panorama appliance to act as a proxy for communications to the firewall, make sure you also pass a filter pattern:
+
+```bash
+pan-os-upgrade --hostname panorama.cdot.io --username admin --password secret --version 10.1.0 --filter "hostname=houston"
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -261,14 +368,15 @@ pan-os-upgrade --help
 
 ### CLI Arguments Description
 
-| cli argument  | shorthand | type | description                                                                         |
-| ------------- | --------- | ---- | ----------------------------------------------------------------------------------- |
-| `--dry-run`   | `-d`      | n/a  | Perform a dry run of all tests and downloads without performing the actual upgrade. |
-| `--hostname`  | `-h`      | text | Hostname or IP address of target firewall.                                          |
-| `--log-level` | `-l`      | text | Set the logging output level (e.g., debug, info, warning).                          |
-| `--password`  | `-p`      | text | Password for authentication.                                                        |
-| `--username`  | `-u`      | text | Username for authentication.                                                        |
-| `--version`   | `-v`      | text | Target PAN-OS version to upgrade to.                                                |
+| cli argument  | shorthand | type        | description                                                                         |
+| ------------- | --------- | ----------- | ----------------------------------------------------------------------------------- |
+| `--dry-run`   | `-d`      | n/a         | Perform a dry run of all tests and downloads without performing the actual upgrade. |
+| `--filter`    | `-f`      | conditional | Filter criteria for selecting devices when using Panorama.                          |
+| `--hostname`  | `-h`      | text        | Hostname or IP address of target firewall.                                          |
+| `--log-level` | `-l`      | text        | Set the logging output level (e.g., debug, info, warning).                          |
+| `--password`  | `-p`      | text        | Password for authentication.                                                        |
+| `--username`  | `-u`      | text        | Username for authentication.                                                        |
+| `--version`   | `-v`      | text        | Target PAN-OS version to upgrade to.                                                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

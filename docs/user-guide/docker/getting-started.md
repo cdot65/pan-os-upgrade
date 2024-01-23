@@ -7,7 +7,7 @@ Welcome to the Docker-based workflow of the `pan-os-upgrade` library! This guide
 Before starting, make sure you have:
 
 - Docker installed on your system. Visit the [Docker installation guide](https://docs.docker.com/get-docker/) for instructions.
-- Access to a Palo Alto Networks firewall.
+- Access to a Palo Alto Networks firewall or Panorama appliance.
 - An active internet connection for pulling the Docker image.
 
 ## Pulling the Docker Image
