@@ -45,6 +45,7 @@ import sys
 import time
 import re
 from logging.handlers import RotatingFileHandler
+from threading import Lock
 from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
@@ -247,6 +248,13 @@ class AssuranceOptions:
 
 
 # ----------------------------------------------------------------------------
+# Global list and lock for storing firewalls to revisit
+# ----------------------------------------------------------------------------
+firewalls_to_revisit = []
+firewalls_to_revisit_lock = Lock()
+
+
+# ----------------------------------------------------------------------------
 # Core Upgrade Functions
 # ----------------------------------------------------------------------------
 def backup_configuration(
@@ -339,51 +347,6 @@ def create_firewall_object(
     panorama: Panorama,
 ) -> Firewall:
     pass
-
-
-def create_peer_firewall(firewall: Firewall) -> Optional[Firewall]:
-    """
-    Creates a Firewall object representing the HA peer firewall.
-
-    Parameters
-    ----------
-    firewall : Firewall
-        The current firewall instance to find the HA peer for.
-
-    Returns
-    -------
-    Optional[Firewall]
-        A Firewall object representing the HA peer, or None if the serial number of the peer cannot be found.
-
-    Notes
-    -----
-    - Retrieves the HA peer's serial number using an operational command.
-    - If the serial number is found, creates and returns a Firewall object for the HA peer.
-    - If the serial number is not found, logs an error and returns None.
-    """
-    try:
-        ha_peer_serial_response = firewall.op(
-            "<show><system><state><filter>peer.cfg.platform.serial</filter></state></system></show>",
-            cmd_xml=False,
-        )
-        serial_string = ha_peer_serial_response.find(".//result").text
-        peer_serial_parsed = re.search(r"\b\d+\b", serial_string)
-
-        if peer_serial_parsed:
-            peer_serial = peer_serial_parsed.group()
-            peer_firewall = Firewall(serial=peer_serial)
-            if firewall.parent:
-                firewall.parent.add(peer_firewall)
-            return peer_firewall
-        else:
-            logging.error(f"{get_emoji('error')} Serial number not found for HA peer")
-            return None
-
-    except Exception as e:
-        logging.error(
-            f"{get_emoji('error')} Error creating HA peer firewall object: {e}"
-        )
-        return None
 
 
 def determine_upgrade(
@@ -552,14 +515,13 @@ def handle_ha_logic(
     # If the active and passive firewalls are running the same version
     if version_comparison == "equal":
         if local_state == "active":
-            # Target the passive firewall first
-            logging.debug(f"{get_emoji('report')} Firewall is active")
-            peer_firewall = create_peer_firewall(firewall)
-            if peer_firewall:
-                logging.debug(
-                    f"{get_emoji('report')} Peer firewall: {peer_firewall.about()}"
-                )
-                return False, peer_firewall
+            # Add the active firewall to the list and exit the upgrade process
+            with firewalls_to_revisit_lock:
+                firewalls_to_revisit.append(firewall)
+            logging.info(
+                f"{get_emoji('info')} Detected active firewall in HA pair running the same version as its peer. Added firewall to revisit list."
+            )
+            return False, None
         elif local_state == "passive":
             # Continue with upgrade process on the passive firewall
             logging.debug(f"{get_emoji('report')} Firewall is passive")
@@ -582,6 +544,38 @@ def handle_ha_logic(
         return True, None
 
     return False, None
+
+
+def perform_ha_sync_check(
+    firewall: Firewall, ha_details: dict, strict_sync_check: bool = True
+) -> bool:
+    """
+    Checks the HA synchronization status and handles the result based on the strictness of the check.
+
+    Parameters:
+    firewall (Firewall): The firewall instance.
+    ha_details (dict): High Availability details of the firewall.
+    strict_sync_check (bool): If True, the function will exit the script if sync is not achieved. If False, it will only log a warning.
+
+    Returns:
+    bool: True if the HA synchronization is successful, False otherwise.
+    """
+    logging.info(f"{get_emoji('start')} Checking if HA peer is in sync...")
+    if ha_details["result"]["group"]["running-sync"] == "synchronized":
+        logging.info(f"{get_emoji('success')} HA peer sync test has been completed.")
+        return True
+    else:
+        if strict_sync_check:
+            logging.error(
+                f"{get_emoji('error')} HA peer state is not in sync, please try again."
+            )
+            logging.error(f"{get_emoji('stop')} Halting script.")
+            sys.exit(1)
+        else:
+            logging.warning(
+                f"{get_emoji('warning')} HA peer state is not in sync. This will be noted, but the script will continue."
+            )
+            return False
 
 
 def perform_readiness_checks(
@@ -725,16 +719,17 @@ def perform_reboot(
     # Wait for the firewall reboot process to initiate before checking status
     time.sleep(60)
 
+    # Counter that tracks if the rebooted firewall is online but not yet synced on configuration
+    reboot_and_sync_check = 0
+
     while not rebooted:
         # Check if HA details are available
         if ha_details:
             try:
                 deploy_info, current_ha_details = get_ha_status(firewall)
+                logging.debug(f"{get_emoji('report')} deploy_info: {deploy_info}")
                 logging.debug(
-                    f"{get_emoji('report')} deploy_info: {deploy_info}",
-                )
-                logging.debug(
-                    f"{get_emoji('report')} current_ha_details: {current_ha_details}",
+                    f"{get_emoji('report')} current_ha_details: {current_ha_details}"
                 )
 
                 if current_ha_details and deploy_info in ["active", "passive"]:
@@ -747,10 +742,19 @@ def perform_reboot(
                         )
                         rebooted = True
                     else:
-                        logging.info(
-                            f"{get_emoji('working')} HA passive firewall rebooted but not yet synchronized with its peer. Will try again in 30 seconds."
-                        )
-                        time.sleep(60)
+                        reboot_and_sync_check += 1
+                        if reboot_and_sync_check >= 5:
+                            logging.warning(
+                                f"{get_emoji('warning')} HA passive firewall rebooted but did not complete a configuration sync with the active after 5 attempts."
+                            )
+                            # Set rebooted to True to exit the loop
+                            rebooted = True
+                            break
+                        else:
+                            logging.info(
+                                f"{get_emoji('working')} HA passive firewall rebooted but not yet synchronized with its peer. Will try again in 60 seconds."
+                            )
+                            time.sleep(60)
             except (PanXapiError, PanConnectionTimeout, PanURLError):
                 logging.info(f"{get_emoji('working')} Firewall is rebooting...")
                 time.sleep(60)
@@ -777,10 +781,10 @@ def perform_reboot(
                 logging.info(f"{get_emoji('working')} Firewall is rebooting...")
                 time.sleep(60)
 
-        # Check if 20 minutes have passed
-        if time.time() - reboot_start_time > 1200:  # 20 minutes in seconds
+        # Check if 30 minutes have passed
+        if time.time() - reboot_start_time > 1800:  # 30 minutes in seconds
             logging.error(
-                f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 20 minutes. Please check the firewall status manually."
+                f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 30 minutes. Please check the firewall status manually."
             )
             break
 
@@ -1248,7 +1252,6 @@ def software_update_check(
     # retrieve available versions of PAN-OS
     firewall.software.check()
     available_versions = firewall.software.versions
-    logging.debug(f"Available PAN-OS versions: {available_versions}")
 
     # check to see if specified version is available for upgrade
     if version in available_versions:
@@ -1353,14 +1356,6 @@ def suspend_ha_passive(firewall: Firewall) -> bool:
         return False
 
 
-def upgrade_firewall(
-    firewall: Firewall,
-    target_version: str,
-    dry_run: bool,
-) -> None:
-    pass
-
-
 def upgrade_single_firewall(
     firewall: Firewall,
     target_version: str,
@@ -1433,15 +1428,9 @@ def upgrade_single_firewall(
                 logging.info(
                     f"{get_emoji('start')} Switching control to the peer firewall for upgrade."
                 )
-                # Here you would add the logic to switch control to the peer firewall
-                # This could involve a recursive call to upgrade_single_firewall or a different approach
                 upgrade_single_firewall(peer_firewall, target_version, dry_run)
-                return
             else:
-                logging.error(
-                    f"{get_emoji('error')} Unable to determine HA peer for upgrade."
-                )
-                sys.exit(1)
+                return  # Exit the function without proceeding to upgrade
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
@@ -1455,7 +1444,6 @@ def upgrade_single_firewall(
         logging.error(
             f"{get_emoji('error')} Firewall is not ready for upgrade to {target_version}.",
         )
-
         sys.exit(1)
 
     # Download the target PAN-OS version
@@ -1492,20 +1480,15 @@ def upgrade_single_firewall(
         f'assurance/readiness_checks/{firewall_details.hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
     )
 
-    # If the firewall is in an HA pair, check the HA peer to ensure sync has been enabled
-    if ha_details:
-        logging.info(
-            f"{get_emoji('start')} Performing test to see if HA peer is in sync..."
-        )
-        if ha_details["result"]["group"]["running-sync"] == "synchronized":
-            logging.info(f"{get_emoji('success')} HA peer sync test has been completed")
-        else:
-            logging.error(
-                f"{get_emoji('error')} HA peer state is not in sync, please try again"
-            )
-            logging.error(f"{get_emoji('stop')} Halting script.")
+    # Determine strictness of HA sync check
+    with firewalls_to_revisit_lock:
+        is_firewall_to_revisit = firewall in firewalls_to_revisit
 
-            sys.exit(1)
+    perform_ha_sync_check(
+        firewall,
+        ha_details,
+        strict_sync_check=not is_firewall_to_revisit,
+    )
 
     # Back up configuration to local filesystem
     logging.info(
@@ -2322,10 +2305,22 @@ def main(
             f"{get_emoji('report')} Firewalls to upgrade: {firewalls_to_upgrade}"
         )
 
-    # Run the upgrade process for each identified firewall. Note this runs serially, i.e one after the other.
-    # This is also not yet "HA aware".
+    # Initial pass of upgrades
     for firewall in firewalls_to_upgrade:
         upgrade_single_firewall(firewall, target_version, dry_run)
+
+    # Revisit the firewalls that were skipped in the initial pass
+    if firewalls_to_revisit:
+        logging.info(
+            f"{get_emoji('info')} Revisiting firewalls that were active in an HA pair and had the same version as their peers."
+        )
+        with firewalls_to_revisit_lock:
+            for firewall in firewalls_to_revisit:
+                logging.info(
+                    f"{get_emoji('start')} Revisiting firewall: {firewall.hostname}"
+                )
+                upgrade_single_firewall(firewall, target_version, dry_run)
+            firewalls_to_revisit.clear()  # Clear the list after revisiting
 
 
 if __name__ == "__main__":
