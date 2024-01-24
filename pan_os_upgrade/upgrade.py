@@ -247,363 +247,145 @@ class AssuranceOptions:
 
 
 # ----------------------------------------------------------------------------
-# Setting up logging
+# Core Upgrade Functions
 # ----------------------------------------------------------------------------
-def configure_logging(level: str, encoding: str = "utf-8") -> None:
+def backup_configuration(
+    firewall: Firewall,
+    file_path: str,
+) -> bool:
     """
-    Sets up the logging configuration for the script with the specified logging level and encoding.
+    Backs up the current running configuration of a specified firewall to a local file.
 
-    This function initializes the global logger, sets the specified logging level, and configures two handlers:
-    one for console output and another for file output. It uses RotatingFileHandler for file logging to manage
-    file size and maintain backups.
+    This function retrieves the running configuration from the firewall and saves it as an XML file
+    at the specified file path. It checks the validity of the retrieved XML data and logs the success
+    or failure of the backup process.
 
     Parameters
     ----------
-    level : str
-        The desired logging level (e.g., 'debug', 'info', 'warning', 'error', 'critical').
-        The input is case-insensitive. If an invalid level is provided, it defaults to 'info'.
-
-    encoding : str, optional
-        The encoding format for the file-based log handler, by default 'utf-8'.
-
-    Notes
-    -----
-    - The Console Handler outputs log messages to the standard output.
-    - The File Handler logs messages to 'logs/upgrade.log'. This file is rotated when it reaches 1MB in size,
-      maintaining up to three backup files.
-    - The logging level influences the verbosity of the log messages. An invalid level defaults to 'info',
-      ensuring a baseline of logging.
-    """
-    logging_level = getattr(logging, level.upper(), None)
-
-    # Get the root logger
-    logger = logging.getLogger()
-    logger.setLevel(logging_level)
-
-    # Remove any existing handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-
-    # Create handlers (console and file handler)
-    console_handler = logging.StreamHandler()
-    file_handler = RotatingFileHandler(
-        "logs/upgrade.log",
-        maxBytes=1024 * 1024,
-        backupCount=3,
-        encoding=encoding,
-    )
-
-    # Create formatters and add them to the handlers
-    if level == "debug":
-        console_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-        file_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-    else:
-        console_format = logging.Formatter("%(message)s")
-        file_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-
-    console_handler.setFormatter(console_format)
-    file_handler.setFormatter(file_format)
-
-    # Add handlers to the logger
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-
-
-def get_emoji(action: str) -> str:
-    """
-    Retrieves an emoji character corresponding to a specific action keyword.
-
-    This function is used to enhance the visual appeal and readability of log messages or console outputs.
-    It maps predefined action keywords to their corresponding emoji characters.
-
-    Parameters
-    ----------
-    action : str
-        An action keyword for which an emoji is required. Supported keywords include 'success',
-        'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
-
-    Returns
-    -------
-    str
-        The emoji character associated with the action keyword. If the keyword is not recognized,
-        returns an empty string.
-
-    Examples
-    --------
-    >>> get_emoji('success')
-    '✅'  # Indicates a successful operation
-
-    >>> get_emoji('error')
-    '❌'  # Indicates an error
-
-    >>> get_emoji('start')
-    '🚀'  # Indicates the start of a process
-    """
-    emoji_map = {
-        "success": "✅",
-        "warning": "⚠️",
-        "error": "❌",
-        "working": "⚙️",
-        "report": "📝",
-        "search": "🔍",
-        "save": "💾",
-        "stop": "🛑",
-        "start": "🚀",
-    }
-    return emoji_map.get(action, "")
-
-
-# ----------------------------------------------------------------------------
-# Helper function to validate either the DNS hostname or IP address
-# ----------------------------------------------------------------------------
-def resolve_hostname(hostname: str) -> bool:
-    """
-    Checks if a given hostname can be resolved via DNS query.
-
-    This function attempts to resolve the specified hostname using DNS. It queries the DNS servers
-    that the operating system is configured to use. The function is designed to return a boolean
-    value indicating whether the hostname could be successfully resolved or not.
-
-    Parameters
-    ----------
-    hostname : str
-        The hostname (e.g., 'example.com') to be resolved.
+    firewall : Firewall
+        The firewall instance from which the configuration is to be backed up.
+    file_path : str
+        The path where the configuration backup file will be saved.
 
     Returns
     -------
     bool
-        Returns True if the hostname can be resolved, False otherwise.
+        Returns True if the backup is successfully created, False otherwise.
 
     Raises
     ------
-    None
-        This function does not raise any exceptions. It handles all exceptions internally and
-        returns False in case of any issues during the resolution process.
-    """
-    try:
-        dns.resolver.resolve(hostname)
-        return True
-    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.Timeout) as err:
-        # Optionally log or handle err here if needed
-        logging.debug(f"Hostname resolution failed: {err}")
-        return False
-
-
-def ip_callback(value: str) -> str:
-    """
-    Validates the input as a valid IP address or a resolvable hostname.
-
-    This function first attempts to resolve the hostname via DNS query. If it fails,
-    it utilizes the ip_address function from the ipaddress standard library module to
-    validate the provided input as an IP address. It is designed to be used as a callback
-    function for Typer command-line argument parsing, ensuring that only valid IP addresses
-    or resolvable hostnames are accepted as input.
-
-    Parameters
-    ----------
-    value : str
-        A string representing the IP address or hostname to be validated.
-
-    Returns
-    -------
-    str
-        The validated IP address string or hostname.
-
-    Raises
-    ------
-    typer.BadParameter
-        If the input string is not a valid IP address or a resolvable hostname, a typer.BadParameter
-        exception is raised with an appropriate error message.
-    """
-
-    # First, try to resolve as a hostname
-    if resolve_hostname(value):
-        return value
-
-    # If hostname resolution fails, try as an IP address
-    try:
-        ipaddress.ip_address(value)
-        return value
-
-    except ValueError as err:
-        raise typer.BadParameter(
-            "The value you passed for --hostname is neither a valid DNS hostname nor IP address, please check your inputs again."
-        ) from err
-
-
-# ----------------------------------------------------------------------------
-# Helper function to ensure the directories exist for our snapshots
-# ----------------------------------------------------------------------------
-def ensure_directory_exists(file_path: str) -> None:
-    """
-    Ensures the existence of the directory for a specified file path, creating it if necessary.
-
-    This function checks if the directory for a given file path exists. If it does not exist, the function
-    creates the directory along with any necessary parent directories. This is particularly useful for
-    ensuring that the file system is prepared for file operations that require specific directory structures.
-
-    Parameters
-    ----------
-    file_path : str
-        The file path whose directory needs to be verified and potentially created. The function extracts
-        the directory part of the file path to check its existence.
-
-    Example
-    -------
-    Ensuring a directory exists for a file path:
-        >>> file_path = '/path/to/directory/file.txt'
-        >>> ensure_directory_exists(file_path)
-        # If '/path/to/directory/' does not exist, it is created.
-    """
-    directory = os.path.dirname(file_path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-
-# ----------------------------------------------------------------------------
-# Helper function to check readiness and log the result
-# ----------------------------------------------------------------------------
-def check_readiness_and_log(
-    result: dict,
-    test_name: str,
-    test_info: dict,
-) -> None:
-    """
-    Evaluates and logs the results of a specified readiness test.
-
-    This function assesses the outcome of a particular readiness test by examining its result.
-    It logs the outcome using varying log levels (info, warning, error), determined by the
-    test's importance and its result. If a test is marked as critical and fails, the script
-    may terminate execution.
-
-    Parameters
-    ----------
-    result : dict
-        A dictionary where each key corresponds to a readiness test name. The value is another dictionary
-        containing two keys: 'state' (a boolean indicating the test's success or failure) and 'reason'
-        (a string explaining the outcome).
-
-    test_name : str
-        The name of the test to evaluate. This name should correspond to a key in the 'result' dictionary.
-
-    test_info : dict
-        Information about the test, including its description, log level (info, warning, error), and a flag
-        indicating whether to exit the script upon test failure (exit_on_failure).
+    Exception
+        Raises an exception if any error occurs during the backup process.
 
     Notes
     -----
-    - The function utilizes the `get_emoji` helper function to add appropriate emojis to log messages,
-      enhancing readability and user experience.
-    - If 'state' in the test result is True, the test is logged as passed. Otherwise, it is either
-      logged as failed or skipped, based on the specified log level in 'test_info'.
-
-    Raises
-    ------
-    SystemExit
-        If a critical test (marked with "exit_on_failure": True) fails, the script will raise SystemExit.
-    """
-    test_result = result.get(
-        test_name, {"state": False, "reason": "Test not performed"}
-    )
-    log_message = f'{test_info["description"]} - {test_result["reason"]}'
-
-    if test_result["state"]:
-        logging.info(
-            f"{get_emoji('success')} Passed Readiness Check: {test_info['description']}"
-        )
-    else:
-        if test_info["log_level"] == "error":
-            logging.error(f"{get_emoji('error')} {log_message}")
-            if test_info["exit_on_failure"]:
-                logging.error(f"{get_emoji('stop')} Halting script.")
-
-                sys.exit(1)
-        elif test_info["log_level"] == "warning":
-            logging.debug(
-                f"{get_emoji('report')} Skipped Readiness Check: {test_info['description']}"
-            )
-        else:
-            logging.debug(log_message)
-
-
-# ----------------------------------------------------------------------------
-# Setting up connection to either Panorama or PAN-OS firewall appliance
-# ----------------------------------------------------------------------------
-def connect_to_host(
-    hostname: str,
-    api_username: str,
-    api_password: str,
-) -> PanDevice:
-    """
-    Establishes a connection to a Panorama or PAN-OS firewall appliance using provided credentials.
-
-    This function uses the hostname, username, and password to attempt a connection to a target appliance,
-    which can be either a Panorama management server or a PAN-OS firewall. It identifies the type of
-    appliance based on the provided credentials and hostname. Upon successful connection, it returns an
-    appropriate PanDevice object (either Panorama or Firewall).
-
-    Parameters
-    ----------
-    hostname : str
-        The DNS Hostname or IP address of the target appliance.
-    api_username : str
-        Username for authentication.
-    api_password : str
-        Password for authentication.
-
-    Returns
-    -------
-    PanDevice
-        An instance of PanDevice (either Panorama or Firewall), representing the established connection.
-
-    Raises
-    ------
-    SystemExit
-        If the connection attempt fails, such as due to a timeout, incorrect credentials, or other errors.
+    - The function verifies the XML structure of the retrieved configuration.
+    - Ensures the directory for the backup file exists.
+    - The backup file is saved in XML format.
 
     Example
     --------
-    Connecting to a Panorama management server:
-        >>> connect_to_host('panorama.example.com', 'admin', 'password')
-        <Panorama object>
+    Backing up the firewall configuration:
+        >>> firewall = Firewall(hostname='192.168.1.1', 'admin', 'password')
+        >>> backup_configuration(firewall, '/path/to/config_backup.xml')
+        # Configuration is backed up to the specified file.
+    """
 
-    Connecting to a PAN-OS firewall:
-        >>> connect_to_host('192.168.0.1', 'admin', 'password')
-        <Firewall object>
+    try:
+        # Run operational command to retrieve configuration
+        config_xml = firewall.op("show config running")
+        if config_xml is None:
+            logging.error(
+                f"{get_emoji('error')} Failed to retrieve running configuration."
+            )
+            return False
+
+        # Check XML structure
+        if (
+            config_xml.tag != "response"
+            or len(config_xml) == 0
+            or config_xml[0].tag != "result"
+        ):
+            logging.error(
+                f"{get_emoji('error')} Unexpected XML structure in configuration data."
+            )
+            return False
+
+        # Extract the configuration data from the <result><config> tag
+        config_data = config_xml.find(".//result/config")
+
+        # Manually construct the string representation of the XML data
+        config_str = ET.tostring(config_data, encoding="unicode")
+
+        # Ensure the directory exists
+        ensure_directory_exists(file_path)
+
+        # Write the file to the local filesystem
+        with open(file_path, "w") as file:
+            file.write(config_str)
+
+        logging.debug(
+            f"{get_emoji('save')} Configuration backed up successfully to {file_path}"
+        )
+        return True
+
+    except Exception as e:
+        logging.error(f"{get_emoji('error')} Error backing up configuration: {e}")
+        return False
+
+
+def create_firewall_object(
+    serial_number: str,
+    panorama: Panorama,
+) -> Firewall:
+    pass
+
+
+def create_peer_firewall(firewall: Firewall) -> Optional[Firewall]:
+    """
+    Creates a Firewall object representing the HA peer firewall.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The current firewall instance to find the HA peer for.
+
+    Returns
+    -------
+    Optional[Firewall]
+        A Firewall object representing the HA peer, or None if the serial number of the peer cannot be found.
+
+    Notes
+    -----
+    - Retrieves the HA peer's serial number using an operational command.
+    - If the serial number is found, creates and returns a Firewall object for the HA peer.
+    - If the serial number is not found, logs an error and returns None.
     """
     try:
-        target_device = PanDevice.create_from_device(
-            hostname,
-            api_username,
-            api_password,
+        ha_peer_serial_response = firewall.op(
+            "<show><system><state><filter>peer.cfg.platform.serial</filter></state></system></show>",
+            cmd_xml=False,
         )
+        serial_string = ha_peer_serial_response.find(".//result").text
+        peer_serial_parsed = re.search(r"\b\d+\b", serial_string)
 
-        return target_device
-
-    except PanConnectionTimeout:
-        logging.error(
-            f"{get_emoji('error')} Connection to the {hostname} appliance timed out. Please check the DNS hostname or IP address and network connectivity."
-        )
-
-        sys.exit(1)
+        if peer_serial_parsed:
+            peer_serial = peer_serial_parsed.group()
+            peer_firewall = Firewall(serial=peer_serial)
+            if firewall.parent:
+                firewall.parent.add(peer_firewall)
+            return peer_firewall
+        else:
+            logging.error(f"{get_emoji('error')} Serial number not found for HA peer")
+            return None
 
     except Exception as e:
         logging.error(
-            f"{get_emoji('error')} An error occurred while connecting to the {hostname} appliance: {e}"
+            f"{get_emoji('error')} Error creating HA peer firewall object: {e}"
         )
+        return None
 
-        sys.exit(1)
 
-
-# ----------------------------------------------------------------------------
-# Determine if an upgrade is suitable
-# ----------------------------------------------------------------------------
 def determine_upgrade(
     firewall: Firewall,
     target_major: int,
@@ -643,20 +425,6 @@ def determine_upgrade(
     - Utilizes emojis in logging for clear and user-friendly status indication.
     """
 
-    def parse_version(version: str) -> Tuple[int, int, int, int]:
-        parts = version.split(".")
-        if len(parts) == 2:  # When maintenance version is an integer
-            major, minor = parts
-            maintenance, hotfix = 0, 0
-        else:  # When maintenance version includes hotfix
-            major, minor, maintenance = parts
-            if "-h" in maintenance:
-                maintenance, hotfix = maintenance.split("-h")
-            else:
-                hotfix = 0
-
-        return int(major), int(minor), int(maintenance), int(hotfix)
-
     current_version = parse_version(firewall.version)
 
     if isinstance(target_maintenance, int):
@@ -689,93 +457,6 @@ def determine_upgrade(
         sys.exit(1)
 
 
-# ----------------------------------------------------------------------------
-# Determine the firewall's PAN-OS version and any available updates
-# ----------------------------------------------------------------------------
-def software_update_check(
-    firewall: Firewall,
-    version: str,
-    ha_details: dict,
-) -> bool:
-    """
-    Verifies the availability and readiness of a specified PAN-OS version for upgrade on a firewall.
-
-    This function checks if the target PAN-OS version is available for upgrade on the specified firewall.
-    It first refreshes the firewall's system information to ensure current data, then uses the
-    `determine_upgrade` function to validate if the target version is an upgrade compared to the current
-    version. It checks the list of available PAN-OS versions and verifies if the base image for the
-    target version is downloaded. The function returns True if the target version is available and the
-    base image is downloaded, and False if the version is not available, the base image is not downloaded,
-    or a downgrade attempt is identified.
-
-    Parameters
-    ----------
-    firewall : Firewall
-        The firewall instance to be checked for software update availability.
-    version : str
-        The target PAN-OS version intended for the upgrade.
-    ha_details : dict
-        High-availability (HA) details of the firewall. Used to assess if HA synchronization is required for the update.
-
-    Returns
-    -------
-    bool
-        True if the target PAN-OS version is available and ready for upgrade, False otherwise.
-
-    Raises
-    ------
-    SystemExit
-        Exits the script if a downgrade attempt is identified or if the target version is not suitable for an upgrade.
-
-    Example
-    --------
-    >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-    >>> software_update_check(firewall, '10.1.0', ha_details={})
-    True  # If the version 10.1.0 is available and ready for upgrade
-    """
-    # parse version
-    major, minor, maintenance = version.split(".")
-
-    # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
-    logging.debug("Refreshing running system information")
-    firewall.refresh_system_info()
-
-    # check to see if the specified version is older than the current version
-    determine_upgrade(firewall, major, minor, maintenance)
-
-    # retrieve available versions of PAN-OS
-    firewall.software.check()
-    available_versions = firewall.software.versions
-    logging.debug(f"Available PAN-OS versions: {available_versions}")
-
-    # check to see if specified version is available for upgrade
-    if version in available_versions:
-        logging.info(
-            f"{get_emoji('success')} PAN-OS version {version} is available for download"
-        )
-
-        # validate the specified version's base image is already downloaded
-        if available_versions[f"{major}.{minor}.0"]["downloaded"]:
-            logging.info(
-                f"{get_emoji('success')} Base image for {version} is already downloaded"
-            )
-            return True
-
-        else:
-            logging.error(
-                f"{get_emoji('error')} Base image for {version} is not downloaded"
-            )
-            return False
-    else:
-        logging.error(
-            f"{get_emoji('error')} PAN-OS version {version} is not available for download"
-        )
-        return False
-
-
-# ----------------------------------------------------------------------------
-# Determine if the firewall is standalone, HA, or in a cluster
-# ----------------------------------------------------------------------------
 def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
     """
     Determines the High-Availability (HA) deployment status and configuration of a specified Firewall appliance.
@@ -827,121 +508,455 @@ def get_ha_status(firewall: Firewall) -> Tuple[str, Optional[dict]]:
         return deployment_type[0], None
 
 
-# ----------------------------------------------------------------------------
-# Download the target PAN-OS version
-# ----------------------------------------------------------------------------
-def software_download(
+def handle_ha_logic(
     firewall: Firewall,
     target_version: str,
-    ha_details: dict,
-) -> bool:
+    dry_run: bool,
+) -> Tuple[bool, Optional[Firewall]]:
     """
-    Initiates and monitors the download of a specified PAN-OS software version on the firewall.
-
-    This function starts the download process for the given target PAN-OS version on the specified
-    firewall. It continually checks and logs the download's progress. If the download is successful,
-    it returns True. If the download process encounters errors or fails, these are logged, and the
-    function returns False. Exceptions during the download process lead to script termination.
+    Handles the logic specific to High Availability (HA) configurations.
 
     Parameters
     ----------
     firewall : Firewall
-        The Firewall instance on which the software is to be downloaded.
+        The firewall instance to evaluate for HA logic.
     target_version : str
-        The PAN-OS version targeted for download.
-    ha_details : dict
-        High-availability details of the firewall, determining if HA synchronization is needed.
+        The target PAN-OS version for the upgrade.
+    dry_run : bool
+        If True, simulates the logic without making changes.
 
     Returns
     -------
-    bool
-        True if the download is successful, False if the download fails or encounters an error.
+    Tuple[bool, Optional[Firewall]]
+        A tuple where the first element is a boolean indicating whether to proceed with the upgrade,
+        and the second element is an optional Firewall object representing the peer firewall if the
+        current firewall is not the target for upgrade.
+
+    Notes
+    -----
+    - This function determines if the firewall is part of an HA pair and its role (active/passive).
+    - It evaluates if the HA peer firewall needs to be upgraded first.
+    - In dry run mode, it simulates the HA logic without performing actual operations.
+    """
+    deploy_info, ha_details = get_ha_status(firewall)
+
+    # If the firewall is not part of an HA configuration, proceed with the upgrade
+    if not ha_details:
+        return True, None
+
+    local_state = ha_details["result"]["group"]["local-info"]["state"]
+    local_version = ha_details["result"]["group"]["local-info"]["build-rel"]
+    peer_version = ha_details["result"]["group"]["peer-info"]["build-rel"]
+    version_comparison = compare_versions(local_version, peer_version)
+
+    # If the active and passive firewalls are running the same version
+    if version_comparison == "equal":
+        if local_state == "active":
+            # Target the passive firewall first
+            logging.debug(f"{get_emoji('report')} Firewall is active")
+            peer_firewall = create_peer_firewall(firewall)
+            if peer_firewall:
+                logging.debug(
+                    f"{get_emoji('report')} Peer firewall: {peer_firewall.about()}"
+                )
+                return False, peer_firewall
+        elif local_state == "passive":
+            # Continue with upgrade process on the passive firewall
+            logging.debug(f"{get_emoji('report')} Firewall is passive")
+            return True, None
+
+    elif version_comparison == "older":
+        logging.debug(f"{get_emoji('report')} Firewall is on an older version")
+        # Suspend HA state of active if the passive is on a later release
+        if local_state == "active" and not dry_run:
+            logging.debug(f"{get_emoji('report')} Suspending HA state of active")
+            suspend_ha_active(firewall)
+        return True, None
+
+    elif version_comparison == "newer":
+        logging.debug(f"{get_emoji('report')} Firewall is on a newer version")
+        # Suspend HA state of passive if the active is on a later release
+        if local_state == "passive" and not dry_run:
+            logging.debug(f"{get_emoji('report')} Suspending HA state of passive")
+            suspend_ha_passive(firewall)
+        return True, None
+
+    return False, None
+
+
+def perform_readiness_checks(
+    firewall: Firewall,
+    hostname: str,
+    file_path: str,
+) -> None:
+    """
+    Executes readiness checks on a specified firewall and saves the results as a JSON file.
+
+    This function initiates a series of readiness checks on the firewall to assess its state before
+    proceeding with operations like upgrades. The checks cover aspects like configuration status,
+    content version, license validity, HA status, and more. The results of these checks are logged,
+    and a detailed report is generated and saved to the provided file path.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The firewall instance on which to perform the readiness checks.
+    hostname : str
+        Hostname of the firewall, used primarily for logging purposes.
+    file_path : str
+        Path to the file where the readiness check report JSON will be saved.
+
+    Notes
+    -----
+    - Utilizes the `run_assurance` function to perform the readiness checks.
+    - Ensures the existence of the directory where the report file will be saved.
+    - Logs the outcome of the readiness checks and saves the report in JSON format.
+    - Logs an error message if the readiness check creation fails.
+
+    Example
+    --------
+    Conducting readiness checks:
+        >>> firewall = Firewall(hostname='192.168.1.1', 'username', 'password')
+        >>> perform_readiness_checks(firewall, 'firewall1', '/path/to/readiness_report.json')
+        # Readiness report is saved to the specified path.
+    """
+
+    logging.debug(
+        f"{get_emoji('start')} Performing readiness checks of target firewall..."
+    )
+
+    readiness_check = run_assurance(
+        firewall,
+        hostname,
+        operation_type="readiness_check",
+        actions=[
+            "candidate_config",
+            "content_version",
+            "expired_licenses",
+            "ha",
+            # "jobs",
+            "free_disk_space",
+            "ntp_sync",
+            "panorama",
+            "planes_clock_sync",
+        ],
+        config={},
+    )
+
+    # Check if a readiness check was successfully created
+    if isinstance(readiness_check, ReadinessCheckReport):
+        # Do something with the readiness check report, e.g., log it, save it, etc.
+        logging.info(f"{get_emoji('success')} Readiness Checks completed")
+        readiness_check_report_json = readiness_check.model_dump_json(indent=4)
+        logging.debug(readiness_check_report_json)
+
+        ensure_directory_exists(file_path)
+
+        with open(file_path, "w") as file:
+            file.write(readiness_check_report_json)
+
+        logging.debug(
+            f"{get_emoji('save')} Readiness checks completed for {hostname}, saved to {file_path}"
+        )
+    else:
+        logging.error(f"{get_emoji('error')} Failed to create readiness check")
+
+
+def perform_reboot(
+    firewall: Firewall,
+    target_version: str,
+    ha_details: Optional[dict] = None,
+) -> None:
+    """
+    Initiates and oversees the reboot process of a firewall, ensuring it reaches the specified target version.
+
+    This function triggers a reboot of the specified firewall and monitors its status throughout the process.
+    In HA (High Availability) setups, it confirms synchronization with the HA peer post-reboot. The function
+    includes robust handling of various states and errors, with detailed logging. It verifies the firewall
+    reaches the target PAN-OS version upon reboot completion.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The firewall instance to be rebooted.
+    target_version : str
+        The target PAN-OS version to confirm after reboot.
+    ha_details : Optional[dict], optional
+        High Availability details of the firewall, if applicable. Default is None.
 
     Raises
     ------
     SystemExit
-        Raised if an exception occurs during the download process or if a critical error is encountered.
-
-    Example
-    --------
-    Initiating a PAN-OS version download:
-        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-        >>> software_download(firewall, '10.1.0', ha_details={})
-        True or False depending on the success of the download
+        Exits the script if the firewall fails to reboot to the target version, if HA synchronization issues
+        occur, or if critical errors are encountered during the reboot process.
 
     Notes
     -----
-    - Before initiating the download, the function checks if the target version is already available on the firewall.
-    - It uses the 'download' method of the Firewall's software attribute to perform the download.
-    - The function sleeps for 30 seconds between each status check to allow time for the download to progress.
+    - The function checks the firewall's version and HA synchronization status (if applicable) post-reboot.
+    - Confirms that the firewall has successfully rebooted to the target PAN-OS version.
+    - Script terminates if the firewall doesn't reach the target version or synchronize (in HA setups) within
+      20 minutes.
+
+    Example
+    -------
+    Rebooting a firewall to a specific PAN-OS version:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
+        >>> perform_reboot(firewall, '10.2.0')
+        # The firewall undergoes a reboot and the script monitors until it reaches the target version 10.2.0.
     """
 
-    if firewall.software.versions[target_version]["downloaded"]:
-        logging.info(
-            f"{get_emoji('success')} PAN-OS version {target_version} already on firewall."
+    reboot_start_time = time.time()
+    rebooted = False
+
+    # Check if HA details are available
+    if ha_details:
+        logging.info(f"{get_emoji('start')} Rebooting the passive HA firewall...")
+
+    # Reboot standalone firewall
+    else:
+        logging.info(f"{get_emoji('start')} Rebooting the standalone firewall...")
+
+    reboot_job = firewall.op(
+        "<request><restart><system/></restart></request>", cmd_xml=False
+    )
+    reboot_job_result = flatten_xml_to_dict(reboot_job)
+    logging.info(f"{get_emoji('report')} {reboot_job_result['result']}")
+
+    # Wait for the firewall reboot process to initiate before checking status
+    time.sleep(60)
+
+    while not rebooted:
+        # Check if HA details are available
+        if ha_details:
+            try:
+                deploy_info, current_ha_details = get_ha_status(firewall)
+                logging.debug(
+                    f"{get_emoji('report')} deploy_info: {deploy_info}",
+                )
+                logging.debug(
+                    f"{get_emoji('report')} current_ha_details: {current_ha_details}",
+                )
+
+                if current_ha_details and deploy_info in ["active", "passive"]:
+                    if (
+                        current_ha_details["result"]["group"]["running-sync"]
+                        == "synchronized"
+                    ):
+                        logging.info(
+                            f"{get_emoji('success')} HA passive firewall rebooted and synchronized with its peer in {int(time.time() - reboot_start_time)} seconds"
+                        )
+                        rebooted = True
+                    else:
+                        logging.info(
+                            f"{get_emoji('working')} HA passive firewall rebooted but not yet synchronized with its peer. Will try again in 30 seconds."
+                        )
+                        time.sleep(60)
+            except (PanXapiError, PanConnectionTimeout, PanURLError):
+                logging.info(f"{get_emoji('working')} Firewall is rebooting...")
+                time.sleep(60)
+
+        # Reboot standalone firewall
+        else:
+            try:
+                firewall.refresh_system_info()
+                logging.info(
+                    f"{get_emoji('report')} Firewall version: {firewall.version}"
+                )
+
+                if firewall.version == target_version:
+                    logging.info(
+                        f"{get_emoji('success')} Firewall rebooted in {int(time.time() - reboot_start_time)} seconds"
+                    )
+                    rebooted = True
+                else:
+                    logging.error(
+                        f"{get_emoji('stop')} Firewall rebooted but running the target version. Please try again."
+                    )
+                    sys.exit(1)
+            except (PanXapiError, PanConnectionTimeout, PanURLError):
+                logging.info(f"{get_emoji('working')} Firewall is rebooting...")
+                time.sleep(60)
+
+        # Check if 20 minutes have passed
+        if time.time() - reboot_start_time > 1200:  # 20 minutes in seconds
+            logging.error(
+                f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 20 minutes. Please check the firewall status manually."
+            )
+            break
+
+
+def perform_snapshot(
+    firewall: Firewall,
+    hostname: str,
+    file_path: str,
+) -> None:
+    """
+    Executes a network state snapshot on the specified firewall and saves it as a JSON file.
+
+    This function collects various network state information from the firewall, such as ARP table, content version,
+    IPsec tunnels, etc. The collected data is then serialized into JSON format and saved to the provided file path.
+    It logs the beginning of the operation, its success, or any failures encountered during the snapshot creation.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The firewall instance from which to collect the network state information.
+    hostname : str
+        Hostname of the firewall, used primarily for logging purposes.
+    file_path : str
+        Path to the file where the snapshot JSON will be saved.
+
+    Notes
+    -----
+    - Utilizes the `run_assurance` function to collect the required network state information.
+    - Ensures the existence of the directory where the snapshot file will be saved.
+    - Logs a success message and the JSON representation of the snapshot if the operation is successful.
+    - Logs an error message if the snapshot creation fails.
+
+    Example
+    --------
+    Creating a network state snapshot:
+        >>> firewall = Firewall(hostname='192.168.1.1', 'admin', 'password')
+        >>> perform_snapshot(firewall, 'firewall1', '/path/to/snapshot.json')
+        # Snapshot file is saved to the specified path.
+    """
+
+    logging.info(
+        f"{get_emoji('start')} Performing snapshot of network state information..."
+    )
+
+    # take snapshots
+    network_snapshot = run_assurance(
+        firewall,
+        hostname,
+        operation_type="state_snapshot",
+        actions=[
+            "arp_table",
+            "content_version",
+            "ip_sec_tunnels",
+            "license",
+            "nics",
+            "routes",
+            "session_stats",
+        ],
+        config={},
+    )
+
+    # Check if a readiness check was successfully created
+    if isinstance(network_snapshot, SnapshotReport):
+        logging.info(f"{get_emoji('success')} Network snapshot created successfully")
+        network_snapshot_json = network_snapshot.model_dump_json(indent=4)
+        logging.debug(network_snapshot_json)
+
+        ensure_directory_exists(file_path)
+
+        with open(file_path, "w") as file:
+            file.write(network_snapshot_json)
+
+        logging.debug(
+            f"{get_emoji('save')} Network state snapshot collected from {hostname}, saved to {file_path}"
         )
-        return True
+    else:
+        logging.error(f"{get_emoji('error')} Failed to create snapshot")
 
-    if (
-        not firewall.software.versions[target_version]["downloaded"]
-        or firewall.software.versions[target_version]["downloaded"] != "downloading"
-    ):
-        logging.info(
-            f"{get_emoji('search')} PAN-OS version {target_version} is not on the firewall"
-        )
 
-        start_time = time.time()
+def perform_upgrade(
+    firewall: Firewall,
+    hostname: str,
+    target_version: str,
+    ha_details: Optional[dict] = None,
+    max_retries: int = 3,
+    retry_interval: int = 60,
+) -> None:
+    """
+    Initiates and manages the upgrade process of a firewall to a specified PAN-OS version.
 
+    This function attempts to upgrade the firewall to the given PAN-OS version, handling potential issues
+    and retrying if necessary. It deals with High Availability (HA) considerations and ensures that the
+    upgrade process is robust against temporary failures or busy states. The function logs each step of the
+    process and exits the script if critical errors occur.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The firewall instance to be upgraded.
+    hostname : str
+        The hostname of the firewall, used for logging purposes.
+    target_version : str
+        The target PAN-OS version for the upgrade.
+    ha_details : Optional[dict], optional
+        High Availability details of the firewall, by default None.
+    max_retries : int, optional
+        The maximum number of retry attempts for the upgrade, by default 3.
+    retry_interval : int, optional
+        The interval (in seconds) to wait between retry attempts, by default 60.
+
+    Raises
+    ------
+    SystemExit
+        Exits the script if the upgrade job fails, if HA synchronization issues occur,
+        or if critical errors are encountered during the upgrade process.
+
+    Notes
+    -----
+    - The function handles retries based on the 'max_retries' and 'retry_interval' parameters.
+    - In case of 'software manager is currently in use' errors, retries are attempted.
+    - Critical errors during the upgrade process lead to script termination.
+
+    Example
+    -------
+    Upgrading a firewall to a specific PAN-OS version:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
+        >>> perform_upgrade(firewall, '192.168.1.1', '10.2.0', max_retries=2, retry_interval=30)
+        # The firewall is upgraded to PAN-OS version 10.2.0, with retries if necessary.
+    """
+
+    logging.info(
+        f"{get_emoji('start')} Performing upgrade on {hostname} to version {target_version}..."
+    )
+
+    attempt = 0
+    while attempt < max_retries:
         try:
             logging.info(
-                f"{get_emoji('start')} PAN-OS version {target_version} is beginning download"
+                f"{get_emoji('start')} Attempting upgrade {hostname} to version {target_version} (Attempt {attempt + 1} of {max_retries})..."
             )
-            firewall.software.download(target_version)
-        except PanDeviceXapiError as download_error:
-            logging.error(f"{get_emoji('error')} {download_error}")
+            install_job = firewall.software.install(target_version, sync=True)
 
-            sys.exit(1)
-
-        while True:
-            firewall.software.info()
-            dl_status = firewall.software.versions[target_version]["downloaded"]
-            elapsed_time = int(time.time() - start_time)
-
-            if dl_status is True:
+            if install_job["success"]:
                 logging.info(
-                    f"{get_emoji('success')} {target_version} downloaded in {elapsed_time} seconds",
+                    f"{get_emoji('success')} {hostname} upgrade completed successfully"
                 )
-                return True
-            elif dl_status in (False, "downloading"):
-                # Consolidate logging for both 'False' and 'downloading' states
-                status_msg = (
-                    "Download is starting"
-                    if dl_status is False
-                    else f"Downloading PAN-OS version {target_version}"
-                )
-                if ha_details:
+                logging.debug(f"{get_emoji('report')} {install_job}")
+                break  # Exit loop on successful upgrade
+            else:
+                logging.error(f"{get_emoji('error')} {hostname} upgrade job failed.")
+                attempt += 1
+                if attempt < max_retries:
                     logging.info(
-                        f"{get_emoji('working')} {status_msg} - HA will sync image - Elapsed time: {elapsed_time} seconds"
+                        f"{get_emoji('warning')} Retrying in {retry_interval} seconds..."
                     )
-                else:
-                    logging.info(f"{status_msg} - Elapsed time: {elapsed_time} seconds")
+                    time.sleep(retry_interval)
+
+        except PanDeviceError as upgrade_error:
+            logging.error(
+                f"{get_emoji('error')} {hostname} upgrade error: {upgrade_error}"
+            )
+            error_message = str(upgrade_error)
+            if "software manager is currently in use" in error_message:
+                attempt += 1
+                if attempt < max_retries:
+                    logging.info(
+                        f"{get_emoji('warning')} Software manager is busy. Retrying in {retry_interval} seconds..."
+                    )
+                    time.sleep(retry_interval)
             else:
                 logging.error(
-                    f"{get_emoji('error')} Download failed after {elapsed_time} seconds"
+                    f"{get_emoji('stop')} Critical error during upgrade. Halting script."
                 )
-                return False
-
-            time.sleep(30)
-
-    else:
-        logging.error(f"{get_emoji('error')} Error downloading {target_version}.")
-
-        sys.exit(1)
+                sys.exit(1)
 
 
-# ----------------------------------------------------------------------------
-# Handle panos-upgrade-assurance operations
-# ----------------------------------------------------------------------------
 def run_assurance(
     firewall: Firewall,
     hostname: str,
@@ -1070,665 +1085,280 @@ def run_assurance(
     return results
 
 
-# ----------------------------------------------------------------------------
-# Perform the snapshot of the network state
-# ----------------------------------------------------------------------------
-def perform_snapshot(
+def software_download(
     firewall: Firewall,
-    hostname: str,
-    file_path: str,
-) -> None:
-    """
-    Executes a network state snapshot on the specified firewall and saves it as a JSON file.
-
-    This function collects various network state information from the firewall, such as ARP table, content version,
-    IPsec tunnels, etc. The collected data is then serialized into JSON format and saved to the provided file path.
-    It logs the beginning of the operation, its success, or any failures encountered during the snapshot creation.
-
-    Parameters
-    ----------
-    firewall : Firewall
-        The firewall instance from which to collect the network state information.
-    hostname : str
-        Hostname of the firewall, used primarily for logging purposes.
-    file_path : str
-        Path to the file where the snapshot JSON will be saved.
-
-    Notes
-    -----
-    - Utilizes the `run_assurance` function to collect the required network state information.
-    - Ensures the existence of the directory where the snapshot file will be saved.
-    - Logs a success message and the JSON representation of the snapshot if the operation is successful.
-    - Logs an error message if the snapshot creation fails.
-
-    Example
-    --------
-    Creating a network state snapshot:
-        >>> firewall = Firewall(hostname='192.168.1.1', 'admin', 'password')
-        >>> perform_snapshot(firewall, 'firewall1', '/path/to/snapshot.json')
-        # Snapshot file is saved to the specified path.
-    """
-
-    logging.info(
-        f"{get_emoji('start')} Performing snapshot of network state information..."
-    )
-
-    # take snapshots
-    network_snapshot = run_assurance(
-        firewall,
-        hostname,
-        operation_type="state_snapshot",
-        actions=[
-            "arp_table",
-            "content_version",
-            "ip_sec_tunnels",
-            "license",
-            "nics",
-            "routes",
-            "session_stats",
-        ],
-        config={},
-    )
-
-    # Check if a readiness check was successfully created
-    if isinstance(network_snapshot, SnapshotReport):
-        logging.info(f"{get_emoji('success')} Network snapshot created successfully")
-        network_snapshot_json = network_snapshot.model_dump_json(indent=4)
-        logging.debug(network_snapshot_json)
-
-        ensure_directory_exists(file_path)
-
-        with open(file_path, "w") as file:
-            file.write(network_snapshot_json)
-
-        logging.debug(
-            f"{get_emoji('save')} Network state snapshot collected from {hostname}, saved to {file_path}"
-        )
-    else:
-        logging.error(f"{get_emoji('error')} Failed to create snapshot")
-
-
-# ----------------------------------------------------------------------------
-# Perform the readiness checks
-# ----------------------------------------------------------------------------
-def perform_readiness_checks(
-    firewall: Firewall,
-    hostname: str,
-    file_path: str,
-) -> None:
-    """
-    Executes readiness checks on a specified firewall and saves the results as a JSON file.
-
-    This function initiates a series of readiness checks on the firewall to assess its state before
-    proceeding with operations like upgrades. The checks cover aspects like configuration status,
-    content version, license validity, HA status, and more. The results of these checks are logged,
-    and a detailed report is generated and saved to the provided file path.
-
-    Parameters
-    ----------
-    firewall : Firewall
-        The firewall instance on which to perform the readiness checks.
-    hostname : str
-        Hostname of the firewall, used primarily for logging purposes.
-    file_path : str
-        Path to the file where the readiness check report JSON will be saved.
-
-    Notes
-    -----
-    - Utilizes the `run_assurance` function to perform the readiness checks.
-    - Ensures the existence of the directory where the report file will be saved.
-    - Logs the outcome of the readiness checks and saves the report in JSON format.
-    - Logs an error message if the readiness check creation fails.
-
-    Example
-    --------
-    Conducting readiness checks:
-        >>> firewall = Firewall(hostname='192.168.1.1', 'username', 'password')
-        >>> perform_readiness_checks(firewall, 'firewall1', '/path/to/readiness_report.json')
-        # Readiness report is saved to the specified path.
-    """
-
-    logging.debug(
-        f"{get_emoji('start')} Performing readiness checks of target firewall..."
-    )
-
-    readiness_check = run_assurance(
-        firewall,
-        hostname,
-        operation_type="readiness_check",
-        actions=[
-            "candidate_config",
-            "content_version",
-            "expired_licenses",
-            "ha",
-            # "jobs",
-            "free_disk_space",
-            "ntp_sync",
-            "panorama",
-            "planes_clock_sync",
-        ],
-        config={},
-    )
-
-    # Check if a readiness check was successfully created
-    if isinstance(readiness_check, ReadinessCheckReport):
-        # Do something with the readiness check report, e.g., log it, save it, etc.
-        logging.info(f"{get_emoji('success')} Readiness Checks completed")
-        readiness_check_report_json = readiness_check.model_dump_json(indent=4)
-        logging.debug(readiness_check_report_json)
-
-        ensure_directory_exists(file_path)
-
-        with open(file_path, "w") as file:
-            file.write(readiness_check_report_json)
-
-        logging.debug(
-            f"{get_emoji('save')} Readiness checks completed for {hostname}, saved to {file_path}"
-        )
-    else:
-        logging.error(f"{get_emoji('error')} Failed to create readiness check")
-
-
-# ----------------------------------------------------------------------------
-# Back up the configuration
-# ----------------------------------------------------------------------------
-def backup_configuration(
-    firewall: Firewall,
-    file_path: str,
+    target_version: str,
+    ha_details: dict,
 ) -> bool:
     """
-    Backs up the current running configuration of a specified firewall to a local file.
+    Initiates and monitors the download of a specified PAN-OS software version on the firewall.
 
-    This function retrieves the running configuration from the firewall and saves it as an XML file
-    at the specified file path. It checks the validity of the retrieved XML data and logs the success
-    or failure of the backup process.
+    This function starts the download process for the given target PAN-OS version on the specified
+    firewall. It continually checks and logs the download's progress. If the download is successful,
+    it returns True. If the download process encounters errors or fails, these are logged, and the
+    function returns False. Exceptions during the download process lead to script termination.
 
     Parameters
     ----------
     firewall : Firewall
-        The firewall instance from which the configuration is to be backed up.
-    file_path : str
-        The path where the configuration backup file will be saved.
+        The Firewall instance on which the software is to be downloaded.
+    target_version : str
+        The PAN-OS version targeted for download.
+    ha_details : dict
+        High-availability details of the firewall, determining if HA synchronization is needed.
 
     Returns
     -------
     bool
-        Returns True if the backup is successfully created, False otherwise.
+        True if the download is successful, False if the download fails or encounters an error.
 
     Raises
     ------
-    Exception
-        Raises an exception if any error occurs during the backup process.
-
-    Notes
-    -----
-    - The function verifies the XML structure of the retrieved configuration.
-    - Ensures the directory for the backup file exists.
-    - The backup file is saved in XML format.
+    SystemExit
+        Raised if an exception occurs during the download process or if a critical error is encountered.
 
     Example
     --------
-    Backing up the firewall configuration:
-        >>> firewall = Firewall(hostname='192.168.1.1', 'admin', 'password')
-        >>> backup_configuration(firewall, '/path/to/config_backup.xml')
-        # Configuration is backed up to the specified file.
+    Initiating a PAN-OS version download:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
+        >>> software_download(firewall, '10.1.0', ha_details={})
+        True or False depending on the success of the download
+
+    Notes
+    -----
+    - Before initiating the download, the function checks if the target version is already available on the firewall.
+    - It uses the 'download' method of the Firewall's software attribute to perform the download.
+    - The function sleeps for 30 seconds between each status check to allow time for the download to progress.
     """
 
-    try:
-        # Run operational command to retrieve configuration
-        config_xml = firewall.op("show config running")
-        if config_xml is None:
-            logging.error(
-                f"{get_emoji('error')} Failed to retrieve running configuration."
-            )
-            return False
-
-        # Check XML structure
-        if (
-            config_xml.tag != "response"
-            or len(config_xml) == 0
-            or config_xml[0].tag != "result"
-        ):
-            logging.error(
-                f"{get_emoji('error')} Unexpected XML structure in configuration data."
-            )
-            return False
-
-        # Extract the configuration data from the <result><config> tag
-        config_data = config_xml.find(".//result/config")
-
-        # Manually construct the string representation of the XML data
-        config_str = ET.tostring(config_data, encoding="unicode")
-
-        # Ensure the directory exists
-        ensure_directory_exists(file_path)
-
-        # Write the file to the local filesystem
-        with open(file_path, "w") as file:
-            file.write(config_str)
-
-        logging.debug(
-            f"{get_emoji('save')} Configuration backed up successfully to {file_path}"
+    if firewall.software.versions[target_version]["downloaded"]:
+        logging.info(
+            f"{get_emoji('success')} PAN-OS version {target_version} already on firewall."
         )
         return True
 
-    except Exception as e:
-        logging.error(f"{get_emoji('error')} Error backing up configuration: {e}")
+    if (
+        not firewall.software.versions[target_version]["downloaded"]
+        or firewall.software.versions[target_version]["downloaded"] != "downloading"
+    ):
+        logging.info(
+            f"{get_emoji('search')} PAN-OS version {target_version} is not on the firewall"
+        )
+
+        start_time = time.time()
+
+        try:
+            logging.info(
+                f"{get_emoji('start')} PAN-OS version {target_version} is beginning download"
+            )
+            firewall.software.download(target_version)
+        except PanDeviceXapiError as download_error:
+            logging.error(f"{get_emoji('error')} {download_error}")
+
+            sys.exit(1)
+
+        while True:
+            firewall.software.info()
+            dl_status = firewall.software.versions[target_version]["downloaded"]
+            elapsed_time = int(time.time() - start_time)
+
+            if dl_status is True:
+                logging.info(
+                    f"{get_emoji('success')} {target_version} downloaded in {elapsed_time} seconds",
+                )
+                return True
+            elif dl_status in (False, "downloading"):
+                # Consolidate logging for both 'False' and 'downloading' states
+                status_msg = (
+                    "Download is starting"
+                    if dl_status is False
+                    else f"Downloading PAN-OS version {target_version}"
+                )
+                if ha_details:
+                    logging.info(
+                        f"{get_emoji('working')} {status_msg} - HA will sync image - Elapsed time: {elapsed_time} seconds"
+                    )
+                else:
+                    logging.info(f"{status_msg} - Elapsed time: {elapsed_time} seconds")
+            else:
+                logging.error(
+                    f"{get_emoji('error')} Download failed after {elapsed_time} seconds"
+                )
+                return False
+
+            time.sleep(30)
+
+    else:
+        logging.error(f"{get_emoji('error')} Error downloading {target_version}.")
+
+        sys.exit(1)
+
+
+def software_update_check(
+    firewall: Firewall,
+    version: str,
+    ha_details: dict,
+) -> bool:
+    """
+    Verifies the availability and readiness of a specified PAN-OS version for upgrade on a firewall.
+
+    This function checks if the target PAN-OS version is available for upgrade on the specified firewall.
+    It first refreshes the firewall's system information to ensure current data, then uses the
+    `determine_upgrade` function to validate if the target version is an upgrade compared to the current
+    version. It checks the list of available PAN-OS versions and verifies if the base image for the
+    target version is downloaded. The function returns True if the target version is available and the
+    base image is downloaded, and False if the version is not available, the base image is not downloaded,
+    or a downgrade attempt is identified.
+
+    Parameters
+    ----------
+    firewall : Firewall
+        The firewall instance to be checked for software update availability.
+    version : str
+        The target PAN-OS version intended for the upgrade.
+    ha_details : dict
+        High-availability (HA) details of the firewall. Used to assess if HA synchronization is required for the update.
+
+    Returns
+    -------
+    bool
+        True if the target PAN-OS version is available and ready for upgrade, False otherwise.
+
+    Raises
+    ------
+    SystemExit
+        Exits the script if a downgrade attempt is identified or if the target version is not suitable for an upgrade.
+
+    Example
+    --------
+    >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
+    >>> software_update_check(firewall, '10.1.0', ha_details={})
+    True  # If the version 10.1.0 is available and ready for upgrade
+    """
+    # parse version
+    major, minor, maintenance = version.split(".")
+
+    # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
+    logging.debug("Refreshing running system information")
+    firewall.refresh_system_info()
+
+    # check to see if the specified version is older than the current version
+    determine_upgrade(firewall, major, minor, maintenance)
+
+    # retrieve available versions of PAN-OS
+    firewall.software.check()
+    available_versions = firewall.software.versions
+    logging.debug(f"Available PAN-OS versions: {available_versions}")
+
+    # check to see if specified version is available for upgrade
+    if version in available_versions:
+        logging.info(
+            f"{get_emoji('success')} PAN-OS version {version} is available for download"
+        )
+
+        # validate the specified version's base image is already downloaded
+        if available_versions[f"{major}.{minor}.0"]["downloaded"]:
+            logging.info(
+                f"{get_emoji('success')} Base image for {version} is already downloaded"
+            )
+            return True
+
+        else:
+            logging.error(
+                f"{get_emoji('error')} Base image for {version} is not downloaded"
+            )
+            return False
+    else:
+        logging.error(
+            f"{get_emoji('error')} PAN-OS version {version} is not available for download"
+        )
         return False
 
 
-# ----------------------------------------------------------------------------
-# Perform the upgrade process
-# ----------------------------------------------------------------------------
-def perform_upgrade(
-    firewall: Firewall,
-    hostname: str,
-    target_version: str,
-    ha_details: Optional[dict] = None,
-    max_retries: int = 3,
-    retry_interval: int = 60,
-) -> None:
+def suspend_ha_active(firewall: Firewall) -> bool:
     """
-    Initiates and manages the upgrade process of a firewall to a specified PAN-OS version.
-
-    This function attempts to upgrade the firewall to the given PAN-OS version, handling potential issues
-    and retrying if necessary. It deals with High Availability (HA) considerations and ensures that the
-    upgrade process is robust against temporary failures or busy states. The function logs each step of the
-    process and exits the script if critical errors occur.
+    Suspends the HA state of the active firewall in an HA pair.
 
     Parameters
     ----------
     firewall : Firewall
-        The firewall instance to be upgraded.
-    hostname : str
-        The hostname of the firewall, used for logging purposes.
-    target_version : str
-        The target PAN-OS version for the upgrade.
-    ha_details : Optional[dict], optional
-        High Availability details of the firewall, by default None.
-    max_retries : int, optional
-        The maximum number of retry attempts for the upgrade, by default 3.
-    retry_interval : int, optional
-        The interval (in seconds) to wait between retry attempts, by default 60.
+        The active firewall in the HA pair.
 
-    Raises
-    ------
-    SystemExit
-        Exits the script if the upgrade job fails, if HA synchronization issues occur,
-        or if critical errors are encountered during the upgrade process.
+    Returns
+    -------
+    bool
+        Returns True if the HA state suspension is successful, False otherwise.
 
     Notes
     -----
-    - The function handles retries based on the 'max_retries' and 'retry_interval' parameters.
-    - In case of 'software manager is currently in use' errors, retries are attempted.
-    - Critical errors during the upgrade process lead to script termination.
-
-    Example
-    -------
-    Upgrading a firewall to a specific PAN-OS version:
-        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-        >>> perform_upgrade(firewall, '192.168.1.1', '10.2.0', max_retries=2, retry_interval=30)
-        # The firewall is upgraded to PAN-OS version 10.2.0, with retries if necessary.
+    - This function should be called only when it's confirmed that the firewall is the active member of an HA pair.
+    - It suspends the HA state to allow the passive firewall to become active.
     """
-
-    logging.info(
-        f"{get_emoji('start')} Performing upgrade on {hostname} to version {target_version}..."
-    )
-
-    attempt = 0
-    while attempt < max_retries:
-        try:
-            logging.info(
-                f"{get_emoji('start')} Attempting upgrade {hostname} to version {target_version} (Attempt {attempt + 1} of {max_retries})..."
-            )
-            install_job = firewall.software.install(target_version, sync=True)
-
-            if install_job["success"]:
-                logging.info(
-                    f"{get_emoji('success')} {hostname} upgrade completed successfully"
-                )
-                logging.debug(f"{get_emoji('report')} {install_job}")
-                break  # Exit loop on successful upgrade
-            else:
-                logging.error(f"{get_emoji('error')} {hostname} upgrade job failed.")
-                attempt += 1
-                if attempt < max_retries:
-                    logging.info(
-                        f"{get_emoji('warning')} Retrying in {retry_interval} seconds..."
-                    )
-                    time.sleep(retry_interval)
-
-        except PanDeviceError as upgrade_error:
+    try:
+        suspension_response = firewall.op(
+            "<request><high-availability><state><suspend/></state></high-availability></request>",
+            cmd_xml=False,
+        )
+        if "success" in suspension_response.text:
+            logging.info(f"{get_emoji('success')} Active firewall HA state suspended.")
+            return True
+        else:
             logging.error(
-                f"{get_emoji('error')} {hostname} upgrade error: {upgrade_error}"
+                f"{get_emoji('error')} Failed to suspend active firewall HA state."
             )
-            error_message = str(upgrade_error)
-            if "software manager is currently in use" in error_message:
-                attempt += 1
-                if attempt < max_retries:
-                    logging.info(
-                        f"{get_emoji('warning')} Software manager is busy. Retrying in {retry_interval} seconds..."
-                    )
-                    time.sleep(retry_interval)
-            else:
-                logging.error(
-                    f"{get_emoji('stop')} Critical error during upgrade. Halting script."
-                )
-                sys.exit(1)
+            return False
+    except Exception as e:
+        logging.error(
+            f"{get_emoji('error')} Error suspending active firewall HA state: {e}"
+        )
+        return False
 
 
-# ----------------------------------------------------------------------------
-# Perform the reboot process
-# ----------------------------------------------------------------------------
-def perform_reboot(
-    firewall: Firewall,
-    target_version: str,
-    ha_details: Optional[dict] = None,
-) -> None:
+def suspend_ha_passive(firewall: Firewall) -> bool:
     """
-    Initiates and oversees the reboot process of a firewall, ensuring it reaches the specified target version.
-
-    This function triggers a reboot of the specified firewall and monitors its status throughout the process.
-    In HA (High Availability) setups, it confirms synchronization with the HA peer post-reboot. The function
-    includes robust handling of various states and errors, with detailed logging. It verifies the firewall
-    reaches the target PAN-OS version upon reboot completion.
+    Suspends the HA state of the passive firewall in an HA pair.
 
     Parameters
     ----------
     firewall : Firewall
-        The firewall instance to be rebooted.
-    target_version : str
-        The target PAN-OS version to confirm after reboot.
-    ha_details : Optional[dict], optional
-        High Availability details of the firewall, if applicable. Default is None.
+        The passive firewall in the HA pair.
 
-    Raises
-    ------
-    SystemExit
-        Exits the script if the firewall fails to reboot to the target version, if HA synchronization issues
-        occur, or if critical errors are encountered during the reboot process.
+    Returns
+    -------
+    bool
+        Returns True if the HA state suspension is successful, False otherwise.
 
     Notes
     -----
-    - The function checks the firewall's version and HA synchronization status (if applicable) post-reboot.
-    - Confirms that the firewall has successfully rebooted to the target PAN-OS version.
-    - Script terminates if the firewall doesn't reach the target version or synchronize (in HA setups) within
-      20 minutes.
-
-    Example
-    -------
-    Rebooting a firewall to a specific PAN-OS version:
-        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-        >>> perform_reboot(firewall, '10.2.0')
-        # The firewall undergoes a reboot and the script monitors until it reaches the target version 10.2.0.
+    - This function should be called only when it's confirmed that the firewall is the passive member of an HA pair.
+    - It suspends the HA state to prevent it from becoming active during the upgrade process.
     """
-
-    reboot_start_time = time.time()
-    rebooted = False
-
-    # Check if HA details are available
-    if ha_details:
-        logging.info(f"{get_emoji('start')} Rebooting the passive HA firewall...")
-
-    # Reboot standalone firewall
-    else:
-        logging.info(f"{get_emoji('start')} Rebooting the standalone firewall...")
-
-    reboot_job = firewall.op(
-        "<request><restart><system/></restart></request>", cmd_xml=False
-    )
-    reboot_job_result = flatten_xml_to_dict(reboot_job)
-    logging.info(f"{get_emoji('report')} {reboot_job_result['result']}")
-
-    # Wait for the firewall reboot process to initiate before checking status
-    time.sleep(60)
-
-    while not rebooted:
-        # Check if HA details are available
-        if ha_details:
-            try:
-                deploy_info, current_ha_details = get_ha_status(firewall)
-                logging.debug(
-                    f"{get_emoji('report')} deploy_info: {deploy_info}",
-                )
-                logging.debug(
-                    f"{get_emoji('report')} current_ha_details: {current_ha_details}",
-                )
-
-                if current_ha_details and deploy_info in ["active", "passive"]:
-                    if (
-                        current_ha_details["result"]["group"]["running-sync"]
-                        == "synchronized"
-                    ):
-                        logging.info(
-                            f"{get_emoji('success')} HA passive firewall rebooted and synchronized with its peer in {int(time.time() - reboot_start_time)} seconds"
-                        )
-                        rebooted = True
-                    else:
-                        logging.info(
-                            f"{get_emoji('working')} HA passive firewall rebooted but not yet synchronized with its peer. Will try again in 30 seconds."
-                        )
-                        time.sleep(60)
-            except (PanXapiError, PanConnectionTimeout, PanURLError):
-                logging.info(f"{get_emoji('working')} Firewall is rebooting...")
-                time.sleep(60)
-
-        # Reboot standalone firewall
+    try:
+        suspension_response = firewall.op(
+            "<request><high-availability><state><suspend/></state></high-availability></request>",
+            cmd_xml=False,
+        )
+        if "success" in suspension_response.text:
+            logging.info(f"{get_emoji('success')} Passive firewall HA state suspended.")
+            return True
         else:
-            try:
-                firewall.refresh_system_info()
-                logging.info(
-                    f"{get_emoji('report')} Firewall version: {firewall.version}"
-                )
-
-                if firewall.version == target_version:
-                    logging.info(
-                        f"{get_emoji('success')} Firewall rebooted in {int(time.time() - reboot_start_time)} seconds"
-                    )
-                    rebooted = True
-                else:
-                    logging.error(
-                        f"{get_emoji('stop')} Firewall rebooted but running the target version. Please try again."
-                    )
-                    sys.exit(1)
-            except (PanXapiError, PanConnectionTimeout, PanURLError):
-                logging.info(f"{get_emoji('working')} Firewall is rebooting...")
-                time.sleep(60)
-
-        # Check if 20 minutes have passed
-        if time.time() - reboot_start_time > 1200:  # 20 minutes in seconds
             logging.error(
-                f"{get_emoji('error')} Firewall did not become available and/or establish a Connected sync state with its HA peer after 20 minutes. Please check the firewall status manually."
+                f"{get_emoji('error')} Failed to suspend passive firewall HA state."
             )
-            break
+            return False
+    except Exception as e:
+        logging.error(
+            f"{get_emoji('error')} Error suspending passive firewall HA state: {e}"
+        )
+        return False
 
 
-# ----------------------------------------------------------------------------
-# Helper function to convert XML ET.Element into a Python dictionary
-# ----------------------------------------------------------------------------
-def flatten_xml_to_dict(element: ET.Element) -> dict:
-    """
-    Converts a given XML element to a dictionary, flattening the XML structure.
-
-    This function recursively processes an XML element, converting it and its children into a dictionary format.
-    The conversion flattens the XML structure, making it easier to adapt to model definitions. It treats elements
-    containing only text as leaf nodes, directly mapping their tags to their text content. For elements with child
-    elements, it continues the recursion. The function handles multiple occurrences of the same tag by aggregating
-    them into a list. Specifically, it always treats elements with the tag 'entry' as lists, reflecting their
-    common usage pattern in PAN-OS XML API responses.
-
-    Parameters
-    ----------
-    element : ET.Element
-        The XML element to be converted. This should be an instance of ElementTree.Element, typically obtained
-        from parsing XML data using the ElementTree API.
-
-    Returns
-    -------
-    dict
-        A dictionary representation of the XML element. The dictionary mirrors the structure of the XML,
-        with tags as keys and text content or nested dictionaries as values. Elements with the same tag
-        are aggregated into a list.
-
-    Notes
-    -----
-    - This function is designed to work with PAN-OS XML API responses, which often use the 'entry' tag
-      to denote list items.
-    - The function does not preserve attributes of XML elements; it focuses solely on tags and text content.
-
-    Example
-    -------
-    Converting an XML element with nested children to a dictionary:
-        >>> xml_string = "<root><child>value</child><child><subchild>subvalue</subchild></child></root>"
-        >>> xml_element = ET.fromstring(xml_string)
-        >>> flatten_xml_to_dict(xml_element)
-        {'child': ['value', {'subchild': 'subvalue'}]}
-    """
-    result = {}
-    for child_element in element:
-        child_tag = child_element.tag
-
-        if child_element.text and len(child_element) == 0:
-            result[child_tag] = child_element.text
-        else:
-            if child_tag in result:
-                if not isinstance(result.get(child_tag), list):
-                    result[child_tag] = [
-                        result.get(child_tag),
-                        flatten_xml_to_dict(child_element),
-                    ]
-                else:
-                    result[child_tag].append(flatten_xml_to_dict(child_element))
-            else:
-                if child_tag == "entry":
-                    # Always assume entries are a list.
-                    result[child_tag] = [flatten_xml_to_dict(child_element)]
-                else:
-                    result[child_tag] = flatten_xml_to_dict(child_element)
-
-    return result
-
-
-def model_from_api_response(
-    element: Union[ET.Element, ET.ElementTree],
-    model: type[FromAPIResponseMixin],
-) -> FromAPIResponseMixin:
-    """
-    Converts an XML Element, typically from an API response, into a specified Pydantic model.
-
-    This function facilitates the transformation of XML data into a structured Pydantic model.
-    It first flattens the XML Element into a dictionary and then maps this dictionary to the
-    specified Pydantic model. This approach simplifies the handling of complex XML structures
-    often returned by APIs, enabling easier manipulation and access to the data within Python.
-
-    Parameters
-    ----------
-    element : Union[ET.Element, ET.ElementTree]
-        The XML Element or ElementTree to be converted. This is typically obtained from parsing
-        XML data returned by an API call.
-
-    model : type[FromAPIResponseMixin]
-        The Pydantic model class into which the XML data will be converted. This model must
-        inherit from the FromAPIResponseMixin, indicating it can handle data derived from
-        API responses.
-
-    Returns
-    -------
-    FromAPIResponseMixin
-        An instance of the specified Pydantic model, populated with data extracted from the
-        provided XML Element.
-
-    Example
-    -------
-    Converting an XML response to a Pydantic model:
-        >>> xml_element = ET.fromstring('<response><data>value</data></response>')
-        >>> MyModel = type('MyModel', (FromAPIResponseMixin, BaseModel), {})
-        >>> model_instance = model_from_api_response(xml_element, MyModel)
-        # 'model_instance' is now an instance of 'MyModel' with data from 'xml_element'.
-    """
-    result_dict = flatten_xml_to_dict(element)
-    return model.from_api_response(result_dict)
-
-
-def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
-    """
-    Retrieves a filtered list of managed devices from a specified Panorama appliance.
-
-    This function queries a Panorama appliance for its managed devices and filters the results
-    based on the provided keyword arguments. Each keyword argument must correspond to an
-    attribute of the `ManagedDevice` model. The function applies regex matching for each
-    filter, returning only those devices that match all specified filters.
-
-    Parameters
-    ----------
-    panorama : Panorama
-        An instance of the Panorama class, representing the Panorama appliance to query.
-
-    filters : **kwargs
-        Keyword argument filters to apply. Each keyword should correspond to an attribute
-        of the `ManagedDevice` model class. The value for each keyword is a regex pattern
-        to match against the corresponding attribute.
-
-    Returns
-    -------
-    list[ManagedDevice]
-        A list of `ManagedDevice` instances that match the specified filters.
-
-    Example
-    -------
-    Retrieving devices from Panorama with specific hostname and model filters:
-        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
-        >>> managed_devices = get_managed_devices(panorama, hostname='^PA-220$', model='.*220.*')
-        # Returns a list of `ManagedDevice` instances for devices with hostnames matching 'PA-220'
-        # and model containing '220'.
-    """
-    managed_devices = model_from_api_response(
-        panorama.op("show devices all"), ManagedDevices
-    )
-    devices = managed_devices.devices
-    for filter_key, filter_value in filters.items():
-        devices = [d for d in devices if re.match(filter_value, getattr(d, filter_key))]
-
-    return devices
-
-
-def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
-    """
-    Retrieves a list of Firewall objects associated with a Panorama appliance, filtered by specified criteria.
-
-    This function queries a Panorama appliance for its managed firewalls and filters the results based on the
-    provided keyword arguments. The firewalls that match the specified filters are then instantiated as `Firewall`
-    objects. These firewall objects are also attached to the Panorama instance, allowing API calls to be proxied
-    through the Panorama.
-
-    Parameters
-    ----------
-    panorama : Panorama
-        An instance of the Panorama class, representing the Panorama appliance to query.
-
-    filters : **kwargs
-        Keyword argument filters to apply. Each keyword should correspond to an attribute of the `ManagedDevice`
-        model class. The value for each keyword is a regex pattern to match against the corresponding attribute.
-
-    Returns
-    -------
-    list[Firewall]
-        A list of `Firewall` instances that match the specified filters.
-
-    Example
-    -------
-    Getting firewalls from Panorama with specific model filters:
-        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
-        >>> firewalls = get_firewalls_from_panorama(panorama, model='.*220.*')
-        # Returns a list of `Firewall` instances for firewalls with models containing '220'.
-    """
-    firewalls = []
-    for managed_device in get_managed_devices(panorama, **filters):
-        firewall = Firewall(serial=managed_device.serial)
-        firewalls.append(firewall)
-        panorama.add(firewall)
-
-    return firewalls
+def upgrade_firewall(
+    firewall: Firewall,
+    target_version: str,
+    dry_run: bool,
+) -> None:
+    pass
 
 
 def upgrade_single_firewall(
@@ -1791,6 +1421,27 @@ def upgrade_single_firewall(
     deploy_info, ha_details = get_ha_status(firewall)
     logging.info(f"{get_emoji('report')} Firewall HA mode: {deploy_info}")
     logging.debug(f"{get_emoji('report')} Firewall HA details: {ha_details}")
+
+    # If firewall is part of HA pair, determine if it's active or passive
+    if ha_details:
+        proceed_with_upgrade, peer_firewall = handle_ha_logic(
+            firewall, target_version, dry_run
+        )
+
+        if not proceed_with_upgrade:
+            if peer_firewall:
+                logging.info(
+                    f"{get_emoji('start')} Switching control to the peer firewall for upgrade."
+                )
+                # Here you would add the logic to switch control to the peer firewall
+                # This could involve a recursive call to upgrade_single_firewall or a different approach
+                upgrade_single_firewall(peer_firewall, target_version, dry_run)
+                return
+            else:
+                logging.error(
+                    f"{get_emoji('error')} Unable to determine HA peer for upgrade."
+                )
+                sys.exit(1)
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
@@ -1890,6 +1541,252 @@ def upgrade_single_firewall(
     )
 
 
+# ----------------------------------------------------------------------------
+# Utility Functions
+# ----------------------------------------------------------------------------
+def check_readiness_and_log(
+    result: dict,
+    test_name: str,
+    test_info: dict,
+) -> None:
+    """
+    Evaluates and logs the results of a specified readiness test.
+
+    This function assesses the outcome of a particular readiness test by examining its result.
+    It logs the outcome using varying log levels (info, warning, error), determined by the
+    test's importance and its result. If a test is marked as critical and fails, the script
+    may terminate execution.
+
+    Parameters
+    ----------
+    result : dict
+        A dictionary where each key corresponds to a readiness test name. The value is another dictionary
+        containing two keys: 'state' (a boolean indicating the test's success or failure) and 'reason'
+        (a string explaining the outcome).
+
+    test_name : str
+        The name of the test to evaluate. This name should correspond to a key in the 'result' dictionary.
+
+    test_info : dict
+        Information about the test, including its description, log level (info, warning, error), and a flag
+        indicating whether to exit the script upon test failure (exit_on_failure).
+
+    Notes
+    -----
+    - The function utilizes the `get_emoji` helper function to add appropriate emojis to log messages,
+      enhancing readability and user experience.
+    - If 'state' in the test result is True, the test is logged as passed. Otherwise, it is either
+      logged as failed or skipped, based on the specified log level in 'test_info'.
+
+    Raises
+    ------
+    SystemExit
+        If a critical test (marked with "exit_on_failure": True) fails, the script will raise SystemExit.
+    """
+    test_result = result.get(
+        test_name, {"state": False, "reason": "Test not performed"}
+    )
+    log_message = f'{test_info["description"]} - {test_result["reason"]}'
+
+    if test_result["state"]:
+        logging.info(
+            f"{get_emoji('success')} Passed Readiness Check: {test_info['description']}"
+        )
+    else:
+        if test_info["log_level"] == "error":
+            logging.error(f"{get_emoji('error')} {log_message}")
+            if test_info["exit_on_failure"]:
+                logging.error(f"{get_emoji('stop')} Halting script.")
+
+                sys.exit(1)
+        elif test_info["log_level"] == "warning":
+            logging.debug(
+                f"{get_emoji('report')} Skipped Readiness Check: {test_info['description']}"
+            )
+        else:
+            logging.debug(log_message)
+
+
+def compare_versions(version1: str, version2: str) -> str:
+    """
+    Compares two PAN-OS version strings.
+
+    Parameters:
+    version1 (str): First version string to compare.
+    version2 (str): Second version string to compare.
+
+    Returns:
+    str: 'older' if version1 < version2, 'newer' if version1 > version2, 'equal' if they are the same.
+    """
+    parsed_version1 = parse_version(version1)
+    parsed_version2 = parse_version(version2)
+
+    if parsed_version1 < parsed_version2:
+        return "older"
+    elif parsed_version1 > parsed_version2:
+        return "newer"
+    else:
+        return "equal"
+
+
+def configure_logging(level: str, encoding: str = "utf-8") -> None:
+    """
+    Sets up the logging configuration for the script with the specified logging level and encoding.
+
+    This function initializes the global logger, sets the specified logging level, and configures two handlers:
+    one for console output and another for file output. It uses RotatingFileHandler for file logging to manage
+    file size and maintain backups.
+
+    Parameters
+    ----------
+    level : str
+        The desired logging level (e.g., 'debug', 'info', 'warning', 'error', 'critical').
+        The input is case-insensitive. If an invalid level is provided, it defaults to 'info'.
+
+    encoding : str, optional
+        The encoding format for the file-based log handler, by default 'utf-8'.
+
+    Notes
+    -----
+    - The Console Handler outputs log messages to the standard output.
+    - The File Handler logs messages to 'logs/upgrade.log'. This file is rotated when it reaches 1MB in size,
+      maintaining up to three backup files.
+    - The logging level influences the verbosity of the log messages. An invalid level defaults to 'info',
+      ensuring a baseline of logging.
+    """
+    logging_level = getattr(logging, level.upper(), None)
+
+    # Get the root logger
+    logger = logging.getLogger()
+    logger.setLevel(logging_level)
+
+    # Remove any existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    # Create handlers (console and file handler)
+    console_handler = logging.StreamHandler()
+    file_handler = RotatingFileHandler(
+        "logs/upgrade.log",
+        maxBytes=1024 * 1024,
+        backupCount=3,
+        encoding=encoding,
+    )
+
+    # Create formatters and add them to the handlers
+    if level == "debug":
+        console_format = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        file_format = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+    else:
+        console_format = logging.Formatter("%(message)s")
+        file_format = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+
+    console_handler.setFormatter(console_format)
+    file_handler.setFormatter(file_format)
+
+    # Add handlers to the logger
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+
+
+def connect_to_host(
+    hostname: str,
+    api_username: str,
+    api_password: str,
+) -> PanDevice:
+    """
+    Establishes a connection to a Panorama or PAN-OS firewall appliance using provided credentials.
+
+    This function uses the hostname, username, and password to attempt a connection to a target appliance,
+    which can be either a Panorama management server or a PAN-OS firewall. It identifies the type of
+    appliance based on the provided credentials and hostname. Upon successful connection, it returns an
+    appropriate PanDevice object (either Panorama or Firewall).
+
+    Parameters
+    ----------
+    hostname : str
+        The DNS Hostname or IP address of the target appliance.
+    api_username : str
+        Username for authentication.
+    api_password : str
+        Password for authentication.
+
+    Returns
+    -------
+    PanDevice
+        An instance of PanDevice (either Panorama or Firewall), representing the established connection.
+
+    Raises
+    ------
+    SystemExit
+        If the connection attempt fails, such as due to a timeout, incorrect credentials, or other errors.
+
+    Example
+    --------
+    Connecting to a Panorama management server:
+        >>> connect_to_host('panorama.example.com', 'admin', 'password')
+        <Panorama object>
+
+    Connecting to a PAN-OS firewall:
+        >>> connect_to_host('192.168.0.1', 'admin', 'password')
+        <Firewall object>
+    """
+    try:
+        target_device = PanDevice.create_from_device(
+            hostname,
+            api_username,
+            api_password,
+        )
+
+        return target_device
+
+    except PanConnectionTimeout:
+        logging.error(
+            f"{get_emoji('error')} Connection to the {hostname} appliance timed out. Please check the DNS hostname or IP address and network connectivity."
+        )
+
+        sys.exit(1)
+
+    except Exception as e:
+        logging.error(
+            f"{get_emoji('error')} An error occurred while connecting to the {hostname} appliance: {e}"
+        )
+
+        sys.exit(1)
+
+
+def ensure_directory_exists(file_path: str) -> None:
+    """
+    Ensures the existence of the directory for a specified file path, creating it if necessary.
+
+    This function checks if the directory for a given file path exists. If it does not exist, the function
+    creates the directory along with any necessary parent directories. This is particularly useful for
+    ensuring that the file system is prepared for file operations that require specific directory structures.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path whose directory needs to be verified and potentially created. The function extracts
+        the directory part of the file path to check its existence.
+
+    Example
+    -------
+    Ensuring a directory exists for a file path:
+        >>> file_path = '/path/to/directory/file.txt'
+        >>> ensure_directory_exists(file_path)
+        # If '/path/to/directory/' does not exist, it is created.
+    """
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
 def filter_string_to_dict(filter_string: str) -> dict:
     """
     Converts a string containing comma-separated key-value pairs into a dictionary.
@@ -1935,6 +1832,325 @@ def filter_string_to_dict(filter_string: str) -> dict:
         result[k] = v
 
     return result
+
+
+def flatten_xml_to_dict(element: ET.Element) -> dict:
+    """
+    Converts a given XML element to a dictionary, flattening the XML structure.
+
+    This function recursively processes an XML element, converting it and its children into a dictionary format.
+    The conversion flattens the XML structure, making it easier to adapt to model definitions. It treats elements
+    containing only text as leaf nodes, directly mapping their tags to their text content. For elements with child
+    elements, it continues the recursion. The function handles multiple occurrences of the same tag by aggregating
+    them into a list. Specifically, it always treats elements with the tag 'entry' as lists, reflecting their
+    common usage pattern in PAN-OS XML API responses.
+
+    Parameters
+    ----------
+    element : ET.Element
+        The XML element to be converted. This should be an instance of ElementTree.Element, typically obtained
+        from parsing XML data using the ElementTree API.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the XML element. The dictionary mirrors the structure of the XML,
+        with tags as keys and text content or nested dictionaries as values. Elements with the same tag
+        are aggregated into a list.
+
+    Notes
+    -----
+    - This function is designed to work with PAN-OS XML API responses, which often use the 'entry' tag
+      to denote list items.
+    - The function does not preserve attributes of XML elements; it focuses solely on tags and text content.
+
+    Example
+    -------
+    Converting an XML element with nested children to a dictionary:
+        >>> xml_string = "<root><child>value</child><child><subchild>subvalue</subchild></child></root>"
+        >>> xml_element = ET.fromstring(xml_string)
+        >>> flatten_xml_to_dict(xml_element)
+        {'child': ['value', {'subchild': 'subvalue'}]}
+    """
+    result = {}
+    for child_element in element:
+        child_tag = child_element.tag
+
+        if child_element.text and len(child_element) == 0:
+            result[child_tag] = child_element.text
+        else:
+            if child_tag in result:
+                if not isinstance(result.get(child_tag), list):
+                    result[child_tag] = [
+                        result.get(child_tag),
+                        flatten_xml_to_dict(child_element),
+                    ]
+                else:
+                    result[child_tag].append(flatten_xml_to_dict(child_element))
+            else:
+                if child_tag == "entry":
+                    # Always assume entries are a list.
+                    result[child_tag] = [flatten_xml_to_dict(child_element)]
+                else:
+                    result[child_tag] = flatten_xml_to_dict(child_element)
+
+    return result
+
+
+def get_emoji(action: str) -> str:
+    """
+    Retrieves an emoji character corresponding to a specific action keyword.
+
+    This function is used to enhance the visual appeal and readability of log messages or console outputs.
+    It maps predefined action keywords to their corresponding emoji characters.
+
+    Parameters
+    ----------
+    action : str
+        An action keyword for which an emoji is required. Supported keywords include 'success',
+        'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
+
+    Returns
+    -------
+    str
+        The emoji character associated with the action keyword. If the keyword is not recognized,
+        returns an empty string.
+
+    Examples
+    --------
+    >>> get_emoji('success')
+    '✅'  # Indicates a successful operation
+
+    >>> get_emoji('error')
+    '❌'  # Indicates an error
+
+    >>> get_emoji('start')
+    '🚀'  # Indicates the start of a process
+    """
+    emoji_map = {
+        "success": "✅",
+        "warning": "⚠️",
+        "error": "❌",
+        "working": "⚙️",
+        "report": "📝",
+        "search": "🔍",
+        "save": "💾",
+        "stop": "🛑",
+        "start": "🚀",
+    }
+    return emoji_map.get(action, "")
+
+
+def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
+    """
+    Retrieves a list of Firewall objects associated with a Panorama appliance, filtered by specified criteria.
+
+    This function queries a Panorama appliance for its managed firewalls and filters the results based on the
+    provided keyword arguments. The firewalls that match the specified filters are then instantiated as `Firewall`
+    objects. These firewall objects are also attached to the Panorama instance, allowing API calls to be proxied
+    through the Panorama.
+
+    Parameters
+    ----------
+    panorama : Panorama
+        An instance of the Panorama class, representing the Panorama appliance to query.
+
+    filters : **kwargs
+        Keyword argument filters to apply. Each keyword should correspond to an attribute of the `ManagedDevice`
+        model class. The value for each keyword is a regex pattern to match against the corresponding attribute.
+
+    Returns
+    -------
+    list[Firewall]
+        A list of `Firewall` instances that match the specified filters.
+
+    Example
+    -------
+    Getting firewalls from Panorama with specific model filters:
+        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
+        >>> firewalls = get_firewalls_from_panorama(panorama, model='.*220.*')
+        # Returns a list of `Firewall` instances for firewalls with models containing '220'.
+    """
+    firewalls = []
+    for managed_device in get_managed_devices(panorama, **filters):
+        firewall = Firewall(serial=managed_device.serial)
+        firewalls.append(firewall)
+        panorama.add(firewall)
+
+    return firewalls
+
+
+def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
+    """
+    Retrieves a filtered list of managed devices from a specified Panorama appliance.
+
+    This function queries a Panorama appliance for its managed devices and filters the results
+    based on the provided keyword arguments. Each keyword argument must correspond to an
+    attribute of the `ManagedDevice` model. The function applies regex matching for each
+    filter, returning only those devices that match all specified filters.
+
+    Parameters
+    ----------
+    panorama : Panorama
+        An instance of the Panorama class, representing the Panorama appliance to query.
+
+    filters : **kwargs
+        Keyword argument filters to apply. Each keyword should correspond to an attribute
+        of the `ManagedDevice` model class. The value for each keyword is a regex pattern
+        to match against the corresponding attribute.
+
+    Returns
+    -------
+    list[ManagedDevice]
+        A list of `ManagedDevice` instances that match the specified filters.
+
+    Example
+    -------
+    Retrieving devices from Panorama with specific hostname and model filters:
+        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
+        >>> managed_devices = get_managed_devices(panorama, hostname='^PA-220$', model='.*220.*')
+        # Returns a list of `ManagedDevice` instances for devices with hostnames matching 'PA-220'
+        # and model containing '220'.
+    """
+    managed_devices = model_from_api_response(
+        panorama.op("show devices all"), ManagedDevices
+    )
+    devices = managed_devices.devices
+    for filter_key, filter_value in filters.items():
+        devices = [d for d in devices if re.match(filter_value, getattr(d, filter_key))]
+
+    return devices
+
+
+def ip_callback(value: str) -> str:
+    """
+    Validates the input as a valid IP address or a resolvable hostname.
+
+    This function first attempts to resolve the hostname via DNS query. If it fails,
+    it utilizes the ip_address function from the ipaddress standard library module to
+    validate the provided input as an IP address. It is designed to be used as a callback
+    function for Typer command-line argument parsing, ensuring that only valid IP addresses
+    or resolvable hostnames are accepted as input.
+
+    Parameters
+    ----------
+    value : str
+        A string representing the IP address or hostname to be validated.
+
+    Returns
+    -------
+    str
+        The validated IP address string or hostname.
+
+    Raises
+    ------
+    typer.BadParameter
+        If the input string is not a valid IP address or a resolvable hostname, a typer.BadParameter
+        exception is raised with an appropriate error message.
+    """
+
+    # First, try to resolve as a hostname
+    if resolve_hostname(value):
+        return value
+
+    # If hostname resolution fails, try as an IP address
+    try:
+        ipaddress.ip_address(value)
+        return value
+
+    except ValueError as err:
+        raise typer.BadParameter(
+            "The value you passed for --hostname is neither a valid DNS hostname nor IP address, please check your inputs again."
+        ) from err
+
+
+def model_from_api_response(
+    element: Union[ET.Element, ET.ElementTree],
+    model: type[FromAPIResponseMixin],
+) -> FromAPIResponseMixin:
+    """
+    Converts an XML Element, typically from an API response, into a specified Pydantic model.
+
+    This function facilitates the transformation of XML data into a structured Pydantic model.
+    It first flattens the XML Element into a dictionary and then maps this dictionary to the
+    specified Pydantic model. This approach simplifies the handling of complex XML structures
+    often returned by APIs, enabling easier manipulation and access to the data within Python.
+
+    Parameters
+    ----------
+    element : Union[ET.Element, ET.ElementTree]
+        The XML Element or ElementTree to be converted. This is typically obtained from parsing
+        XML data returned by an API call.
+
+    model : type[FromAPIResponseMixin]
+        The Pydantic model class into which the XML data will be converted. This model must
+        inherit from the FromAPIResponseMixin, indicating it can handle data derived from
+        API responses.
+
+    Returns
+    -------
+    FromAPIResponseMixin
+        An instance of the specified Pydantic model, populated with data extracted from the
+        provided XML Element.
+
+    Example
+    -------
+    Converting an XML response to a Pydantic model:
+        >>> xml_element = ET.fromstring('<response><data>value</data></response>')
+        >>> MyModel = type('MyModel', (FromAPIResponseMixin, BaseModel), {})
+        >>> model_instance = model_from_api_response(xml_element, MyModel)
+        # 'model_instance' is now an instance of 'MyModel' with data from 'xml_element'.
+    """
+    result_dict = flatten_xml_to_dict(element)
+    return model.from_api_response(result_dict)
+
+
+def parse_version(version: str) -> Tuple[int, int, int, int]:
+    parts = version.split(".")
+    if len(parts) == 2:  # When maintenance version is an integer
+        major, minor = parts
+        maintenance, hotfix = 0, 0
+    else:  # When maintenance version includes hotfix
+        major, minor, maintenance = parts
+        if "-h" in maintenance:
+            maintenance, hotfix = maintenance.split("-h")
+        else:
+            hotfix = 0
+
+    return int(major), int(minor), int(maintenance), int(hotfix)
+
+
+def resolve_hostname(hostname: str) -> bool:
+    """
+    Checks if a given hostname can be resolved via DNS query.
+
+    This function attempts to resolve the specified hostname using DNS. It queries the DNS servers
+    that the operating system is configured to use. The function is designed to return a boolean
+    value indicating whether the hostname could be successfully resolved or not.
+
+    Parameters
+    ----------
+    hostname : str
+        The hostname (e.g., 'example.com') to be resolved.
+
+    Returns
+    -------
+    bool
+        Returns True if the hostname can be resolved, False otherwise.
+
+    Raises
+    ------
+    None
+        This function does not raise any exceptions. It handles all exceptions internally and
+        returns False in case of any issues during the resolution process.
+    """
+    try:
+        dns.resolver.resolve(hostname)
+        return True
+    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.Timeout) as err:
+        # Optionally log or handle err here if needed
+        logging.debug(f"Hostname resolution failed: {err}")
+        return False
 
 
 # ----------------------------------------------------------------------------
@@ -1998,7 +2214,11 @@ def main(
     ] = "",
     log_level: Annotated[
         str,
-        typer.Option("--log-level", "-l", help="Set the logging output level"),
+        typer.Option(
+            "--log-level",
+            "-l",
+            help="Set the logging output level",
+        ),
     ] = "info",
 ):
     """
@@ -2097,6 +2317,9 @@ def main(
         )
         firewalls_to_upgrade = get_firewalls_from_panorama(
             device, **filter_string_to_dict(filter)
+        )
+        logging.debug(
+            f"{get_emoji('report')} Firewalls to upgrade: {firewalls_to_upgrade}"
         )
 
     # Run the upgrade process for each identified firewall. Note this runs serially, i.e one after the other.
