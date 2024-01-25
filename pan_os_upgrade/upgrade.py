@@ -44,6 +44,7 @@ import os
 import sys
 import time
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logging.handlers import RotatingFileHandler
 from threading import Lock
 from typing import Dict, List, Optional, Tuple, Union
@@ -2305,21 +2306,54 @@ def main(
             f"{get_emoji('report')} Firewalls to upgrade: {firewalls_to_upgrade}"
         )
 
-    # Initial pass of upgrades
-    for firewall in firewalls_to_upgrade:
-        upgrade_single_firewall(firewall, target_version, dry_run)
+        # Using ThreadPoolExecutor to manage threads
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Store future objects along with firewalls for reference
+            future_to_firewall = {
+                executor.submit(
+                    upgrade_single_firewall, fw, target_version, dry_run
+                ): fw
+                for fw in firewalls_to_upgrade
+            }
+
+            # Process completed tasks
+            for future in as_completed(future_to_firewall):
+                firewall = future_to_firewall[future]
+                try:
+                    future.result()
+                except Exception as exc:
+                    logging.error(
+                        f"{get_emoji('error')} Firewall {firewall.hostname} generated an exception: {exc}"
+                    )
 
     # Revisit the firewalls that were skipped in the initial pass
     if firewalls_to_revisit:
         logging.info(
             f"{get_emoji('info')} Revisiting firewalls that were active in an HA pair and had the same version as their peers."
         )
+
+        # Using ThreadPoolExecutor to manage threads for revisiting firewalls
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_to_firewall = {
+                executor.submit(
+                    upgrade_single_firewall, fw, target_version, dry_run
+                ): fw
+                for fw in firewalls_to_revisit
+            }
+
+            for future in as_completed(future_to_firewall):
+                firewall = future_to_firewall[future]
+                try:
+                    future.result()
+                    logging.info(
+                        f"{get_emoji('success')} Completed revisiting firewall: {firewall.hostname}"
+                    )
+                except Exception as exc:
+                    logging.error(
+                        f"{get_emoji('error')} Exception while revisiting firewall {firewall.hostname}: {exc}"
+                    )
+
         with firewalls_to_revisit_lock:
-            for firewall in firewalls_to_revisit:
-                logging.info(
-                    f"{get_emoji('start')} Revisiting firewall: {firewall.hostname}"
-                )
-                upgrade_single_firewall(firewall, target_version, dry_run)
             firewalls_to_revisit.clear()  # Clear the list after revisiting
 
 
