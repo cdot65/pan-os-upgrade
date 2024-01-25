@@ -2719,7 +2719,7 @@ def main(
         )
 
         # Using ThreadPoolExecutor to manage threads
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
                 executor.submit(
