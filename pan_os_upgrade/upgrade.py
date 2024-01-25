@@ -2701,6 +2701,30 @@ def main(
             f"{get_emoji('success')} {hostname}: Connection to firewall established"
         )
         firewalls_to_upgrade.append(device)
+
+        # Using ThreadPoolExecutor to manage threads
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Store future objects along with firewalls for reference
+            future_to_firewall = {
+                executor.submit(
+                    upgrade_firewall,
+                    fw,
+                    target_version,
+                    dry_run,
+                ): fw
+                for fw in firewalls_to_upgrade
+            }
+
+            # Process completed tasks
+            for future in as_completed(future_to_firewall):
+                firewall = future_to_firewall[future]
+                try:
+                    future.result()
+                except Exception as exc:
+                    logging.error(
+                        f"{get_emoji('error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
+                    )
+
     elif type(device) is Panorama:
         if not filter:
             logging.error(
