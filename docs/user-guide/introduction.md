@@ -32,9 +32,12 @@ The Docker workflow simplifies the setup by encapsulating the tool and its depen
 
 `pan-os-upgrade` is equipped with several features for efficient and reliable upgrades:
 
-- **Leveraging `panos-upgrade-assurance`**: It utilizes the `panos-upgrade-assurance` library to manage complex aspects of the upgrade process.
-- **Data Validation with Pydantic**: Ensures robust data structure validation, minimizing bugs and streamlining workflow execution.
-- **Flexible Connection Methods**: Connect to firewalls directly or by targeting a Panorama appliance with a `--filter` CLI option.
+- **Automation of Routine Tasks**: Reduces manual errors and saves time by automating upgrades, configurations, and system checks.
+- **Support for Direct and Proxy Connections**: Connect directly to firewalls or through a Panorama appliance, with support for targeting specific devices using filters.
+- **Active/Passive High Availability (HA) Workflow**: Fully supports upgrading devices in active/passive HA configurations, ensuring both members are properly upgraded and synchronized.
+- **Multi-threading for Efficiency**: Utilizes multi-threading to parallelize upgrades, especially beneficial when upgrading multiple devices through Panorama, enhancing performance and reducing overall upgrade time.
+- **Customizable and Extensible**: Scripts can be tailored to fit diverse network environments and requirements, offering flexibility for various deployment scenarios.
+- **Comprehensive PAN-OS Interactions**: Facilitates extensive interactions with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
 ## Next Steps
 

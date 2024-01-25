@@ -2,10 +2,21 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.3.0
+
+**Release Date:** *<20240125>*
+
+### What's New
+
+- Multi-threading added for concurrent upgrades (max limit of threads is 10).
+- Gracefully handle HA upgrades for HA active/passive peers.
+- Added hostname to log entries to differentiate threaded upgrades.
+
 ## Version 0.2.5
 
 **Release Date:** *<20240123>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Supports the ability to connect to Panorama as a proxy for firewall connections

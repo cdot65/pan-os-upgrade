@@ -44,67 +44,117 @@
 
 This project is a comprehensive Python-based solution for automating PAN-OS upgrades. It's designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configurations, and system checks of Palo Alto Networks appliances.
 
-Key Features:
+### Key Features
 
-* Automates routine tasks, reducing manual errors and saving time.
-* Connect to firewalls directly or through a Panorama appliance as a proxy.
-* Customizable scripts to fit various network environments and requirements.
-* Extensive interaction with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
+- **Automation of Routine Tasks**: Reduces manual errors and saves time by automating upgrades, configurations, and system checks.
+- **Support for Direct and Proxy Connections**: Connect directly to firewalls or through a Panorama appliance, with support for targeting specific devices using filters.
+- **Active/Passive High Availability (HA) Workflow**: Fully supports upgrading devices in active/passive HA configurations, ensuring both members are properly upgraded and synchronized.
+- **Multi-threading for Efficiency**: Utilizes multi-threading to parallelize upgrades, especially beneficial when upgrading multiple devices through Panorama, enhancing performance and reducing overall upgrade time.
+- **Customizable and Extensible**: Scripts can be tailored to fit diverse network environments and requirements, offering flexibility for various deployment scenarios.
+- **Comprehensive PAN-OS Interactions**: Facilitates extensive interactions with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
-> Note: this script is targeted towards standalone and `active-passive` HA environments, no testing has been performed against `active-active` or clustered firewalls.
+> **Note**: While this script is optimized for standalone and active/passive HA environments, it has not been tested against active/active or clustered firewalls.
 
 Example Execution
 
 <div class="termy">
 
 ```console
-pan-os-upgrade --hostname 192.168.255.211 --username admin --password secret --version 10.2.0-h2
-INFO - ✅ Connection to firewall established
-INFO - 📝 007054000123456 houston 192.168.255.211
-INFO - 📝 Firewall HA mode: disabled
-INFO - 📝 Current PAN-OS version: 10.2.0
-INFO - 📝 Target PAN-OS version: 10.2.0-h2
-INFO - ✅ Confirmed that moving from 10.2.0 to 10.2.0-h2 is an upgrade
-INFO - ✅ Target PAN-OS version 10.2.0-h2 is available for download
-INFO - ✅ Base image for 10.2.0-h2 is already downloaded
-INFO - 🚀 Performing test to see if 10.2.0-h2 is already downloaded...
-INFO - 🔍 PAN-OS version 10.2.0-h2 is not on the firewall
-INFO - 🚀 PAN-OS version 10.2.0-h2 is beginning download
-INFO - Device 007054000123456 downloading version: 10.2.0-h2
-INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 4 seconds
-INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 36 seconds
-INFO - ⚙️ Downloading PAN-OS version 10.2.0-h2 - Elapsed time: 71 seconds
-INFO - ✅ 10.2.0-h2 downloaded in 103 seconds
-INFO - ✅ PAN-OS version 10.2.0-h2 has been downloaded.
-INFO - 🚀 Performing snapshot of network state information...
-INFO - ✅ Network snapshot created successfully
-INFO - 🚀 Performing readiness checks to determine if firewall is ready for upgrade...
-INFO - ✅ Passed Readiness Check: Check if there are pending changes on device
-INFO - ✅ Passed Readiness Check: No Expired Licenses
-INFO - ✅ Passed Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
-INFO - ✅ Passed Readiness Check: Check if NTP is synchronized
-INFO - ✅ Passed Readiness Check: Check connectivity with the Panorama appliance
-INFO - ✅ Readiness Checks completed
-INFO - 🚀 Performing backup of houston's configuration to local filesystem...
-INFO - 🚀 Not a dry run, continue with upgrade...
-INFO - 🚀 Performing upgrade on houston to version 10.2.0-h2...
-INFO - 🚀 Attempting upgrade houston to version 10.2.0-h2 (Attempt 1 of 3)...
-INFO - Device 007054000123456 installing version: 10.2.0-h2
-INFO - ✅ houston upgrade completed successfully
-INFO - 🚀 Rebooting the firewall...
-INFO - 📝 Command succeeded with no output
-INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is rebooting...
-INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
-INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
-INFO - ⚙️ Firewall is responding to requests but hasn't finished its reboot process...
-INFO - ✅ Firewall upgraded and rebooted in 542 seconds
+$ pan-os-upgrade
+Hostname or IP: panorama.cdot.io
+Username: cdot
+Password:
+Target PAN-OS version: 10.2.2-h2
+Filter string (only applicable for Panorama) []: hostname=Woodlands*
+✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
+📝 Woodlands-fw1: 007954000123451 192.168.255.43
+📝 Woodlands-fw2: 007954000123452 192.168.255.44
+📝 Woodlands-fw1: HA mode: passive
+📝 Woodlands-fw2: HA mode: active
+🔍 Woodlands-fw2: Detected active firewall in HA pair running the same version as its peer. Added firewall to revisit list.
+📝 Woodlands-fw1: Current PAN-OS version: 10.2.2
+📝 Woodlands-fw1: Target PAN-OS version: 10.2.2-h2
+✅ Woodlands-fw1: Upgrade required from 10.2.2 to 10.2.2-h2
+✅ Woodlands-fw1: PAN-OS version 10.2.2-h2 is available for download
+✅ Woodlands-fw1: Base image for 10.2.2-h2 is already downloaded
+🚀 Woodlands-fw1: Performing test to see if 10.2.2-h2 is already downloaded...
+🔍 Woodlands-fw1: PAN-OS version 10.2.2-h2 is not on the firewall
+🚀 Woodlands-fw1: PAN-OS version 10.2.2-h2 is beginning download
+Device 007954000123451 downloading version: 10.2.2-h2
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 5 seconds
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 37 seconds
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 68 seconds
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 100 seconds
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 133 seconds
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 167 seconds
+✅ Woodlands-fw1: 10.2.2-h2 downloaded in 199 seconds
+✅ Woodlands-fw1: 10.2.2-h2 has been downloaded and sync'd to HA peer.
+🚀 Woodlands-fw1: Performing snapshot of network state information...
+✅ Woodlands-fw1: Network snapshot created successfully
+🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade...
+✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
+✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
+✅ Woodlands-fw1: Passed Readiness Check: Checks HA pair status from the perspective of the current device
+✅ Woodlands-fw1: Passed Readiness Check: Check if NTP is synchronized
+✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ Woodlands-fw1: Readiness Checks completed
+🚀 Woodlands-fw1: Checking if HA peer is in sync...
+✅ Woodlands-fw1: HA peer sync test has been completed.
+🚀 Woodlands-fw1: Performing backup of configuration to local filesystem...
+🚀 Woodlands-fw1: Not a dry run, continue with upgrade...
+🚀 Woodlands-fw1: Performing upgrade to version 10.2.2-h2...
+🚀 Woodlands-fw1: Attempting upgrade to version 10.2.2-h2 (Attempt 1 of 3)...
+Device 007954000123451 installing version: 10.2.2-h2
+✅ Woodlands-fw1: Upgrade completed successfully
+🚀 Woodlands-fw1: Rebooting the passive HA firewall...
+📝 Woodlands-fw1: Command succeeded with no output
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+🔧 Woodlands-fw1: Firewall is rebooting...
+✅ Woodlands-fw1: HA passive firewall rebooted and synchronized with its peer in 499 seconds
+🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
+📝 Woodlands-fw2: 007954000123452 192.168.255.44
+📝 Woodlands-fw2: HA mode: active
+❌ Woodlands-fw2: Error suspending active firewall HA state: argument of type 'NoneType' is not iterable
+📝 Woodlands-fw2: Current PAN-OS version: 10.2.2
+📝 Woodlands-fw2: Target PAN-OS version: 10.2.2-h2
+✅ Woodlands-fw2: Upgrade required from 10.2.2 to 10.2.2-h2
+✅ Woodlands-fw2: PAN-OS version 10.2.2-h2 is available for download
+✅ Woodlands-fw2: Base image for 10.2.2-h2 is already downloaded
+🚀 Woodlands-fw2: Performing test to see if 10.2.2-h2 is already downloaded...
+✅ Woodlands-fw2: PAN-OS version 10.2.2-h2 already on firewall.
+✅ Woodlands-fw2: 10.2.2-h2 has been downloaded and sync'd to HA peer.
+🚀 Woodlands-fw2: Performing snapshot of network state information...
+✅ Woodlands-fw2: Network snapshot created successfully
+🚀 Woodlands-fw2: Performing readiness checks to determine if firewall is ready for upgrade...
+✅ Woodlands-fw2: Passed Readiness Check: Check if there are pending changes on device
+✅ Woodlands-fw2: Passed Readiness Check: No Expired Licenses
+✅ Woodlands-fw2: Passed Readiness Check: Check if NTP is synchronized
+✅ Woodlands-fw2: Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ Woodlands-fw2: Readiness Checks completed
+🚀 Woodlands-fw2: Checking if HA peer is in sync...
+✅ Woodlands-fw2: HA peer sync test has been completed.
+🚀 Woodlands-fw2: Performing backup of configuration to local filesystem...
+🚀 Woodlands-fw2: Not a dry run, continue with upgrade...
+🚀 Woodlands-fw2: Performing upgrade to version 10.2.2-h2...
+🚀 Woodlands-fw2: Attempting upgrade to version 10.2.2-h2 (Attempt 1 of 3)...
+Device 007954000123452 installing version: 10.2.2-h2
+✅ Woodlands-fw2: Upgrade completed successfully
+🚀 Woodlands-fw2: Rebooting the passive HA firewall...
+📝 Woodlands-fw2: Command succeeded with no output
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+🔧 Woodlands-fw2: Firewall is rebooting...
+✅ Woodlands-fw2: HA passive firewall rebooted and synchronized with its peer in 483 seconds
+✅ panorama.cdot.io: Completed revisiting firewalls
 ```
 
 </div>
@@ -179,52 +229,49 @@ $ pan-os-upgrade
 Hostname or IP: houston.cdot.io
 Username: cdot
 Password:
-Target PAN-OS version: 10.2.3-h4
-✅ Connection to firewall established
-📝 007054000123456 houston 192.168.255.211
-📝 Firewall HA mode: disabled
-📝 Current PAN-OS version: 10.2.3-h2
-📝 Target PAN-OS version: 10.2.3-h4
-✅ Confirmed that moving from 10.2.3-h2 to 10.2.3-h4 is an upgrade
-✅ PAN-OS version 10.2.3-h4 is available for download
-✅ Base image for 10.2.3-h4 is already downloaded
-🚀 Performing test to see if 10.2.3-h4 is already downloaded...
-🔍 PAN-OS version 10.2.3-h4 is not on the firewall
-🚀 PAN-OS version 10.2.3-h4 is beginning download
-Device 007054000123456 downloading version: 10.2.3-h4
-Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 4 seconds
-Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 36 seconds
-Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 68 seconds
-Downloading PAN-OS version 10.2.3-h4 - Elapsed time: 101 seconds
-✅ 10.2.3-h4 downloaded in 134 seconds
-✅ PAN-OS version 10.2.3-h4 has been downloaded.
-🚀 Performing snapshot of network state information...
-✅ Network snapshot created successfully
-🚀 Performing readiness checks to determine if firewall is ready for upgrade...
-✅ Passed Readiness Check: Check if there are pending changes on device
-✅ Passed Readiness Check: No Expired Licenses
-✅ Passed Readiness Check: Check if NTP is synchronized
-✅ Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ Readiness Checks completed
-🚀 Performing backup of houston's configuration to local filesystem...
-🚀 Not a dry run, continue with upgrade...
-🚀 Performing upgrade on houston to version 10.2.3-h4...
-🚀 Attempting upgrade houston to version 10.2.3-h4 (Attempt 1 of 3)...
-Device 007054000123456 installing version: 10.2.3-h4
-❌ houston upgrade error: Device 007054000123456 attempt to install version 10.2.3-h4 failed: ['Failed to install 10.2.3-h4 with the following errors.\nSW version is 10.2.3-h4\nThe software manager is currently in use. Please try again later.\nFailed to install   version  10.2.3-h4  type  panos\n\n']
-⚠️ Software manager is busy. Retrying in 60 seconds...
-🚀 Attempting upgrade houston to version 10.2.3-h4 (Attempt 2 of 3)...
-Device 007054000123456 installing version: 10.2.3-h4
-✅ houston upgrade completed successfully
-🚀 Rebooting the standalone firewall...
-📝 Command succeeded with no output
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-📝 Firewall version: 10.2.3-h4
-✅ Firewall rebooted in 473 seconds
+Target PAN-OS version: 10.2.4
+Filter string (only applicable for Panorama connections) []:
+✅ houston.cdot.io: Connection to firewall established
+📝 houston: 007954000123453 192.168.255.211
+📝 houston: HA mode: disabled
+📝 houston: Current PAN-OS version: 10.2.3-h4
+📝 houston: Target PAN-OS version: 10.2.4
+✅ houston: Upgrade required from 10.2.3-h4 to 10.2.4
+✅ houston: PAN-OS version 10.2.4 is available for download
+✅ houston: Base image for 10.2.4 is already downloaded
+🚀 houston: Performing test to see if 10.2.4 is already downloaded...
+🔍 houston: PAN-OS version 10.2.4 is not on the firewall
+🚀 houston: PAN-OS version 10.2.4 is beginning download
+Device 007954000123453 downloading version: 10.2.4
+🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 11 seconds
+🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 48 seconds
+🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 84 seconds
+✅ houston: 10.2.4 downloaded in 118 seconds
+✅ houston: PAN-OS version 10.2.4 has been downloaded.
+🚀 houston: Performing snapshot of network state information...
+✅ houston: Network snapshot created successfully
+🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
+✅ houston: Passed Readiness Check: Check if there are pending changes on device
+✅ houston: Passed Readiness Check: No Expired Licenses
+✅ houston: Passed Readiness Check: Check if NTP is synchronized
+✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ houston: Readiness Checks completed
+🚀 houston: Performing backup of configuration to local filesystem...
+🚀 houston: Not a dry run, continue with upgrade...
+🚀 houston: Performing upgrade to version 10.2.4...
+🚀 houston: Attempting upgrade to version 10.2.4 (Attempt 1 of 3)...
+Device 007954000123453 installing version: 10.2.4
+✅ houston: Upgrade completed successfully
+🚀 houston: Rebooting the standalone firewall...
+📝 houston: Command succeeded with no output
+🔧 houston: Firewall is rebooting...
+🔧 houston: Firewall is rebooting...
+🔧 houston: Firewall is rebooting...
+🔧 houston: Firewall is rebooting...
+🔧 houston: Firewall is rebooting...
+🔧 houston: Firewall is rebooting...
+📝 houston: Firewall version: 10.2.4
+✅ houston: Firewall rebooted in 516 seconds
 ```
 
 As an alternative to targeting firewalls directly, you can target a Panorama appliance to act as the communication proxy. If you'd like to go down this path, make sure that you add an extra CLI option of `--filter` and pass a string representation of your filter.
@@ -233,60 +280,33 @@ As of version 0.2.5, the available filters are:
 
 | filter type | description                                       | example                             |
 | ----------- | ------------------------------------------------- | ----------------------------------- |
-| hostname    | use the firewall's hostname as selection criteria | `--filter "hostname=houston"`       |
+| hostname    | use the firewall's hostname as selection criteria | `--filter "hostname=Woodlands*"`    |
 | serial      | use the firewall's serial as selection criteria   | `--filter "serial=007054000123456"` |
 
 ```console
-$ pan-os-upgrade --filter 'hostname=houston'
+$ pan-os-upgrade
 Hostname or IP: panorama.cdot.io
 Username: cdot
 Password:
-Target PAN-OS version: 10.2.3-h2
-✅ Connection to Panorama established. Firewall connections will be proxied!
-📝 007054000123456 houston 192.168.255.211
-📝 Firewall HA mode: disabled
-📝 Current PAN-OS version: 10.2.3
-📝 Target PAN-OS version: 10.2.3-h2
-✅ Confirmed that moving from 10.2.3 to 10.2.3-h2 is an upgrade
-✅ PAN-OS version 10.2.3-h2 is available for download
-✅ Base image for 10.2.3-h2 is already downloaded
-🚀 Performing test to see if 10.2.3-h2 is already downloaded...
-🔍 PAN-OS version 10.2.3-h2 is not on the firewall
-🚀 PAN-OS version 10.2.3-h2 is beginning download
-Device 007054000123456 downloading version: 10.2.3-h2
-Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 8 seconds
-Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 42 seconds
-Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 75 seconds
-Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 110 seconds
-Downloading PAN-OS version 10.2.3-h2 - Elapsed time: 151 seconds
-✅ 10.2.3-h2 downloaded in 182 seconds
-✅ PAN-OS version 10.2.3-h2 has been downloaded.
-🚀 Performing snapshot of network state information...
-✅ Network snapshot created successfully
-🚀 Performing readiness checks to determine if firewall is ready for upgrade...
-✅ Passed Readiness Check: Check if there are pending changes on device
-✅ Passed Readiness Check: No Expired Licenses
-✅ Passed Readiness Check: Check if NTP is synchronized
-✅ Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
-✅ Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ Readiness Checks completed
-🚀 Performing backup of houston's configuration to local filesystem...
-🚀 Not a dry run, continue with upgrade...
-🚀 Performing upgrade on houston to version 10.2.3-h2...
-🚀 Attempting upgrade houston to version 10.2.3-h2 (Attempt 1 of 3)...
-Device 007054000123456 installing version: 10.2.3-h2
-✅ houston upgrade completed successfully
-🚀 Rebooting the standalone firewall...
-📝 Command succeeded with no output
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-⚙️ Firewall is rebooting...
-📝 Firewall version: 10.2.3-h2
-✅ Firewall rebooted in 484 seconds
+Target PAN-OS version: 10.2.2-h2
+Filter string (only applicable for Panorama connections) []: hostname=Woodlands*
+✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
+📝 Woodlands-fw1: 007954000123451 192.168.255.43
+📝 Woodlands-fw2: 007954000123452 192.168.255.44
+📝 Woodlands-fw1: HA mode: passive
+📝 Woodlands-fw2: HA mode: active
+🔍 Woodlands-fw2: Detected active firewall in HA pair running the same version as its peer. Added firewall to revisit list.
+📝 Woodlands-fw1: Current PAN-OS version: 10.2.2
+📝 Woodlands-fw1: Target PAN-OS version: 10.2.2-h2
+✅ Woodlands-fw1: Upgrade required from 10.2.2 to 10.2.2-h2
+✅ Woodlands-fw1: PAN-OS version 10.2.2-h2 is available for download
+✅ Woodlands-fw1: Base image for 10.2.2-h2 is already downloaded
+🚀 Woodlands-fw1: Performing test to see if 10.2.2-h2 is already downloaded...
+🔍 Woodlands-fw1: PAN-OS version 10.2.2-h2 is not on the firewall
+🚀 Woodlands-fw1: PAN-OS version 10.2.2-h2 is beginning download
+Device 007954000123451 downloading version: 10.2.2-h2
+🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 5 seconds
+... shortened for brevity ...
 ```
 
 ##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
