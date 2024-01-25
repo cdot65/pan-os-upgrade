@@ -1630,38 +1630,43 @@ def check_readiness_and_log(
     test_info: dict,
 ) -> None:
     """
-    Evaluates and logs the results of a specified readiness test.
+    Assesses and logs the outcome of a specified readiness test for a firewall upgrade process.
 
-    This function assesses the outcome of a particular readiness test by examining its result.
-    It logs the outcome using varying log levels (info, warning, error), determined by the
-    test's importance and its result. If a test is marked as critical and fails, the script
-    may terminate execution.
+    This function examines the results of a designated readiness test, logging the outcome with an
+    appropriate level of severity (info, warning, error) based on the test's criticality and its results.
+    For critical tests marked as 'exit_on_failure', the function will halt the script execution if the
+    test fails, indicating a condition that precludes a successful upgrade.
 
     Parameters
     ----------
     result : dict
-        A dictionary where each key corresponds to a readiness test name. The value is another dictionary
-        containing two keys: 'state' (a boolean indicating the test's success or failure) and 'reason'
-        (a string explaining the outcome).
-
+        The result dictionary containing keys for each readiness test. Each key maps to another dictionary
+        with 'state' (boolean indicating pass or fail) and 'reason' (string describing the result).
     test_name : str
-        The name of the test to evaluate. This name should correspond to a key in the 'result' dictionary.
-
+        The name of the readiness test to be evaluated, which should match a key in the 'result' dictionary.
     test_info : dict
-        Information about the test, including its description, log level (info, warning, error), and a flag
-        indicating whether to exit the script upon test failure (exit_on_failure).
-
-    Notes
-    -----
-    - The function utilizes the `get_emoji` helper function to add appropriate emojis to log messages,
-      enhancing readability and user experience.
-    - If 'state' in the test result is True, the test is logged as passed. Otherwise, it is either
-      logged as failed or skipped, based on the specified log level in 'test_info'.
+        A dictionary providing details about the test, including its description, logging level (info, warning, error),
+        and a boolean flag 'exit_on_failure' indicating whether script execution should be terminated on test failure.
 
     Raises
     ------
     SystemExit
-        If a critical test (marked with "exit_on_failure": True) fails, the script will raise SystemExit.
+        If a test marked with 'exit_on_failure': True fails, the function will terminate the script execution to
+        prevent proceeding with an upgrade that is likely to fail or cause issues.
+
+    Notes
+    -----
+    - Utilizes custom logging levels and emojis for enhanced readability and user experience in log outputs.
+    - The function is part of a larger upgrade readiness assessment process, ensuring the firewall is prepared for an upgrade.
+
+    Example
+    -------
+    Evaluating and logging a readiness test result:
+        >>> result = {'test_connectivity': {'state': True, 'reason': 'Successful connection'}}
+        >>> test_name = 'test_connectivity'
+        >>> test_info = {'description': 'Test Connectivity', 'log_level': 'info', 'exit_on_failure': False}
+        >>> check_readiness_and_log(result, test_name, test_info)
+        # Logs "✅ Passed Readiness Check: Test Connectivity - Successful connection"
     """
     test_result = result.get(
         test_name, {"state": False, "reason": "Test not performed"}
@@ -1689,14 +1694,41 @@ def check_readiness_and_log(
 
 def compare_versions(version1: str, version2: str) -> str:
     """
-    Compares two PAN-OS version strings.
+    Compares two PAN-OS version strings and determines their relative ordering.
 
-    Parameters:
-    version1 (str): First version string to compare.
-    version2 (str): Second version string to compare.
+    This function parses and compares two version strings to identify which is newer, older, or if they are identical.
+    It is designed to work with PAN-OS versioning scheme, handling standard major.minor.maintenance (and optional hotfix) formats.
+    The comparison is useful for upgrade processes, version checks, and ensuring compatibility or prerequisites are met.
 
-    Returns:
-    str: 'older' if version1 < version2, 'newer' if version1 > version2, 'equal' if they are the same.
+    Parameters
+    ----------
+    version1 : str
+        The first PAN-OS version string to compare. Example format: '10.0.1', '9.1.3-h3'.
+    version2 : str
+        The second PAN-OS version string to compare. Example format: '10.0.2', '9.1.4'.
+
+    Returns
+    -------
+    str
+        - 'older' if version1 is older than version2.
+        - 'newer' if version1 is newer than version2.
+        - 'equal' if both versions are the same.
+
+    Notes
+    -----
+    - Version strings are parsed and compared based on numerical ordering of their components (major, minor, maintenance, hotfix).
+    - Hotfix versions (if present) are considered in the comparison, with higher numbers indicating newer versions.
+
+    Example
+    -------
+    Comparing two PAN-OS versions:
+        >>> compare_versions('10.0.1', '10.0.2')
+        'older'
+        >>> compare_versions('10.1.0-h3', '10.1.0')
+        'newer'
+        >>> compare_versions('9.1.3-h3', '9.1.3-h3')
+        'equal'
+
     """
     parsed_version1 = parse_version(version1)
     parsed_version2 = parse_version(version2)
@@ -1711,28 +1743,46 @@ def compare_versions(version1: str, version2: str) -> str:
 
 def configure_logging(level: str, encoding: str = "utf-8") -> None:
     """
-    Sets up the logging configuration for the script with the specified logging level and encoding.
+    Configures the logging system for the application, specifying log level and file encoding.
 
-    This function initializes the global logger, sets the specified logging level, and configures two handlers:
-    one for console output and another for file output. It uses RotatingFileHandler for file logging to manage
-    file size and maintain backups.
+    Initializes the logging framework with a dual-handler approach: console and file output. The console output
+    provides real-time logging information in the terminal, while the file output stores log messages in a
+    rotating log file. The function allows customization of the logging level, impacting the verbosity of log
+    messages. The file handler employs a rotating mechanism to manage log file size and preserve log history.
 
     Parameters
     ----------
     level : str
-        The desired logging level (e.g., 'debug', 'info', 'warning', 'error', 'critical').
-        The input is case-insensitive. If an invalid level is provided, it defaults to 'info'.
-
+        The logging level to set for the logger. Accepted values include 'DEBUG', 'INFO', 'WARNING', 'ERROR',
+        and 'CRITICAL', with case insensitivity. Defaults to 'INFO' if an unrecognized level is specified.
     encoding : str, optional
-        The encoding format for the file-based log handler, by default 'utf-8'.
+        Character encoding for log files. Defaults to 'utf-8', ensuring broad compatibility and support for
+        international characters.
 
     Notes
     -----
-    - The Console Handler outputs log messages to the standard output.
-    - The File Handler logs messages to 'logs/upgrade.log'. This file is rotated when it reaches 1MB in size,
-      maintaining up to three backup files.
-    - The logging level influences the verbosity of the log messages. An invalid level defaults to 'info',
-      ensuring a baseline of logging.
+    - Logging setup includes formatting for both console and file handlers, with more detailed formatting applied
+      to file logs.
+    - The file logging employs `RotatingFileHandler` for automatic log rotation, maintaining up to three backup
+      files, each limited to 1MB.
+    - The function clears existing handlers to prevent duplication and ensure that logging configuration
+      reflects the specified parameters.
+
+    Examples
+    --------
+    Setting up logging with default encoding:
+        >>> configure_logging('debug')
+        # Configures logging with DEBUG level and utf-8 encoding.
+
+    Setting up logging with custom encoding:
+        >>> configure_logging('info', 'iso-8859-1')
+        # Configures logging with INFO level and ISO-8859-1 encoding.
+
+    Raises
+    ------
+    ValueError
+        If the `level` parameter does not correspond to a valid logging level, a ValueError is raised to
+        indicate the invalid input.
     """
     logging_level = getattr(logging, level.upper(), None)
 
@@ -1781,41 +1831,51 @@ def connect_to_host(
     api_password: str,
 ) -> PanDevice:
     """
-    Establishes a connection to a Panorama or PAN-OS firewall appliance using provided credentials.
+    Initiates a connection to a specified PAN-OS device or Panorama using API credentials.
 
-    This function uses the hostname, username, and password to attempt a connection to a target appliance,
-    which can be either a Panorama management server or a PAN-OS firewall. It identifies the type of
-    appliance based on the provided credentials and hostname. Upon successful connection, it returns an
-    appropriate PanDevice object (either Panorama or Firewall).
+    Attempts to connect to a Palo Alto Networks device (either a firewall or a Panorama management server)
+    using the hostname (or IP address) along with the API username and password provided. The function determines
+    the type of device based on the response and establishes a session. On successful connection, it returns an
+    instance of the device as a `PanDevice` object, which can be either a `Firewall` or `Panorama` instance,
+    depending on the target device.
 
     Parameters
     ----------
     hostname : str
-        The DNS Hostname or IP address of the target appliance.
+        The IP address or DNS hostname of the target PAN-OS device or Panorama.
     api_username : str
-        Username for authentication.
+        The username for API access.
     api_password : str
-        Password for authentication.
+        The password for API access.
 
     Returns
     -------
     PanDevice
-        An instance of PanDevice (either Panorama or Firewall), representing the established connection.
+        A `PanDevice` object representing the connected PAN-OS device or Panorama.
 
     Raises
     ------
     SystemExit
-        If the connection attempt fails, such as due to a timeout, incorrect credentials, or other errors.
+        Terminates the script if there is a failure to connect, such as due to incorrect credentials,
+        network issues, or other connection errors.
 
-    Example
+    Examples
     --------
-    Connecting to a Panorama management server:
-        >>> connect_to_host('panorama.example.com', 'admin', 'password')
-        <Panorama object>
+    Connecting to a firewall device:
+        >>> device = connect_to_host('192.168.1.1', 'apiuser', 'apipass')
+        >>> print(type(device))
+        <class 'panos.firewall.Firewall'>
 
-    Connecting to a PAN-OS firewall:
-        >>> connect_to_host('192.168.0.1', 'admin', 'password')
-        <Firewall object>
+    Connecting to a Panorama device:
+        >>> panorama = connect_to_host('panorama.company.com', 'apiuser', 'apipass')
+        >>> print(type(panorama))
+        <class 'panos.panorama.Panorama'>
+
+    Notes
+    -----
+    - This function abstracts the connection logic, handling both firewall and Panorama connections seamlessly.
+    - Error handling within the function ensures that any connection issues are clearly logged, and the script
+      is exited gracefully to avoid proceeding without a valid connection.
     """
     try:
         target_device = PanDevice.create_from_device(
@@ -1828,14 +1888,14 @@ def connect_to_host(
 
     except PanConnectionTimeout:
         logging.error(
-            f"{get_emoji('error')} Connection to the {hostname} appliance timed out. Please check the DNS hostname or IP address and network connectivity."
+            f"Connection to the {hostname} appliance timed out. Please check the DNS hostname or IP address and network connectivity."
         )
 
         sys.exit(1)
 
     except Exception as e:
         logging.error(
-            f"{get_emoji('error')} An error occurred while connecting to the {hostname} appliance: {e}"
+            f"An error occurred while connecting to the {hostname} appliance: {e}"
         )
 
         sys.exit(1)
@@ -1843,24 +1903,32 @@ def connect_to_host(
 
 def ensure_directory_exists(file_path: str) -> None:
     """
-    Ensures the existence of the directory for a specified file path, creating it if necessary.
+    Checks and creates the directory structure for a given file path if it does not already exist.
 
-    This function checks if the directory for a given file path exists. If it does not exist, the function
-    creates the directory along with any necessary parent directories. This is particularly useful for
-    ensuring that the file system is prepared for file operations that require specific directory structures.
+    This utility function is used to verify the existence of a directory path derived from a full file path.
+    If the directory does not exist, the function creates it along with any intermediate directories. This
+    ensures that subsequent file operations such as saving or reading files can proceed without directory
+    not found errors.
 
     Parameters
     ----------
     file_path : str
-        The file path whose directory needs to be verified and potentially created. The function extracts
-        the directory part of the file path to check its existence.
+        The full path to a file, including the filename. The function will extract the directory path from
+        this and ensure that the directory exists.
+
+    Notes
+    -----
+    - This function is useful for preparing the file system to store files at specified locations,
+      especially when the directory structure may not have been created in advance.
+    - The function uses `os.makedirs` which allows creating intermediate directories needed to ensure the
+      full path exists.
 
     Example
     -------
-    Ensuring a directory exists for a file path:
-        >>> file_path = '/path/to/directory/file.txt'
+    Creating a directory structure for storing a configuration backup:
+        >>> file_path = '/var/backups/firewall/config_backup.xml'
         >>> ensure_directory_exists(file_path)
-        # If '/path/to/directory/' does not exist, it is created.
+        # This will create the '/var/backups/firewall/' directory if it doesn't exist.
     """
     directory = os.path.dirname(file_path)
     if not os.path.exists(directory):
@@ -1869,42 +1937,47 @@ def ensure_directory_exists(file_path: str) -> None:
 
 def filter_string_to_dict(filter_string: str) -> dict:
     """
-    Converts a string containing comma-separated key-value pairs into a dictionary.
+    Converts a filter string with comma-separated key-value pairs into a dictionary.
 
-    This utility function parses a string where each key-value pair is separated by a comma, and
-    each key is separated from its value by an equal sign ('='). It's useful for converting filter
-    strings into dictionary formats, commonly used in configurations and queries.
+    This function is designed to parse strings formatted with key-value pairs, where each pair is
+    separated by a comma, and the key and value within a pair are separated by an equal sign ('=').
+    It's particularly useful for processing query parameters or configuration settings where this
+    format is commonly used. The function ensures that even if the input string is empty or not properly
+    formatted, the operation is handled gracefully, returning an empty dictionary in such cases.
 
     Parameters
     ----------
     filter_string : str
-        The string to be parsed into key-value pairs. It should follow the format 'key1=value1,key2=value2,...'.
-        If the string is empty or improperly formatted, an empty dictionary is returned.
+        A string containing key-value pairs separated by commas, e.g., 'key1=value1,key2=value2'.
+        Keys and values are expected to be strings. If the string is empty or does not conform to the
+        expected format, the function returns an empty dictionary.
 
     Returns
     -------
     dict
-        A dictionary with keys and values derived from the `filter_string`. Keys are the substrings before each '='
-        character, and values are the corresponding substrings after the '=' character.
+        A dictionary representation of the key-value pairs extracted from `filter_string`.
+        If `filter_string` is empty or malformatted, an empty dictionary is returned.
 
     Examples
     --------
-    Converting a filter string to a dictionary:
-        >>> filter_string_to_dict("hostname=test,serial=11111")
-        {'hostname': 'test', 'serial': '11111'}
+    Converting a well-formed filter string:
+        >>> filter_string_to_dict('type=firewall,model=PA-220')
+        {'type': 'firewall', 'model': 'PA-220'}
 
-    Handling an empty or improperly formatted string:
-        >>> filter_string_to_dict("")
+    Handling an empty string:
+        >>> filter_string_to_dict('')
         {}
-        >>> filter_string_to_dict("invalid_format_string")
+
+    Handling a string without equal signs:
+        >>> filter_string_to_dict('incorrect,format')
         {}
 
     Notes
     -----
-    - The function does not perform validation on the key-value pairs. It's assumed that the input string is
-      correctly formatted.
-    - In case of duplicate keys, the last occurrence of the key in the string will determine its value in the
-      resulting dictionary.
+    - This function does not validate the keys and values extracted from the input string; it simply
+      splits the string based on the expected delimiters (',' and '=').
+    - If the same key appears multiple times in the input string, the value associated with the last
+      occurrence of the key will be retained in the output dictionary.
     """
     result = {}
     for substr in filter_string.split(","):
@@ -1916,41 +1989,47 @@ def filter_string_to_dict(filter_string: str) -> dict:
 
 def flatten_xml_to_dict(element: ET.Element) -> dict:
     """
-    Converts a given XML element to a dictionary, flattening the XML structure.
+    Flattens an XML ElementTree element into a nested dictionary, preserving the hierarchical structure.
 
-    This function recursively processes an XML element, converting it and its children into a dictionary format.
-    The conversion flattens the XML structure, making it easier to adapt to model definitions. It treats elements
-    containing only text as leaf nodes, directly mapping their tags to their text content. For elements with child
-    elements, it continues the recursion. The function handles multiple occurrences of the same tag by aggregating
-    them into a list. Specifically, it always treats elements with the tag 'entry' as lists, reflecting their
-    common usage pattern in PAN-OS XML API responses.
+    This utility function is particularly useful for processing XML data returned by APIs, such as the PAN-OS XML API.
+    It iterates through the given XML element and its children, converting each element into a dictionary key-value pair,
+    where the key is the element's tag and the value is the element's text content or a nested dictionary representing
+    any child elements. Elements with the same tag name at the same level are grouped into a list. This function
+    simplifies complex XML structures, making them more accessible for Pythonic manipulation and analysis.
 
     Parameters
     ----------
     element : ET.Element
-        The XML element to be converted. This should be an instance of ElementTree.Element, typically obtained
-        from parsing XML data using the ElementTree API.
+        The root XML element to convert into a dictionary. This element may contain nested child elements, which will
+        be recursively processed into nested dictionaries.
 
     Returns
     -------
     dict
-        A dictionary representation of the XML element. The dictionary mirrors the structure of the XML,
-        with tags as keys and text content or nested dictionaries as values. Elements with the same tag
-        are aggregated into a list.
+        A dictionary representation of the input XML element. Each key in the dictionary corresponds to a tag in the XML,
+        and each value is either the text content of the element, a nested dictionary for child elements, or a list of
+        dictionaries for repeated child elements. Special handling is applied to elements with the tag 'entry', which are
+        always treated as lists to accommodate common XML structures in PAN-OS API responses.
+
+    Examples
+    --------
+    Converting a simple XML structure without attributes:
+        >>> xml_str = '<configuration><device><name>Firewall1</name><location>Office</location></device></configuration>'
+        >>> element = ET.fromstring(xml_str)
+        >>> flatten_xml_to_dict(element)
+        {'device': {'name': 'Firewall1', 'location': 'Office'}}
+
+    Handling multiple child elements with the same tag:
+        >>> xml_str = '<servers><server>Server1</server><server>Server2</server></servers>'
+        >>> element = ET.fromstring(xml_str)
+        >>> flatten_xml_to_dict(element)
+        {'server': ['Server1', 'Server2']}
 
     Notes
     -----
-    - This function is designed to work with PAN-OS XML API responses, which often use the 'entry' tag
-      to denote list items.
-    - The function does not preserve attributes of XML elements; it focuses solely on tags and text content.
-
-    Example
-    -------
-    Converting an XML element with nested children to a dictionary:
-        >>> xml_string = "<root><child>value</child><child><subchild>subvalue</subchild></child></root>"
-        >>> xml_element = ET.fromstring(xml_string)
-        >>> flatten_xml_to_dict(xml_element)
-        {'child': ['value', {'subchild': 'subvalue'}]}
+    - The function ignores XML attributes and focuses solely on tags and text content.
+    - Repeated tags at the same level are grouped into a list to preserve the XML structure.
+    - The 'entry' tag, frequently used in PAN-OS XML API responses, is always treated as a list item to reflect its typical use as a container for multiple items.
     """
     result = {}
     for child_element in element:
@@ -1979,33 +2058,43 @@ def flatten_xml_to_dict(element: ET.Element) -> dict:
 
 def get_emoji(action: str) -> str:
     """
-    Retrieves an emoji character corresponding to a specific action keyword.
+    Provides a visual representation in the form of an emoji for various logging and notification actions.
 
-    This function is used to enhance the visual appeal and readability of log messages or console outputs.
-    It maps predefined action keywords to their corresponding emoji characters.
+    This utility function maps a set of predefined action keywords to their corresponding emoji characters,
+    enhancing the user experience by adding a visual cue to log messages, console outputs, or user interfaces.
+    It supports a variety of action keywords, each associated with a specific emoji that intuitively represents
+    the action's nature or outcome.
 
     Parameters
     ----------
     action : str
-        An action keyword for which an emoji is required. Supported keywords include 'success',
-        'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'.
+        The action keyword representing the specific operation or outcome. Supported keywords include 'success',
+        'warning', 'error', 'working', 'report', 'search', 'save', 'stop', and 'start'. The function is designed
+        to be easily extendable with additional keywords and emojis as needed.
 
     Returns
     -------
     str
-        The emoji character associated with the action keyword. If the keyword is not recognized,
-        returns an empty string.
+        An emoji character as a string corresponding to the provided action keyword. If the keyword is not
+        recognized, the function returns an empty string, ensuring graceful handling of unsupported actions.
 
     Examples
     --------
-    >>> get_emoji('success')
-    '✅'  # Indicates a successful operation
+    Adding visual cues to log messages:
+        >>> logging.info(f"{get_emoji('success')} Operation completed successfully.")
+        >>> logging.warning(f"{get_emoji('warning')} Proceed with caution.")
+        >>> logging.error(f"{get_emoji('error')} An error occurred.")
 
-    >>> get_emoji('error')
-    '❌'  # Indicates an error
+    Enhancing console outputs:
+        >>> print(f"{get_emoji('start')} Starting the process...")
+        >>> print(f"{get_emoji('stop')} Process terminated.")
 
-    >>> get_emoji('start')
-    '🚀'  # Indicates the start of a process
+    Notes
+    -----
+    - The function is designed for extensibility, allowing easy addition of new action keywords and corresponding
+      emojis without impacting existing functionality.
+    - Emojis are selected to universally convey the essence of the action, ensuring clarity and immediacy in
+      communication.
     """
     emoji_map = {
         "success": "✅",
@@ -2023,33 +2112,41 @@ def get_emoji(action: str) -> str:
 
 def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
     """
-    Retrieves a list of Firewall objects associated with a Panorama appliance, filtered by specified criteria.
+    Retrieves a list of firewalls managed by a specified Panorama, optionally filtered by custom criteria.
 
-    This function queries a Panorama appliance for its managed firewalls and filters the results based on the
-    provided keyword arguments. The firewalls that match the specified filters are then instantiated as `Firewall`
-    objects. These firewall objects are also attached to the Panorama instance, allowing API calls to be proxied
-    through the Panorama.
+    This function interacts with a Panorama appliance to obtain a list of managed firewalls. It allows for
+    filtering the firewalls based on various attributes, such as model, serial number, or software version,
+    using regular expressions. Each matched firewall is instantiated as a `Firewall` object, facilitating
+    subsequent operations on these firewalls through their respective `Firewall` instances. The filtering
+    mechanism provides a flexible way to selectively work with subsets of firewalls under Panorama management.
 
     Parameters
     ----------
     panorama : Panorama
-        An instance of the Panorama class, representing the Panorama appliance to query.
-
-    filters : **kwargs
-        Keyword argument filters to apply. Each keyword should correspond to an attribute of the `ManagedDevice`
-        model class. The value for each keyword is a regex pattern to match against the corresponding attribute.
+        The Panorama instance through which the firewalls are managed. This should be an authenticated
+        instance with access to the Panorama's API.
+    **filters : dict
+        Arbitrary keyword arguments representing the filter criteria. Each keyword corresponds to a firewall
+        attribute (e.g., model, serial number), and its value is a regex pattern against which the attribute is matched.
 
     Returns
     -------
     list[Firewall]
-        A list of `Firewall` instances that match the specified filters.
+        A list containing `Firewall` instances for each firewall managed by Panorama that matches the provided
+        filter criteria. If no filters are provided, all managed firewalls are returned.
 
     Example
     -------
-    Getting firewalls from Panorama with specific model filters:
-        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
-        >>> firewalls = get_firewalls_from_panorama(panorama, model='.*220.*')
-        # Returns a list of `Firewall` instances for firewalls with models containing '220'.
+    Retrieving firewalls of a specific model from Panorama:
+        >>> panorama = Panorama(hostname='panorama.example.com', api_username='admin', api_password='password')
+        >>> filtered_firewalls = get_firewalls_from_panorama(panorama, model='PA-220')
+        # This will return all firewalls of model PA-220 managed by the specified Panorama.
+
+    Notes
+    -----
+    - The function requires an authenticated Panorama instance to query the Panorama API.
+    - Filters are applied using regular expressions, providing flexibility in specifying match criteria.
+    - Instantiated `Firewall` objects are linked to the Panorama instance, allowing API calls to be proxied.
     """
     firewalls = []
     for managed_device in get_managed_devices(panorama, **filters):
@@ -2062,35 +2159,42 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
 
 def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
     """
-    Retrieves a filtered list of managed devices from a specified Panorama appliance.
+    Retrieves a list of devices managed by a specified Panorama, optionally filtered by custom criteria.
 
-    This function queries a Panorama appliance for its managed devices and filters the results
-    based on the provided keyword arguments. Each keyword argument must correspond to an
-    attribute of the `ManagedDevice` model. The function applies regex matching for each
-    filter, returning only those devices that match all specified filters.
+    This function communicates with a Panorama appliance to fetch a list of managed devices, allowing for
+    filtering based on various attributes such as hostname, model, serial number, etc., using regular expressions.
+    The matched devices are returned as instances of `ManagedDevice`, facilitating further operations on these
+    devices. The filtering mechanism provides a flexible way to work selectively with subsets of devices under
+    Panorama management.
 
     Parameters
     ----------
     panorama : Panorama
-        An instance of the Panorama class, representing the Panorama appliance to query.
-
-    filters : **kwargs
-        Keyword argument filters to apply. Each keyword should correspond to an attribute
-        of the `ManagedDevice` model class. The value for each keyword is a regex pattern
-        to match against the corresponding attribute.
+        The Panorama instance through which the managed devices are accessed. This should be an authenticated
+        instance with the capability to execute API calls against the Panorama.
+    **filters : dict
+        Arbitrary keyword arguments representing the filter criteria. Each keyword corresponds to a managed
+        device attribute (e.g., hostname, model), and its value is a regex pattern against which the attribute
+        is matched.
 
     Returns
     -------
     list[ManagedDevice]
-        A list of `ManagedDevice` instances that match the specified filters.
+        A list containing `ManagedDevice` instances for each device managed by Panorama that matches the
+        provided filter criteria. If no filters are provided, all managed devices are returned.
 
     Example
     -------
-    Retrieving devices from Panorama with specific hostname and model filters:
-        >>> panorama = Panorama('192.168.1.1', 'admin', 'password')
-        >>> managed_devices = get_managed_devices(panorama, hostname='^PA-220$', model='.*220.*')
-        # Returns a list of `ManagedDevice` instances for devices with hostnames matching 'PA-220'
-        # and model containing '220'.
+    Retrieving managed devices from Panorama with specific model filters:
+        >>> panorama = Panorama(hostname='panorama.example.com', api_username='admin', api_password='password')
+        >>> filtered_devices = get_managed_devices(panorama, model='PA-220')
+        # This will return all managed devices of model PA-220.
+
+    Notes
+    -----
+    - The function requires an authenticated Panorama instance to query the Panorama API.
+    - Filters are applied using regular expressions, providing flexibility in specifying match criteria.
+    - The `ManagedDevice` instances facilitate further interactions with the managed devices through the Panorama.
     """
     managed_devices = model_from_api_response(
         panorama.op("show devices all"), ManagedDevices
@@ -2104,31 +2208,43 @@ def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
 
 def ip_callback(value: str) -> str:
     """
-    Validates the input as a valid IP address or a resolvable hostname.
+    Validates and returns an IP address or resolvable hostname provided as a command-line argument.
 
-    This function first attempts to resolve the hostname via DNS query. If it fails,
-    it utilizes the ip_address function from the ipaddress standard library module to
-    validate the provided input as an IP address. It is designed to be used as a callback
-    function for Typer command-line argument parsing, ensuring that only valid IP addresses
-    or resolvable hostnames are accepted as input.
+    This callback function is intended for use with command-line interfaces built with Typer. It ensures that
+    the user-provided input is either a valid IPv4/IPv6 address or a hostname that can be resolved to an IP address.
+    The function first attempts to resolve the input as a hostname. If unsuccessful, it then checks if the input
+    is a valid IP address. This dual check ensures flexibility in accepting either form of network address identification.
 
     Parameters
     ----------
     value : str
-        A string representing the IP address or hostname to be validated.
+        The user input string intended to represent an IP address or hostname.
 
     Returns
     -------
     str
-        The validated IP address string or hostname.
+        The original input value if it is a valid IP address or resolvable hostname.
 
     Raises
     ------
     typer.BadParameter
-        If the input string is not a valid IP address or a resolvable hostname, a typer.BadParameter
-        exception is raised with an appropriate error message.
-    """
+        This exception is raised if the input value is neither a valid IP address nor a resolvable hostname,
+        providing feedback to the user to correct their input.
 
+    Example
+    --------
+    Validating a user-provided IP address or hostname:
+        >>> @app.command()
+        >>> def command(hostname: str = typer.Option(..., callback=ip_callback)):
+        >>>     print(f"Hostname/IP: {hostname}")
+        # This CLI command requires a valid hostname or IP address as an argument.
+
+    Notes
+    -----
+    - The function leverages the 'ipaddress' standard library for IP address validation and a custom
+      'resolve_hostname' function (not shown) for DNS resolution.
+    - Intended for use with Typer-based CLI applications to validate network address inputs.
+    """
     # First, try to resolve as a hostname
     if resolve_hostname(value):
         return value
@@ -2149,43 +2265,89 @@ def model_from_api_response(
     model: type[FromAPIResponseMixin],
 ) -> FromAPIResponseMixin:
     """
-    Converts an XML Element, typically from an API response, into a specified Pydantic model.
+    Transforms an XML element or tree from an API response into a structured Pydantic model.
 
-    This function facilitates the transformation of XML data into a structured Pydantic model.
-    It first flattens the XML Element into a dictionary and then maps this dictionary to the
-    specified Pydantic model. This approach simplifies the handling of complex XML structures
-    often returned by APIs, enabling easier manipulation and access to the data within Python.
+    This utility function streamlines the conversion of XML data, commonly encountered in API responses,
+    into a structured format by leveraging Pydantic models. It employs a two-step process: first, it flattens
+    the XML structure into a dictionary using a recursive approach, and then it maps this dictionary onto a
+    Pydantic model that's capable of handling data derived from API responses. This process facilitates the
+    extraction and utilization of specific data points from complex XML structures in a more Pythonic and
+    accessible manner.
 
     Parameters
     ----------
     element : Union[ET.Element, ET.ElementTree]
-        The XML Element or ElementTree to be converted. This is typically obtained from parsing
-        XML data returned by an API call.
-
+        An XML element or tree obtained from parsing an API's XML response, representing the data to be
+        converted into a Pydantic model.
     model : type[FromAPIResponseMixin]
-        The Pydantic model class into which the XML data will be converted. This model must
-        inherit from the FromAPIResponseMixin, indicating it can handle data derived from
-        API responses.
+        A Pydantic model class that includes FromAPIResponseMixin, indicating it's designed to be populated
+        with data from an API response. This model defines the structure and fields expected from the XML data.
 
     Returns
     -------
     FromAPIResponseMixin
-        An instance of the specified Pydantic model, populated with data extracted from the
-        provided XML Element.
+        An instance of the specified Pydantic model populated with the data extracted from the input XML element
+        or tree. The model instance provides structured access to the data, adhering to the definitions within the model.
 
     Example
     -------
-    Converting an XML response to a Pydantic model:
-        >>> xml_element = ET.fromstring('<response><data>value</data></response>')
-        >>> MyModel = type('MyModel', (FromAPIResponseMixin, BaseModel), {})
-        >>> model_instance = model_from_api_response(xml_element, MyModel)
-        # 'model_instance' is now an instance of 'MyModel' with data from 'xml_element'.
+    Parsing an API's XML response into a Pydantic model:
+        >>> xml_response = ET.fromstring('<user><name>John Doe</name><email>john@example.com</email></user>')
+        >>> UserModel = type('UserModel', (FromAPIResponseMixin, BaseModel), {'name': str, 'email': str})
+        >>> user = model_from_api_response(xml_response, UserModel)
+        # 'user' is an instance of 'UserModel' with 'name' and 'email' fields populated from 'xml_response'.
+
+    Notes
+    -----
+    - The function assumes that the input XML element/tree structure corresponds to the structure expected by
+      the Pydantic model. Mismatches between the XML data and the model's fields may result in incomplete or
+      incorrect model instantiation.
+    - This function is particularly useful in scenarios where API responses need to be deserialized into
+      concrete Python objects for further processing, validation, or manipulation.
     """
     result_dict = flatten_xml_to_dict(element)
     return model.from_api_response(result_dict)
 
 
 def parse_version(version: str) -> Tuple[int, int, int, int]:
+    """
+    Parses a version string into a tuple of integers representing its components.
+
+    This function takes a PAN-OS version string and splits it into major, minor, maintenance,
+    and hotfix components. The version string is expected to be in the format 'major.minor.maintenance'
+    or 'major.minor.maintenance-hhotfix', where 'major', 'minor', 'maintenance', and 'hotfix' are integers.
+    If the 'maintenance' version includes a hotfix indicated by '-h', it is separated into its own component.
+    Missing components are defaulted to 0.
+
+    Parameters
+    ----------
+    version : str
+        The version string to be parsed. Expected formats include 'major.minor.maintenance' or
+        'major.minor.maintenance-hhotfix'.
+
+    Returns
+    -------
+    Tuple[int, int, int, int]
+        A tuple containing four integers representing the major, minor, maintenance, and hotfix
+        components of the version. Missing components are defaulted to 0.
+
+    Example
+    -------
+    Parsing a version string without a hotfix:
+        >>> parse_version("10.1.2")
+        (10, 1, 2, 0)
+
+    Parsing a version string with a hotfix:
+        >>> parse_version("10.1.2-h3")
+        (10, 1, 2, 3)
+
+    Notes
+    -----
+    - The function assumes that the version string is correctly formatted. Malformed strings may
+      lead to unexpected results.
+    - This utility is particularly useful for comparing PAN-OS versions, facilitating upgrades and
+      ensuring compatibility requirements are met.
+    """
     parts = version.split(".")
     if len(parts) == 2:  # When maintenance version is an integer
         major, minor = parts
@@ -2202,27 +2364,41 @@ def parse_version(version: str) -> Tuple[int, int, int, int]:
 
 def resolve_hostname(hostname: str) -> bool:
     """
-    Checks if a given hostname can be resolved via DNS query.
+    Attempts to resolve a hostname to an IP address using DNS lookup.
 
-    This function attempts to resolve the specified hostname using DNS. It queries the DNS servers
-    that the operating system is configured to use. The function is designed to return a boolean
-    value indicating whether the hostname could be successfully resolved or not.
+    This function checks if the provided hostname is resolvable by performing a DNS lookup.
+    It uses the DNS resolver settings configured on the system to query for the IP address associated
+    with the hostname. A successful resolution indicates network connectivity and DNS functionality
+    with respect to the hostname, while a failure may suggest issues with the hostname, DNS configuration,
+    or network connectivity.
 
     Parameters
     ----------
     hostname : str
-        The hostname (e.g., 'example.com') to be resolved.
+        The hostname (e.g., 'example.com') that needs to be resolved to check its validity and network
+        accessibility.
 
     Returns
     -------
     bool
-        Returns True if the hostname can be resolved, False otherwise.
+        True if the hostname is successfully resolved to an IP address, indicating it is valid and
+        accessible. False if the hostname cannot be resolved, suggesting it may be invalid, the DNS
+        servers are unreachable, or the network is experiencing issues.
 
-    Raises
-    ------
-    None
-        This function does not raise any exceptions. It handles all exceptions internally and
-        returns False in case of any issues during the resolution process.
+    Example
+    -------
+    Checking if a hostname can be resolved:
+        >>> resolve_hostname('www.example.com')
+        True  # Assuming 'www.example.com' is resolvable
+
+        >>> resolve_hostname('nonexistent.hostname')
+        False  # Assuming 'nonexistent.hostname' cannot be resolved
+
+    Notes
+    -----
+    - This function can be used as a preliminary check before attempting network connections to a hostname.
+    - It handles exceptions internally and logs them for debugging purposes, ensuring the calling code
+      can make decisions based on the boolean return value without handling exceptions directly.
     """
     try:
         dns.resolver.resolve(hostname)
@@ -2290,6 +2466,7 @@ def main(
             "--filter",
             "-f",
             help="Filter string - when connecting to Panorama, defines which devices we are to upgrade.",
+            prompt="Filter string (only applicable for Panorama)",
         ),
     ] = "",
     log_level: Annotated[
@@ -2302,60 +2479,50 @@ def main(
     ] = "info",
 ):
     """
-    Orchestrates the upgrade process for PAN-OS firewalls, including both standalone and HA configurations.
+    Orchestrates the upgrade process for Palo Alto Networks PAN-OS devices.
 
-    This script automates the process of upgrading Palo Alto Networks firewalls to a specified PAN-OS version. It
-    supports both standalone firewalls and those managed by Panorama. The script can perform a full upgrade process
-    or a dry run, which includes all pre-upgrade checks without applying the actual upgrade. It handles various
-    aspects like readiness checks, configuration backup, software download, and reboot procedures.
+    This script automates the upgrade of PAN-OS firewalls and Panorama management servers to a specified version.
+    It encompasses various stages including connection establishment, device filtering (for Panorama), pre-upgrade
+    checks, software download, and the upgrade process itself. The script supports a dry run mode to simulate the
+    upgrade process without making changes. It is designed to be run from the command line and accepts various
+    parameters to control its operation.
 
     Parameters
     ----------
     hostname : str
-        Hostname or IP address of the Panorama or firewall appliance.
+        The hostname or IP address of the Panorama or firewall device.
     username : str
-        Username for authentication with the appliance.
+        The administrative username for device authentication.
     password : str
-        Password for authentication.
+        The administrative password for device authentication.
     target_version : str
-        Target PAN-OS version for the upgrade.
+        The target PAN-OS version to upgrade the device(s) to.
     dry_run : bool, optional
-        If True, performs a dry run without executing the actual upgrade (default is False).
+        If True, simulates the upgrade process without applying changes (default is False).
     filter : str, optional
-        When connecting to Panorama, defines the filter criteria for selecting devices to upgrade (default is "").
+        A filter string to select specific devices managed by Panorama for the upgrade (default is "").
     log_level : str, optional
-        Sets the logging level for script execution (default is "info").
+        Specifies the logging level for the script's output (default is "info").
 
-    Workflow
-    --------
-    1. Initializes necessary directories and logging configuration.
-    2. Establishes a connection to the specified Panorama or firewall appliance.
-    3. If connected to Panorama, filters and retrieves the list of firewalls to upgrade.
-    4. Sequentially processes each firewall, performing readiness checks, downloading necessary software, and executing the upgrade and reboot steps.
-
-    Exits
+    Raises
     ------
-    - On critical errors that prevent continuation of the script.
-    - After successfully completing a dry run.
-    - If the firewall is not ready for the intended upgrade.
-    - If HA synchronization issues are detected in HA configurations.
+    SystemExit
+        The script will exit if it encounters critical errors during execution, such as connection failures,
+        invalid filter strings, or errors during the upgrade process.
 
-    Example Usage
-    --------------
-    Upgrading a firewall to version '10.2.7':
-    ```bash
-    python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.2.7
-    ```
-    Upgrading a firewall to version '10.2.7' by using Panorama appliance as a proxy:
-    ```bash
-    python upgrade.py --hostname panorama.cdot.io --filter "hostname=houston" --username admin --password secret --version 10.2.7
-    ```
+    Examples
+    --------
+    Upgrading a standalone firewall:
+        $ python upgrade.py --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
+
+    Performing a dry run on a Panorama-managed device:
+        $ python upgrade.py --hostname panorama.example.com --username admin --password secret --version 10.1.0 --dry-run --filter "serial=0123456789"
 
     Notes
     -----
-    - The script operates serially on each identified firewall.
-    - Currently, the script is not HA-aware, meaning it does not handle upgrades of both firewalls in an HA pair simultaneously.
-    - The script includes extensive logging, providing detailed feedback throughout the upgrade process.
+    - The script uses threads to parallelize upgrades for multiple devices managed by Panorama.
+    - It is recommended to back up the device configuration before running the script, especially for production environments.
+    - The `--filter` option is applicable only when connecting to Panorama and must conform to the syntax expected by the `get_firewalls_from_panorama` function.
     """
 
     # Create necessary directories
