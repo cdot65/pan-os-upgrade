@@ -630,7 +630,7 @@ def perform_ha_sync_check(
     Checking HA synchronization status:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
         >>> ha_details = {'result': {'group': {'running-sync': 'synchronized'}}}
-        >>> perform_ha_sync_check(firewall, ha_details, strict_sync_check=True)
+        >>> perform_ha_sync_check('firewall1', ha_details, strict_sync_check=True)
         True  # If the HA peer is synchronized
 
     Notes
@@ -1022,7 +1022,7 @@ def perform_upgrade(
     -------
     Upgrading a firewall to a specific version with retry logic:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-        >>> perform_upgrade(firewall, '192.168.1.1', '10.2.0', max_retries=2, retry_interval=30)
+        >>> perform_upgrade(firewall, 'firewall1', '10.2.0', max_retries=2, retry_interval=30)
         # The firewall is upgraded to version 10.2.0, with a maximum of 2 retries if needed.
     """
 
@@ -1371,7 +1371,7 @@ def software_update_check(
     --------
     Checking the availability of a specific PAN-OS version for upgrade:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
-        >>> software_update_check(firewall, '10.1.0', ha_details={})
+        >>> software_update_check(firewall, 'firewall1', '10.1.0', ha_details={})
         True  # Indicates that version 10.1.0 is available and ready for upgrade.
 
     Notes
@@ -1798,7 +1798,7 @@ def check_readiness_and_log(
         >>> result = {'test_connectivity': {'state': True, 'reason': 'Successful connection'}}
         >>> test_name = 'test_connectivity'
         >>> test_info = {'description': 'Test Connectivity', 'log_level': 'info', 'exit_on_failure': False}
-        >>> check_readiness_and_log(result, test_name, test_info)
+        >>> check_readiness_and_log(result, 'firewall1', test_name, test_info)
         # Logs "✅ Passed Readiness Check: Test Connectivity - Successful connection"
     """
     test_result = result.get(
@@ -1827,7 +1827,10 @@ def check_readiness_and_log(
             )
 
 
-def compare_versions(version1: str, version2: str) -> str:
+def compare_versions(
+    version1: str,
+    version2: str,
+) -> str:
     """
     Compares two PAN-OS version strings and determines their relative ordering.
 
@@ -1876,7 +1879,10 @@ def compare_versions(version1: str, version2: str) -> str:
         return "equal"
 
 
-def configure_logging(level: str, encoding: str = "utf-8") -> None:
+def configure_logging(
+    level: str,
+    encoding: str = "utf-8",
+) -> None:
     """
     Configures the logging system for the application, specifying log level and file encoding.
 
@@ -2245,7 +2251,10 @@ def get_emoji(action: str) -> str:
     return emoji_map.get(action, "")
 
 
-def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]:
+def get_firewalls_from_panorama(
+    panorama: Panorama,
+    **filters,
+) -> list[Firewall]:
     """
     Retrieves a list of firewalls managed by a specified Panorama, optionally filtered by custom criteria.
 
@@ -2292,7 +2301,10 @@ def get_firewalls_from_panorama(panorama: Panorama, **filters) -> list[Firewall]
     return firewalls
 
 
-def get_managed_devices(panorama: Panorama, **filters) -> list[ManagedDevice]:
+def get_managed_devices(
+    panorama: Panorama,
+    **filters,
+) -> list[ManagedDevice]:
     """
     Retrieves a list of devices managed by a specified Panorama, optionally filtered by custom criteria.
 
@@ -2710,7 +2722,12 @@ def main(
         with ThreadPoolExecutor(max_workers=2) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
-                executor.submit(upgrade_firewall, fw, target_version, dry_run): fw
+                executor.submit(
+                    upgrade_firewall,
+                    fw,
+                    target_version,
+                    dry_run,
+                ): fw
                 for fw in firewalls_to_upgrade
             }
 
