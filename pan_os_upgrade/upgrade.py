@@ -1707,11 +1707,13 @@ def upgrade_firewall(
     with firewalls_to_revisit_lock:
         is_firewall_to_revisit = firewall in firewalls_to_revisit
 
-    perform_ha_sync_check(
-        hostname,
-        ha_details,
-        strict_sync_check=not is_firewall_to_revisit,
-    )
+    # Perform HA sync check, skipping standalone firewalls
+    if ha_details:
+        perform_ha_sync_check(
+            hostname,
+            ha_details,
+            strict_sync_check=not is_firewall_to_revisit,
+        )
 
     # Back up configuration to local filesystem
     logging.info(
@@ -2613,7 +2615,7 @@ def main(
             "--filter",
             "-f",
             help="Filter string - when connecting to Panorama, defines which devices we are to upgrade.",
-            prompt="Filter string (only applicable for Panorama)",
+            prompt="Filter string (only applicable for Panorama connections)",
         ),
     ] = "",
     log_level: Annotated[
@@ -2783,11 +2785,11 @@ def main(
                 try:
                     future.result()
                     logging.info(
-                        f"{get_emoji('success')} {hostname}: Completed revisiting firewall: {firewall.hostname}"
+                        f"{get_emoji('success')} {hostname}: Completed revisiting firewalls"
                     )
                 except Exception as exc:
                     logging.error(
-                        f"{get_emoji('error')} {hostname}: Exception while revisiting firewall {firewall.hostname}: {exc}"
+                        f"{get_emoji('error')} {hostname}: Exception while revisiting firewalls: {exc}"
                     )
 
         with firewalls_to_revisit_lock:
