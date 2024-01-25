@@ -2239,9 +2239,9 @@ def get_emoji(action: str) -> str:
     """
     emoji_map = {
         "success": "✅",
-        "warning": "⚠️",
+        "warning": "🟧",
         "error": "❌",
-        "working": "⚙️",
+        "working": "🔧",
         "report": "📝",
         "search": "🔍",
         "save": "💾",
