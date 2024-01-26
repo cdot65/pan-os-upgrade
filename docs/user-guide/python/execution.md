@@ -61,7 +61,7 @@ Alternatively, you can pass these details as command-line arguments. This method
 #### Direct Firewall Targeting
 
 ```bash
-$ pan-os-upgrade --hostname 192.168.255.1 --username admin --password secret --version 10.1.0
+$ pan-os-upgrade firewall --hostname 192.168.255.1 --username admin --password secret --version 10.1.0
 INFO - ✅ Connection to firewall established
 ... shortened output for brevity ...
 ```
@@ -71,7 +71,7 @@ INFO - ✅ Connection to firewall established
 When using Panorama as a proxy, the `--filter` argument is necessary to specify the criteria for selecting the managed firewalls to upgrade.
 
 ```bash
-$ pan-os-upgrade --hostname panorama.cdot.io --filter 'hostname=houston' --username admin --password secret --version 10.1.0
+$ pan-os-upgrade panorama --hostname panorama.cdot.io --filter 'hostname=houston' --username admin --password secret --version 10.1.0
 ✅ Connection to Panorama established. Firewall connections will be proxied!
 ... shortened output for brevity ...
 ```
