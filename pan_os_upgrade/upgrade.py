@@ -56,6 +56,7 @@ import sys
 import time
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from http.client import RemoteDisconnected
 from logging.handlers import RotatingFileHandler
 from threading import Lock
 from typing import Dict, List, Optional, Tuple, Union
@@ -811,23 +812,17 @@ def perform_reboot(
         # This will initiate a reboot on the device 'device123' and ensure it starts up with version '10.0.1'.
     """
 
-    reboot_start_time = time.time()
     rebooted = False
+    attempt = 0
+    MAX_RETRIES = 30
+    RETRY_DELAY = 60
 
-    # Check if HA details are available
-    if ha_details:
-        logging.info(
-            f"{get_emoji('start')} {hostname}: Rebooting the passive HA target device..."
-        )
+    logging.info(f"{get_emoji('start')} {hostname}: Rebooting the target device...")
 
-    # Reboot standalone target device
-    else:
-        logging.info(
-            f"{get_emoji('start')} {hostname}: Rebooting the standalone target device..."
-        )
-
+    # Initiate reboot
     reboot_job = target_device.op(
-        "<request><restart><system/></restart></request>", cmd_xml=False
+        "<request><restart><system/></restart></request>",
+        cmd_xml=False,
     )
     reboot_job_result = flatten_xml_to_dict(reboot_job)
     logging.info(f"{get_emoji('report')} {hostname}: {reboot_job_result['result']}")
@@ -835,83 +830,44 @@ def perform_reboot(
     # Wait for the target device reboot process to initiate before checking status
     time.sleep(60)
 
-    # Counter that tracks if the rebooted target device is online but not yet synced on configuration
-    reboot_and_sync_check = 0
-
-    while not rebooted:
-        # Check if HA details are available
-        if ha_details:
-            try:
-                deploy_info, current_ha_details = get_ha_status(
-                    target_device,
-                    hostname,
-                )
-                logging.debug(
-                    f"{get_emoji('report')} {hostname}: deploy_info: {deploy_info}"
-                )
-                logging.debug(
-                    f"{get_emoji('report')} {hostname}: current_ha_details: {current_ha_details}"
-                )
-
-                if current_ha_details and deploy_info in ["active", "passive"]:
-                    if (
-                        current_ha_details["result"]["group"]["running-sync"]
-                        == "synchronized"
-                    ):
-                        logging.info(
-                            f"{get_emoji('success')} {hostname}: HA passive target device rebooted and synchronized with its peer in {int(time.time() - reboot_start_time)} seconds"
-                        )
-                        rebooted = True
-                    else:
-                        reboot_and_sync_check += 1
-                        if reboot_and_sync_check >= 5:
-                            logging.warning(
-                                f"{get_emoji('warning')} {hostname}: HA passive target device rebooted but did not complete a configuration sync with the active after 5 attempts."
-                            )
-                            # Set rebooted to True to exit the loop
-                            rebooted = True
-                            break
-                        else:
-                            logging.info(
-                                f"{get_emoji('working')} {hostname}: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds."
-                            )
-                            time.sleep(60)
-            except (PanXapiError, PanConnectionTimeout, PanURLError):
-                logging.info(
-                    f"{get_emoji('working')} {hostname}: Target device is rebooting..."
-                )
-                time.sleep(60)
-
-        # Reboot standalone target device
-        else:
-            try:
-                target_device.refresh_system_info()
-                logging.info(
-                    f"{get_emoji('report')} {hostname}: Target device version: {target_device.version}"
-                )
-
-                if target_device.version == target_version:
-                    logging.info(
-                        f"{get_emoji('success')} {hostname}: Target device rebooted in {int(time.time() - reboot_start_time)} seconds"
-                    )
-                    rebooted = True
-                else:
-                    logging.error(
-                        f"{get_emoji('stop')} {hostname}: Target device rebooted but running the target version. Please try again."
-                    )
-                    sys.exit(1)
-            except (PanXapiError, PanConnectionTimeout, PanURLError):
-                logging.info(
-                    f"{get_emoji('working')} {hostname}: Target device is rebooting..."
-                )
-                time.sleep(60)
-
-        # Check if 30 minutes have passed
-        if time.time() - reboot_start_time > 1800:
-            logging.error(
-                f"{get_emoji('error')} {hostname}: Target device did not become available and/or establish a Connected sync state with its HA peer after 30 minutes. Please check the target device status manually."
+    while not rebooted and attempt < MAX_RETRIES:
+        try:
+            # Refresh system information to check if the device is back online
+            target_device.refresh_system_info()
+            current_version = target_device.version
+            logging.info(
+                f"{get_emoji('report')} {hostname}: Current device version: {current_version}"
             )
-            break
+
+            # Check if the device has rebooted to the target version
+            if current_version == target_version:
+                logging.info(
+                    f"{get_emoji('success')} {hostname}: Device rebooted to the target version successfully."
+                )
+                rebooted = True
+            else:
+                logging.error(
+                    f"{get_emoji('error')} {hostname}: Device rebooted but not to the target version."
+                )
+                sys.exit(1)
+
+        except (
+            PanXapiError,
+            PanConnectionTimeout,
+            PanURLError,
+            RemoteDisconnected,
+        ) as e:
+            logging.warning(
+                f"{get_emoji('warning')} {hostname}: Retry attempt {attempt + 1} due to error: {e}"
+            )
+            attempt += 1
+            time.sleep(RETRY_DELAY)
+
+    if not rebooted:
+        logging.error(
+            f"{get_emoji('error')} {hostname}: Failed to reboot to the target version after {MAX_RETRIES} attempts."
+        )
+        sys.exit(1)
 
 
 def perform_snapshot(
