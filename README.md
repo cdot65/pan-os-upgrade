@@ -46,6 +46,11 @@ This project is a comprehensive Python-based solution for automating PAN-OS upgr
 
 ### Key Features
 
+- **Three Unique Workflows Supported**:
+  - `firewall`: targets and upgrades an individual firewall
+  - `panorama`: targets and upgrades an individual Panorama appliance
+  - `batch`: targets a Panorama appliance and upgrades firewalls in batch
+    - The script will support up to ten simultaneous upgrades
 - **Automation of Routine Tasks**: Reduces manual errors and saves time by automating upgrades, configurations, and system checks.
 - **Support for Direct and Proxy Connections**: Connect directly to firewalls or through a Panorama appliance, with support for targeting specific devices using filters.
 - **Active/Passive High Availability (HA) Workflow**: Fully supports upgrading devices in active/passive HA configurations, ensuring both members are properly upgraded and synchronized.
@@ -60,100 +65,101 @@ Example Execution
 <div class="termy">
 
 ```console
-$ pan-os-upgrade
-Hostname or IP: panorama.cdot.io
-Username: cdot
-Password:
-Target PAN-OS version: 10.2.2-h2
-Filter string (only applicable for Panorama) []: hostname=Woodlands*
+$ pan-os-upgrade batch
+Panorama hostname or IP: panorama.cdot.io
+Panorama username: cdot
+Panorama password:
+Firewall target version (ex: 10.1.2): 10.2.3
+Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
+Dry Run? [y/N]:
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
+📝 Woodlands-fw2: 007954000123452 192.168.255.44
 📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw2: 007954000123452 192.168.255.44
-📝 Woodlands-fw1: HA mode: passive
-📝 Woodlands-fw2: HA mode: active
-🔍 Woodlands-fw2: Detected active firewall in HA pair running the same version as its peer. Added firewall to revisit list.
-📝 Woodlands-fw1: Current PAN-OS version: 10.2.2
-📝 Woodlands-fw1: Target PAN-OS version: 10.2.2-h2
-✅ Woodlands-fw1: Upgrade required from 10.2.2 to 10.2.2-h2
-✅ Woodlands-fw1: PAN-OS version 10.2.2-h2 is available for download
-✅ Woodlands-fw1: Base image for 10.2.2-h2 is already downloaded
-🚀 Woodlands-fw1: Performing test to see if 10.2.2-h2 is already downloaded...
-🔍 Woodlands-fw1: PAN-OS version 10.2.2-h2 is not on the firewall
-🚀 Woodlands-fw1: PAN-OS version 10.2.2-h2 is beginning download
-Device 007954000123451 downloading version: 10.2.2-h2
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 5 seconds
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 37 seconds
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 68 seconds
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 100 seconds
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 133 seconds
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 167 seconds
-✅ Woodlands-fw1: 10.2.2-h2 downloaded in 199 seconds
-✅ Woodlands-fw1: 10.2.2-h2 has been downloaded and sync'd to HA peer.
-🚀 Woodlands-fw1: Performing snapshot of network state information...
-✅ Woodlands-fw1: Network snapshot created successfully
-🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade...
-✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
-✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
-✅ Woodlands-fw1: Passed Readiness Check: Checks HA pair status from the perspective of the current device
-✅ Woodlands-fw1: Passed Readiness Check: Check if NTP is synchronized
-✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ Woodlands-fw1: Readiness Checks completed
-🚀 Woodlands-fw1: Checking if HA peer is in sync...
-✅ Woodlands-fw1: HA peer sync test has been completed.
-🚀 Woodlands-fw1: Performing backup of configuration to local filesystem...
-🚀 Woodlands-fw1: Not a dry run, continue with upgrade...
-🚀 Woodlands-fw1: Performing upgrade to version 10.2.2-h2...
-🚀 Woodlands-fw1: Attempting upgrade to version 10.2.2-h2 (Attempt 1 of 3)...
-Device 007954000123451 installing version: 10.2.2-h2
-✅ Woodlands-fw1: Upgrade completed successfully
-🚀 Woodlands-fw1: Rebooting the passive HA firewall...
-📝 Woodlands-fw1: Command succeeded with no output
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-🔧 Woodlands-fw1: Firewall is rebooting...
-✅ Woodlands-fw1: HA passive firewall rebooted and synchronized with its peer in 499 seconds
-🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
-📝 Woodlands-fw2: 007954000123452 192.168.255.44
-📝 Woodlands-fw2: HA mode: active
-❌ Woodlands-fw2: Error suspending active firewall HA state: argument of type 'NoneType' is not iterable
-📝 Woodlands-fw2: Current PAN-OS version: 10.2.2
-📝 Woodlands-fw2: Target PAN-OS version: 10.2.2-h2
-✅ Woodlands-fw2: Upgrade required from 10.2.2 to 10.2.2-h2
-✅ Woodlands-fw2: PAN-OS version 10.2.2-h2 is available for download
-✅ Woodlands-fw2: Base image for 10.2.2-h2 is already downloaded
-🚀 Woodlands-fw2: Performing test to see if 10.2.2-h2 is already downloaded...
-✅ Woodlands-fw2: PAN-OS version 10.2.2-h2 already on firewall.
-✅ Woodlands-fw2: 10.2.2-h2 has been downloaded and sync'd to HA peer.
+📝 Woodlands-fw2: HA mode: passive
+📝 Woodlands-fw1: HA mode: active
+🔍 Woodlands-fw1: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list.
+📝 Woodlands-fw2: Current version: 10.2.2-h2
+📝 Woodlands-fw2: Target version: 10.2.3
+✅ Woodlands-fw2: Upgrade required from 10.2.2-h2 to 10.2.3
+✅ Woodlands-fw2: version 10.2.3 is available for download
+✅ Woodlands-fw2: Base image for 10.2.3 is already downloaded
+🚀 Woodlands-fw2: Performing test to see if 10.2.3 is already downloaded...
+✅ Woodlands-fw2: version 10.2.3 already on target device.
+✅ Woodlands-fw2: 10.2.3 has been downloaded and sync'd to HA peer.
 🚀 Woodlands-fw2: Performing snapshot of network state information...
 ✅ Woodlands-fw2: Network snapshot created successfully
 🚀 Woodlands-fw2: Performing readiness checks to determine if firewall is ready for upgrade...
 ✅ Woodlands-fw2: Passed Readiness Check: Check if there are pending changes on device
 ✅ Woodlands-fw2: Passed Readiness Check: No Expired Licenses
+✅ Woodlands-fw2: Passed Readiness Check: Checks HA pair status from the perspective of the current device
 ✅ Woodlands-fw2: Passed Readiness Check: Check if NTP is synchronized
+✅ Woodlands-fw2: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
 ✅ Woodlands-fw2: Passed Readiness Check: Check connectivity with the Panorama appliance
 ✅ Woodlands-fw2: Readiness Checks completed
 🚀 Woodlands-fw2: Checking if HA peer is in sync...
 ✅ Woodlands-fw2: HA peer sync test has been completed.
 🚀 Woodlands-fw2: Performing backup of configuration to local filesystem...
 🚀 Woodlands-fw2: Not a dry run, continue with upgrade...
-🚀 Woodlands-fw2: Performing upgrade to version 10.2.2-h2...
-🚀 Woodlands-fw2: Attempting upgrade to version 10.2.2-h2 (Attempt 1 of 3)...
-Device 007954000123452 installing version: 10.2.2-h2
+🚀 Woodlands-fw2: Performing upgrade to version 10.2.3...
+🚀 Woodlands-fw2: Attempting upgrade to version 10.2.3 (Attempt 1 of 3)...
+Device 007954000123452 installing version: 10.2.3
 ✅ Woodlands-fw2: Upgrade completed successfully
-🚀 Woodlands-fw2: Rebooting the passive HA firewall...
+🚀 Woodlands-fw2: Rebooting the passive HA target device...
 📝 Woodlands-fw2: Command succeeded with no output
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-🔧 Woodlands-fw2: Firewall is rebooting...
-✅ Woodlands-fw2: HA passive firewall rebooted and synchronized with its peer in 483 seconds
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: Target device is rebooting...
+🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
+🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
+🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
+🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
+🟧 Woodlands-fw2: HA passive target device rebooted but did not complete a configuration sync with the active after 5 attempts.
+🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
+📝 Woodlands-fw1: 007954000123451 192.168.255.43
+📝 Woodlands-fw1: HA mode: active
+❌ Woodlands-fw1: Error suspending active target device HA state: argument of type 'NoneType' is not iterable
+📝 Woodlands-fw1: Current version: 10.2.2-h2
+📝 Woodlands-fw1: Target version: 10.2.3
+✅ Woodlands-fw1: Upgrade required from 10.2.2-h2 to 10.2.3
+✅ Woodlands-fw1: version 10.2.3 is available for download
+✅ Woodlands-fw1: Base image for 10.2.3 is already downloaded
+🚀 Woodlands-fw1: Performing test to see if 10.2.3 is already downloaded...
+✅ Woodlands-fw1: version 10.2.3 already on target device.
+✅ Woodlands-fw1: 10.2.3 has been downloaded and sync'd to HA peer.
+🚀 Woodlands-fw1: Performing snapshot of network state information...
+✅ Woodlands-fw1: Network snapshot created successfully
+🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade...
+✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
+✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
+✅ Woodlands-fw1: Passed Readiness Check: Check if NTP is synchronized
+✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ Woodlands-fw1: Readiness Checks completed
+🚀 Woodlands-fw1: Checking if HA peer is in sync...
+🟧 Woodlands-fw1: HA peer state is not in sync. This will be noted, but the script will continue.
+🚀 Woodlands-fw1: Performing backup of configuration to local filesystem...
+🚀 Woodlands-fw1: Not a dry run, continue with upgrade...
+🚀 Woodlands-fw1: Performing upgrade to version 10.2.3...
+🚀 Woodlands-fw1: Attempting upgrade to version 10.2.3 (Attempt 1 of 3)...
+Device 007954000123451 installing version: 10.2.3
+✅ Woodlands-fw1: Upgrade completed successfully
+🚀 Woodlands-fw1: Rebooting the passive HA target device...
+📝 Woodlands-fw1: Command succeeded with no output
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+🔧 Woodlands-fw1: Target device is rebooting...
+✅ Woodlands-fw1: HA passive target device rebooted and synchronized with its peer in 631 seconds
 ✅ panorama.cdot.io: Completed revisiting firewalls
 ```
 
@@ -172,9 +178,9 @@ This approach involves setting up a Python virtual environment on your local mac
 
 #### Python Prerequisites
 
-* Python 3.8 or newer.
-* Access to a Palo Alto Networks firewall.
-* An active internet connection to download the package from PyPI.
+- Python 3.8 or newer.
+- Access to a Palo Alto Networks firewall or Panorama appliance.
+- An active internet connection to download the package from PyPI.
 
 #### Installation
 
@@ -216,38 +222,60 @@ The steps below highlight the process for creating, activating, and installing `
     pip install pan-os-upgrade
     ```
 
-#### Setting Up Your Environment
+### CLI Arguments vs. CLI Options
 
-After setting up the virtual environment and installing the package, you can configure your environment to use the library. This can be done using command-line arguments or using the interactive shell.
+In the context of the `pan-os-upgrade` application, it's important to distinguish between CLI arguments and CLI options:
 
-##### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
+- **CLI Arguments** are the primary commands that determine the operation mode of the application. They are not prefixed by `--` or `-` and are essential for defining the core action the script should perform.
+- **CLI Options**, on the other hand, are additional modifiers or settings that further customize the behavior of the CLI arguments. They typically come with a `--` prefix (or `-` for shorthand) and are optional.
+
+#### CLI Arguments
+
+The following are the main commands (CLI arguments) for the `pan-os-upgrade` application, each tailored for specific upgrade scenarios:
+
+| CLI Argument | Description                                                                                                                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `firewall`   | Targets an individual firewall for upgrade. This command requires subsequent CLI options to specify the firewall details and desired actions.                                                       |
+| `panorama`   | Targets an individual Panorama appliance for upgrade, necessitating further CLI options for execution details.                                                                                      |
+| `batch`      | Utilizes a Panorama appliance to orchestrate bulk upgrades of managed firewalls, supporting up to ten concurrent operations. Requires additional CLI options for filtering and execution specifics. |
+
+#### CLI Options
+
+Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
+
+| CLI Option    | Shorthand | Type    | Description                                                                                                                               |
+| ------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dry-run`   | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing and verification purposes.                         |
+| `--filter`    | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama, such as device hostname patterns or serial numbers. |
+| `--hostname`  | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                                                                  |
+| `--log-level` | `-l`      | String  | Determines the verbosity of log output, with levels including debug, info, and warning among others.                                      |
+| `--password`  | `-p`      | String  | The authentication password required for accessing the target device.                                                                     |
+| `--username`  | `-u`      | String  | The username for authentication with the target PAN-OS device.                                                                            |
+| `--version`   | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                                                                            |
+
+Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
+
+#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
 
 You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
 
 ```console
-$ pan-os-upgrade
-Hostname or IP: houston.cdot.io
-Username: cdot
-Password:
-Target PAN-OS version: 10.2.4
-Filter string (only applicable for Panorama connections) []:
-✅ houston.cdot.io: Connection to firewall established
-📝 houston: 007954000123453 192.168.255.211
+$ pan-os-upgrade firewall
+Firewall hostname or IP: houston.cdot.io
+Firewall username: cdot
+Firewall password:
+Target version: 10.2.4-h4
+Dry Run? [y/N]: N
+📝 houston: 007054000242050 192.168.255.211
 📝 houston: HA mode: disabled
-📝 houston: Current PAN-OS version: 10.2.3-h4
-📝 houston: Target PAN-OS version: 10.2.4
-✅ houston: Upgrade required from 10.2.3-h4 to 10.2.4
-✅ houston: PAN-OS version 10.2.4 is available for download
-✅ houston: Base image for 10.2.4 is already downloaded
-🚀 houston: Performing test to see if 10.2.4 is already downloaded...
-🔍 houston: PAN-OS version 10.2.4 is not on the firewall
-🚀 houston: PAN-OS version 10.2.4 is beginning download
-Device 007954000123453 downloading version: 10.2.4
-🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 11 seconds
-🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 48 seconds
-🔧 houston: Downloading PAN-OS version 10.2.4 - Elapsed time: 84 seconds
-✅ houston: 10.2.4 downloaded in 118 seconds
-✅ houston: PAN-OS version 10.2.4 has been downloaded.
+📝 houston: Current version: 10.2.4-h3
+📝 houston: Target version: 10.2.4-h4
+✅ houston: Upgrade required from 10.2.4-h3 to 10.2.4-h4
+✅ houston: version 10.2.4-h4 is available for download
+✅ houston: Base image for 10.2.4-h4 is already downloaded
+🚀 houston: Performing test to see if 10.2.4-h4 is already downloaded...
+✅ houston: version 10.2.4-h4 already on target device.
+✅ houston: version 10.2.4-h4 has been downloaded.
 🚀 houston: Performing snapshot of network state information...
 ✅ houston: Network snapshot created successfully
 🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
@@ -258,75 +286,41 @@ Device 007954000123453 downloading version: 10.2.4
 ✅ houston: Readiness Checks completed
 🚀 houston: Performing backup of configuration to local filesystem...
 🚀 houston: Not a dry run, continue with upgrade...
-🚀 houston: Performing upgrade to version 10.2.4...
-🚀 houston: Attempting upgrade to version 10.2.4 (Attempt 1 of 3)...
-Device 007954000123453 installing version: 10.2.4
+🚀 houston: Performing upgrade to version 10.2.4-h4...
+🚀 houston: Attempting upgrade to version 10.2.4-h4 (Attempt 1 of 3)...
+Device 007054000242050 installing version: 10.2.4-h4
 ✅ houston: Upgrade completed successfully
-🚀 houston: Rebooting the standalone firewall...
+🚀 houston: Rebooting the standalone target device...
 📝 houston: Command succeeded with no output
-🔧 houston: Firewall is rebooting...
-🔧 houston: Firewall is rebooting...
-🔧 houston: Firewall is rebooting...
-🔧 houston: Firewall is rebooting...
-🔧 houston: Firewall is rebooting...
-🔧 houston: Firewall is rebooting...
-📝 houston: Firewall version: 10.2.4
-✅ houston: Firewall rebooted in 516 seconds
-```
-
-As an alternative to targeting firewalls directly, you can target a Panorama appliance to act as the communication proxy. If you'd like to go down this path, make sure that you add an extra CLI option of `--filter` and pass a string representation of your filter.
-
-As of version 0.2.5, the available filters are:
-
-| filter type | description                                       | example                             |
-| ----------- | ------------------------------------------------- | ----------------------------------- |
-| hostname    | use the firewall's hostname as selection criteria | `--filter "hostname=Woodlands*"`    |
-| serial      | use the firewall's serial as selection criteria   | `--filter "serial=007054000123456"` |
-
-```console
-$ pan-os-upgrade
-Hostname or IP: panorama.cdot.io
-Username: cdot
-Password:
-Target PAN-OS version: 10.2.2-h2
-Filter string (only applicable for Panorama connections) []: hostname=Woodlands*
-✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
-📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw2: 007954000123452 192.168.255.44
-📝 Woodlands-fw1: HA mode: passive
-📝 Woodlands-fw2: HA mode: active
-🔍 Woodlands-fw2: Detected active firewall in HA pair running the same version as its peer. Added firewall to revisit list.
-📝 Woodlands-fw1: Current PAN-OS version: 10.2.2
-📝 Woodlands-fw1: Target PAN-OS version: 10.2.2-h2
-✅ Woodlands-fw1: Upgrade required from 10.2.2 to 10.2.2-h2
-✅ Woodlands-fw1: PAN-OS version 10.2.2-h2 is available for download
-✅ Woodlands-fw1: Base image for 10.2.2-h2 is already downloaded
-🚀 Woodlands-fw1: Performing test to see if 10.2.2-h2 is already downloaded...
-🔍 Woodlands-fw1: PAN-OS version 10.2.2-h2 is not on the firewall
-🚀 Woodlands-fw1: PAN-OS version 10.2.2-h2 is beginning download
-Device 007954000123451 downloading version: 10.2.2-h2
-🔧 Woodlands-fw1: Downloading PAN-OS version 10.2.2-h2 - HA will sync image - Elapsed time: 5 seconds
-... shortened for brevity ...
+🔧 houston: Target device is rebooting...
+🔧 houston: Target device is rebooting...
+🔧 houston: Target device is rebooting...
+🔧 houston: Target device is rebooting...
+🔧 houston: Target device is rebooting...
+📝 houston: Target device version: 10.2.4-h4
+✅ houston: Target device rebooted in 448 seconds
 ```
 
 ##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
 
-Alternatively, you can pass these details as command-line arguments when running the script:
+Alternatively, you can pass these details as command-line arguments when running the script.
+
+> Note: You *can* pass your password as a CLI option with either `--password` or `-p`, but make sure you understand the risk of having your password in your terminal's history.
 
 ```bash
-pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
+pan-os-upgrade firewall --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
 ```
 
 For a dry run:
 
 ```bash
-pan-os-upgrade --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+pan-os-upgrade firewall --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
 ```
 
-If you're targeting a Panorama appliance to act as a proxy for communications to the firewall, make sure you also pass a filter pattern:
+If you're targeting a Panorama appliance to act as a proxy for communications to the firewall, make sure you include a filter pattern:
 
 ```bash
-pan-os-upgrade --hostname panorama.cdot.io --username admin --password secret --version 10.1.0 --filter "hostname=houston"
+pan-os-upgrade batch --hostname panorama.cdot.io --username admin --password secret --version 10.1.0 --filter "hostname=Woodlands*"
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -337,7 +331,7 @@ Alternatively, you can run `pan-os-upgrade` as a Docker container. This method e
 
 #### Docker Prerequisites
 
-* Docker installed on your system. You can download it from [Docker's official site](https://www.docker.com/products/docker-desktop).
+- Docker installed on your system. You can download it from [Docker's official site](https://www.docker.com/products/docker-desktop).
 
 #### Pulling the Docker Image
 
@@ -354,13 +348,13 @@ To run the container and mount local directories for `assurance` and `logs`, use
 On macOS and Linux:
 
 ```bash
-docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it pan-os-upgrade
+docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it pan-os-upgrade firewall
 ```
 
 On Windows:
 
 ```bash
-docker run -v %CD%/assurance:/app/assurance -v %CD%/logs:/app/logs -it pan-os-upgrade
+docker run -v %CD%/assurance:/app/assurance -v %CD%/logs:/app/logs -it pan-os-upgrade panorama
 ```
 
 These commands mount the current directory's `assurance` and `logs` subdirectories to the corresponding directories in the container. If these directories don't exist on your host, Docker will create them.
@@ -383,20 +377,25 @@ The script can be run from the command line with various options.
 You can view all arguments by passing the `--help` flag:
 
 ```bash
-pan-os-upgrade --help
+$ pan-os-upgrade --help
+
+ Usage: upgrade.py [OPTIONS] COMMAND [ARGS]...
+
+ PAN-OS Upgrade script
+
+╭─ Options ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.                                                                            │
+│ --show-completion             Show completion for the current shell, to copy it or customize the installation.                                     │
+│ --help                        Show this message and exit.                                                                                          │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ batch         Executes a batch upgrade of firewalls managed by a Panorama appliance based on specified criteria.                                   │
+│ firewall      Initiates the upgrade process for a specified firewall appliance.                                                                    │
+│ panorama      Initiates the upgrade process for a specified Panorama appliance.                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
 ```
-
-### CLI Arguments Description
-
-| cli argument  | shorthand | type        | description                                                                         |
-| ------------- | --------- | ----------- | ----------------------------------------------------------------------------------- |
-| `--dry-run`   | `-d`      | n/a         | Perform a dry run of all tests and downloads without performing the actual upgrade. |
-| `--filter`    | `-f`      | conditional | Filter criteria for selecting devices when using Panorama.                          |
-| `--hostname`  | `-h`      | text        | Hostname or IP address of target firewall.                                          |
-| `--log-level` | `-l`      | text        | Set the logging output level (e.g., debug, info, warning).                          |
-| `--password`  | `-p`      | text        | Password for authentication.                                                        |
-| `--username`  | `-u`      | text        | Username for authentication.                                                        |
-| `--version`   | `-v`      | text        | Target PAN-OS version to upgrade to.                                                |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -409,9 +408,9 @@ Refer to the [documentation](https://cdot65.github.io/pan-os-upgrade/) for more 
 
 The script generates several files containing the state of the firewall and readiness checks. These files are stored in the `assurance` directory with the following structure:
 
-* `snapshots`: Contains the pre and post-upgrade network state snapshots in JSON format.
-* `readiness_checks`: Contains the results of readiness checks in JSON format.
-* `configurations`: Contains the backup of the firewall's configuration in XML format.
+- `snapshots`: Contains the pre and post-upgrade network state snapshots in JSON format.
+- `readiness_checks`: Contains the results of readiness checks in JSON format.
+- `configurations`: Contains the backup of the firewall's configuration in XML format.
 
 <!-- LOGGING -->
 ## Logging
@@ -423,11 +422,11 @@ Log messages are printed to the console and saved to a rotating log file located
 
 Encountered an issue? Here are some common problems and solutions:
 
-* **Problem**: Script fails to connect to the PAN-OS device.
-  * **Solution**: Check if the hostname and credentials are correct. Ensure network connectivity to the PAN-OS device.
+- **Problem**: Script fails to connect to the PAN-OS device.
+  - **Solution**: Check if the hostname and credentials are correct. Ensure network connectivity to the PAN-OS device.
 
-* **Problem**: Script hangs during execution.
-  * **Solution**: Check the firewall and network settings. Ensure the PAN-OS device is responding correctly.
+- **Problem**: Script hangs during execution.
+  - **Solution**: Check the firewall and network settings. Ensure the PAN-OS device is responding correctly.
 
 For more troubleshooting tips, visit our [FAQ section](https://cdot65.github.io/pan-os-upgrade/).
 
