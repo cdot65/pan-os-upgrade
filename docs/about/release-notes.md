@@ -2,10 +2,24 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.4.0
+
+**Release Date:** *<20240126>*
+
+### What's New
+
+- Support for three unique workflows:
+  - `firewall`: targets and upgrades an individual firewall
+  - `panorama`: targets and upgrades an individual Panorama appliance
+  - `batch`: targets a Panorama appliance and upgrades firewalls in batch
+    - The script will support up to ten simultaneous upgrades
+    - Requires a filter string to be passed to identify target firewalls
+
 ## Version 0.3.0
 
 **Release Date:** *<20240125>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Multi-threading added for concurrent upgrades (max limit of threads is 10).

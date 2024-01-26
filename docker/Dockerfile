@@ -11,11 +11,14 @@ RUN apk add --no-cache gcc musl-dev libffi-dev make
 WORKDIR /app
 
 # Install any needed packages specified in requirements.txt
-# Note: The requirements.txt should contain pan-os-upgrade==0.3.0
-RUN pip install --no-cache-dir pan-os-upgrade==0.3.0
+# Note: The requirements.txt should contain pan-os-upgrade==0.4.0
+RUN pip install --no-cache-dir pan-os-upgrade==0.4.0
 
 # Set the locale to avoid issues with emoji rendering
 ENV LANG C.UTF-8
 
-# Run the application
-CMD ["pan-os-upgrade"]
+# Define the entry point for the application
+ENTRYPOINT ["pan-os-upgrade"]
+
+# By default, show the help message if no arguments are provided
+CMD ["--help"]
