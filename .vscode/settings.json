@@ -1,13 +1,25 @@
 {
   "cSpell.words": [
+    "adminpassword",
     "apikey",
     "defusedxml",
+    "dynaconf",
+    "Dynaconf",
+    "hhotfix",
     "highavailability",
+    "hostnames",
     "levelname",
+    "malformatted",
     "nics",
+    "NXDOMAIN",
+    "proxied",
     "pydantic",
     "Pydantic",
     "refreshall",
+    "typer",
+    "Typer",
+    "Typer's",
+    "unsynchronized",
     "Xapi",
     "xmltodict"
   ]
