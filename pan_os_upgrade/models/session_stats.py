@@ -25,7 +25,7 @@ class SessionStats(BaseModel):
     num_gtpu_pending: Optional[str] = Field(..., alias="num-gtpu-pending")
     num_http2_5gc: Optional[str] = Field(..., alias="num-http2-5gc")
     num_icmp: Optional[str] = Field(..., alias="num-icmp")
-    num_imsi: Optional[str] = Field(..., alias="num-imsi")
+    num_imsi: Optional[str] = Field(None, alias="num-imsi")
     num_installed: Optional[str] = Field(..., alias="num-installed")
     num_max: Optional[str] = Field(..., alias="num-max")
     num_mcast: Optional[str] = Field(..., alias="num-mcast")
@@ -36,7 +36,7 @@ class SessionStats(BaseModel):
     num_tcp: Optional[str] = Field(..., alias="num-tcp")
     num_udp: Optional[str] = Field(..., alias="num-udp")
     pps: Optional[str]
-    tcp_cong_ctrl: Optional[str] = Field(..., alias="tcp-cong-ctrl")
+    tcp_cong_ctrl: Optional[str] = Field(None, alias="tcp-cong-ctrl")
     tcp_reject_siw_thresh: Optional[str] = Field(..., alias="tcp-reject-siw-thresh")
     tmo_5gcdelete: Optional[str] = Field(..., alias="tmo-5gcdelete")
     tmo_cp: Optional[str] = Field(..., alias="tmo-cp")
