@@ -63,7 +63,6 @@ mypy-extensions==1.0.0
 packaging==23.2
 paginate==0.5.6
 pan-os-python==1.11.0
--e git+ssh://git@github.com/cdot65/pan-os-upgrade.git@fb643902263201e336c72ae6ef4488ba615f0793#egg=pan_os_upgrade
 pan-python==0.17.0
 panos-upgrade-assurance==0.3.1
 parso==0.8.3
