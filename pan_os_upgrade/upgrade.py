@@ -709,16 +709,21 @@ def perform_readiness_checks(
         >>> perform_readiness_checks(firewall_instance, 'firewall1', '/var/reports/firewall1_readiness.json')
         # This will execute the readiness checks and save the output in the specified JSON file.
     """
-
-    logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall..."
-    )
-
-    readiness_check = run_assurance(
-        firewall,
-        hostname,
-        operation_type="readiness_check",
-        actions=[
+    # Determine readiness checks to perform based on settings.yaml
+    if settings_file_path.exists() and settings_file.get(
+        "readiness_checks.customize", False
+    ):
+        # Extract checks where value is True
+        selected_checks = [
+            check
+            for check, enabled in settings_file.get(
+                "readiness_checks.checks", {}
+            ).items()
+            if enabled
+        ]
+    else:
+        # Default checks to run if settings.yaml does not exist or customize is False
+        selected_checks = [
             "candidate_config",
             "content_version",
             "expired_licenses",
@@ -728,13 +733,22 @@ def perform_readiness_checks(
             "ntp_sync",
             "panorama",
             "planes_clock_sync",
-        ],
+        ]
+
+    logging.debug(
+        f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall..."
+    )
+
+    readiness_check = run_assurance(
+        firewall,
+        hostname,
+        operation_type="readiness_check",
+        actions=selected_checks,
         config={},
     )
 
     # Check if a readiness check was successfully created
     if isinstance(readiness_check, ReadinessCheckReport):
-        # Do something with the readiness check report, e.g., log it, save it, etc.
         logging.info(f"{get_emoji('success')} {hostname}: Readiness Checks completed")
         readiness_check_report_json = readiness_check.model_dump_json(indent=4)
         logging.debug(
@@ -891,6 +905,26 @@ def perform_snapshot(
         # This will collect the network state from 'fw-hostname' and save it to '/backups/fw-snapshot.json'.
     """
 
+    # Determine snapshot actions to perform based on settings.yaml
+    if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
+        # Extract state actions where value is True
+        selected_actions = [
+            action
+            for action, enabled in settings_file.get("snapshots.state", {}).items()
+            if enabled
+        ]
+    else:
+        # Default actions to take if settings.yaml does not exist or customize is False
+        selected_actions = [
+            "arp_table",
+            "content_version",
+            "ip_sec_tunnels",
+            "license",
+            "nics",
+            "routes",
+            "session_stats",
+        ]
+
     logging.info(
         f"{get_emoji('start')} {hostname}: Performing snapshot of network state information..."
     )
@@ -900,15 +934,7 @@ def perform_snapshot(
         firewall,
         hostname,
         operation_type="state_snapshot",
-        actions=[
-            "arp_table",
-            "content_version",
-            "ip_sec_tunnels",
-            "license",
-            "nics",
-            "routes",
-            "session_stats",
-        ],
+        actions=selected_actions,
         config={},
     )
 
@@ -3291,7 +3317,7 @@ def settings():
             ),
         },
         "readiness_checks": {
-            "enable": typer.confirm(
+            "customize": typer.confirm(
                 "Would you like to customize readiness checks?",
                 default=False,
             ),
@@ -3302,9 +3328,10 @@ def settings():
             ),
         },
         "snapshots": {
-            "enable": typer.confirm(
+            "customize": typer.confirm(
                 "Would you like to customize snapshots?", default=False
             ),
+            "state": {},
             "location": typer.prompt(
                 "Location to save snapshots",
                 default="assurance/snapshots/",
@@ -3322,24 +3349,17 @@ def settings():
                 type=int,
             ),
         },
-        "ha_settings": {
-            "sync_check_delay": typer.prompt(
-                "Delay between HA sync checks (seconds)",
-                default=10,
-                type=int,
-            ),
-        },
     }
 
-    if config_data["readiness_checks"]["enable"]:
+    if config_data["readiness_checks"]["customize"]:
         for check, info in AssuranceOptions.READINESS_CHECKS.items():
             config_data["readiness_checks"]["checks"][check] = typer.confirm(
                 f"Enable {info['description']}?", default=True
             )
 
-    if config_data["snapshots"]["enable"]:
+    if config_data["snapshots"]["customize"]:
         for snapshot in AssuranceOptions.STATE_SNAPSHOTS:
-            config_data["snapshots"][snapshot] = typer.confirm(
+            config_data["snapshots"]["state"][snapshot] = typer.confirm(
                 f"Enable {snapshot} snapshot?", default=True
             )
 
