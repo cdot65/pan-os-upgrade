@@ -965,8 +965,6 @@ def perform_upgrade(
     hostname: str,
     target_version: str,
     ha_details: Optional[dict] = None,
-    max_retries: int = 3,
-    retry_interval: int = 60,
 ) -> None:
     """
     Conducts an upgrade of the specified target device to the desired PAN-OS version, with considerations for HA configurations and error resilience through retry mechanisms.
@@ -1005,6 +1003,15 @@ def perform_upgrade(
         >>> perform_upgrade(target_device_instance, 'firewall1', '10.2.0', max_retries=2, retry_interval=30)
         # Initiates the upgrade of 'firewall1' to PAN-OS version 10.2.0, with up to 2 retry attempts in case of errors.
     """
+
+    # Check if settings.yaml exists and use its values for max_retries and retry_interval
+    if settings_file_path.exists():
+        max_retries = settings_file.get("reboot.max_tries", 30)
+        retry_interval = settings_file.get("reboot.retry_interval", 60)
+    else:
+        # Default values if settings.yaml does not exist or does not specify these settings
+        max_retries = 30
+        retry_interval = 60
 
     logging.info(
         f"{get_emoji('start')} {hostname}: Performing upgrade to version {target_version}..."
@@ -3305,14 +3312,14 @@ def settings():
             ),
         },
         "reboot": {
-            "max_tries": typer.prompt(
-                "Maximum reboot tries",
-                default=30,
-                type=int,
-            ),
             "retry_interval": typer.prompt(
                 "Reboot retry interval (seconds)",
                 default=60,
+                type=int,
+            ),
+            "max_tries": typer.prompt(
+                "Maximum reboot tries",
+                default=30,
                 type=int,
             ),
         },
