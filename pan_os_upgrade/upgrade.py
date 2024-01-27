@@ -2753,7 +2753,9 @@ LOGGING_LEVELS = {
 # Common setup for all subcommands
 # ----------------------------------------------------------------------------
 def common_setup(
-    hostname: str, username: str, password: str, log_level: str
+    hostname: str,
+    username: str,
+    password: str,
 ) -> PanDevice:
     """
     Performs initial setup tasks for a device, including directory creation, logging configuration, and device connection.
@@ -2783,7 +2785,7 @@ def common_setup(
     Example
     -------
     Setting up a common environment for a device:
-        >>> device = common_setup('192.168.1.1', 'admin', 'adminpassword', 'INFO')
+        >>> device = common_setup('192.168.1.1', 'admin', 'adminpassword')
         # This will create necessary directories, configure logging, and return a connected device instance.
 
     Notes
@@ -2792,6 +2794,8 @@ def common_setup(
     - Logging configuration is applied globally for the application, influencing all subsequent logging calls.
     - The connection to the device is established using API credentials, and the function assumes network reachability.
     """
+
+    log_level = settings_file.get("logging.level", "INFO")
 
     # Create necessary directories
     directories = [
@@ -2865,14 +2869,6 @@ def firewall(
             prompt="Dry Run?",
         ),
     ] = False,
-    log_level: Annotated[
-        str,
-        typer.Option(
-            "--log-level",
-            "-l",
-            help="Set the logging output level",
-        ),
-    ] = "info",
 ):
     """
     Initiates the upgrade process for a specified firewall appliance.
@@ -2919,7 +2915,11 @@ def firewall(
         console_welcome_banner(mode="firewall")
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(hostname, username, password, log_level)
+    device = common_setup(
+        hostname,
+        username,
+        password,
+    )
 
     # Perform upgrade
     upgrade_firewall(
@@ -2981,14 +2981,6 @@ def panorama(
             prompt="Dry Run?",
         ),
     ] = False,
-    log_level: Annotated[
-        str,
-        typer.Option(
-            "--log-level",
-            "-l",
-            help="Set the logging output level",
-        ),
-    ] = "info",
 ):
     """
     Initiates the upgrade process for a specified Panorama appliance.
@@ -3034,7 +3026,11 @@ def panorama(
         console_welcome_banner(mode="panorama")
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(hostname, username, password, log_level)
+    device = common_setup(
+        hostname,
+        username,
+        password,
+    )
 
     # Perform upgrade
     upgrade_panorama(
@@ -3105,14 +3101,6 @@ def batch(
             prompt="Dry Run?",
         ),
     ] = False,
-    log_level: Annotated[
-        str,
-        typer.Option(
-            "--log-level",
-            "-l",
-            help="Set the logging output level",
-        ),
-    ] = "info",
 ):
     """
     Executes a batch upgrade of firewalls managed by a Panorama appliance based on specified criteria.
@@ -3161,7 +3149,11 @@ def batch(
         console_welcome_banner(mode="batch")
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(hostname, username, password, log_level)
+    device = common_setup(
+        hostname,
+        username,
+        password,
+    )
 
     # Perform batch upgrade
     firewalls_to_upgrade = []
