@@ -2,10 +2,21 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.4.1
+
+**Release Date:** *<20240127>*
+
+### What's New
+
+- Resolved an issue where missing fields in session snapshots for older PAN-OS versions caused errors in Pydantic models
+- Updated the requirements.txt file to reflect the latest compatible versions of dependencies
+- Refined the reboot logic to make it more straightforward, improving code readability and maintainability
+
 ## Version 0.4.0
 
 **Release Date:** *<20240126>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Support for three unique workflows:
