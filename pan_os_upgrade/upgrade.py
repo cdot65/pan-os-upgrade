@@ -55,9 +55,11 @@ import os
 import sys
 import time
 import re
+import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.client import RemoteDisconnected
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
@@ -84,6 +86,7 @@ from panos_upgrade_assurance.firewall_proxy import FirewallProxy
 
 # third party imports
 import dns.resolver
+from dynaconf import Dynaconf
 import typer
 
 # project imports
@@ -94,18 +97,6 @@ from pan_os_upgrade.models import (
     ManagedDevices,
     FromAPIResponseMixin,
 )
-
-
-# ----------------------------------------------------------------------------
-# Define logging levels
-# ----------------------------------------------------------------------------
-LOGGING_LEVELS = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warning": logging.WARNING,
-    "error": logging.ERROR,
-    "critical": logging.CRITICAL,
-}
 
 
 # ----------------------------------------------------------------------------
@@ -253,13 +244,6 @@ class AssuranceOptions:
         "routes",
         "session_stats",
     ]
-
-
-# ----------------------------------------------------------------------------
-# Global list and lock for storing HA active firewalls and Panorama to revisit
-# ----------------------------------------------------------------------------
-target_devices_to_revisit = []
-target_devices_to_revisit_lock = Lock()
 
 
 # ----------------------------------------------------------------------------
@@ -2052,9 +2036,24 @@ def configure_logging(
     - The logging setup is designed to provide a balance between real-time insights and historical log preservation, catering to both immediate debugging needs and retrospective analysis.
     - The rotating log files maintain a manageable log size, preventing excessive disk space consumption while preserving essential log history.
     """
-    logging_level = getattr(logging, level.upper(), None)
+    # Use the provided log_level parameter if given, otherwise fall back to settings file or default
+    log_level = (
+        level.upper() if level else settings_file.get("logging.level", "INFO").upper()
+    )
 
-    # Get the root logger
+    # Use the provided log_file_path parameter if given, otherwise fall back to settings file or default
+    log_file_path = settings_file.get("logging.file_path", "logs/upgrade.log")
+
+    # Convert MB to bytes
+    log_max_size = settings_file.get("logging.max_size", 10) * 1024 * 1024
+
+    # Use the provided log_upgrade_log_count parameter if given, otherwise fall back to settings file or default
+    log_upgrade_log_count = settings_file.get("logging.upgrade_log_count", 3)
+
+    # Set the logging level
+    logging_level = getattr(logging, log_level, logging.INFO)
+
+    # Set up logging
     logger = logging.getLogger()
     logger.setLevel(logging_level)
 
@@ -2062,17 +2061,17 @@ def configure_logging(
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Create handlers (console and file handler)
+    # Create handlers
     console_handler = logging.StreamHandler()
     file_handler = RotatingFileHandler(
-        "logs/upgrade.log",
-        maxBytes=1024 * 1024,
-        backupCount=3,
+        log_file_path,
+        maxBytes=log_max_size,
+        backupCount=log_upgrade_log_count,
         encoding=encoding,
     )
 
     # Create formatters and add them to the handlers
-    if level == "debug":
+    if log_level == "DEBUG":
         console_format = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
@@ -2160,6 +2159,59 @@ def connect_to_host(
         )
 
         sys.exit(1)
+
+
+def console_welcome_banner(
+    mode: str,
+    config_path: Optional[Path] = None,
+) -> None:
+    # Customize messages based on the mode
+    if mode == "settings":
+        welcome_message = "Welcome to the PAN-OS upgrade settings menu"
+        banner_message = (
+            "You will be presented with a series of configuration items, press enter to use the default setting.\n\n"
+            "This will create a `settings.yaml` file in your current working directory."
+        )
+        # No config message for settings mode
+        config_message = ""
+    else:
+        if mode == "firewall":
+            welcome_message = "Welcome to the PAN-OS upgrade tool"
+            banner_message = "You have selected to upgrade a single Firewall appliance."
+        elif mode == "panorama":
+            welcome_message = "Welcome to the PAN-OS upgrade tool"
+            banner_message = "You have selected to upgrade a single Panorama appliance."
+        elif mode == "batch":
+            welcome_message = "Welcome to the PAN-OS upgrade tool"
+            banner_message = "You have selected to perform a batch upgrade of firewalls through Panorama."
+
+        # Configuration file message
+        if config_path:
+            config_message = f"Custom configuration loaded from:\n{config_path}"
+        else:
+            config_message = (
+                "No settings.yaml file was found. Default values for `pan-os-upgrade` will be used.\n"
+                "To customize settings, run 'pan-os-upgrade settings' to create a settings.yaml file."
+            )
+
+    # Calculate border length based on the longer message
+    border_length = max(
+        len(welcome_message),
+        max(len(line) for line in banner_message.split("\n")),
+        max(len(line) for line in config_message.split("\n")) if config_message else 0,
+    )
+    border = "=" * border_length
+
+    # ANSI escape codes for styling
+    color_start = "\033[1;33m"  # Bold Orange
+    color_end = "\033[0m"  # Reset
+
+    # Construct and print the banner
+    banner = f"{color_start}{border}\n{welcome_message}\n\n{banner_message}"
+    if config_message:  # Only add config_message if it's not empty
+        banner += f"\n\n{config_message}"
+    banner += f"\n{border}{color_end}"
+    typer.echo(banner)
 
 
 def ensure_directory_exists(file_path: str) -> None:
@@ -2671,6 +2723,33 @@ app = typer.Typer(help="PAN-OS Upgrade script")
 
 
 # ----------------------------------------------------------------------------
+# Global variables
+# ----------------------------------------------------------------------------
+
+# Define the path to the settings file
+settings_file_path = Path.cwd() / "settings.yaml"
+
+# Initialize Dynaconf settings object conditionally based on the existence of settings.yaml
+if settings_file_path.exists():
+    settings_file = Dynaconf(settings_files=[str(settings_file_path)])
+else:
+    settings_file = Dynaconf()
+
+# Global list and lock for storing HA active firewalls and Panorama to revisit
+target_devices_to_revisit = []
+target_devices_to_revisit_lock = Lock()
+
+# Define logging levels
+LOGGING_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
+
+
+# ----------------------------------------------------------------------------
 # Common setup for all subcommands
 # ----------------------------------------------------------------------------
 def common_setup(
@@ -2833,6 +2912,12 @@ def firewall(
     - The dry run mode is recommended for verifying upgrade requirements and potential issues without impacting the device.
     """
 
+    # Display the custom banner for firewall upgrade
+    if settings_file_path.exists():
+        console_welcome_banner(mode="firewall", config_path=settings_file_path)
+    else:
+        console_welcome_banner(mode="firewall")
+
     # Perform common setup tasks, return a connected device
     device = common_setup(hostname, username, password, log_level)
 
@@ -2941,6 +3026,12 @@ def panorama(
     - Verify network connectivity and credentials before commencing the upgrade.
     - The dry run option is recommended to check for potential issues without impacting the Panorama appliance.
     """
+
+    # Display the custom banner for panorama upgrade
+    if settings_file_path.exists():
+        console_welcome_banner(mode="panorama", config_path=settings_file_path)
+    else:
+        console_welcome_banner(mode="panorama")
 
     # Perform common setup tasks, return a connected device
     device = common_setup(hostname, username, password, log_level)
@@ -3063,6 +3154,12 @@ def batch(
     - The dry run mode is recommended to assess the upgrade's impact and readiness without affecting the operational state.
     """
 
+    # Display the custom banner for batch firewall upgrades
+    if settings_file_path.exists():
+        console_welcome_banner(mode="batch", config_path=settings_file_path)
+    else:
+        console_welcome_banner(mode="batch")
+
     # Perform common setup tasks, return a connected device
     device = common_setup(hostname, username, password, log_level)
 
@@ -3098,7 +3195,9 @@ def batch(
         )
 
         # Using ThreadPoolExecutor to manage threads
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        threads = settings_file.get("concurrency.threads", 10)
+        logging.debug(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
+        with ThreadPoolExecutor(max_workers=threads) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
                 executor.submit(
@@ -3127,7 +3226,9 @@ def batch(
         )
 
         # Using ThreadPoolExecutor to manage threads for revisiting firewalls
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        threads = settings_file.get("concurrency.threads", 10)
+        logging.debug(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
+        with ThreadPoolExecutor(max_workers=threads) as executor:
             future_to_firewall = {
                 executor.submit(
                     upgrade_firewall, target_device, target_version, dry_run
@@ -3151,6 +3252,114 @@ def batch(
         # Clear the list after revisiting
         with target_devices_to_revisit_lock:
             target_devices_to_revisit.clear()
+
+
+# ----------------------------------------------------------------------------
+# Subcommand for creating a settings.yaml file to override default settings
+# ----------------------------------------------------------------------------
+@app.command()
+def settings():
+    # Display the custom banner for settings
+    console_welcome_banner(mode="settings")
+
+    config_file_path = Path.cwd() / "settings.yaml"
+
+    config_data = {
+        "concurrency": {
+            "threads": typer.prompt(
+                "Number of concurrent threads",
+                default=10,
+                type=int,
+            ),
+        },
+        "logging": {
+            "level": typer.prompt("Logging level", default="INFO"),
+            "file_path": typer.prompt("Path for log files", default="logs/upgrade.log"),
+            "max_size": typer.prompt(
+                "Maximum log file size (MB)",
+                default=10,
+                type=int,
+            ),
+            "upgrade_log_count": typer.prompt(
+                "Number of upgrade logs to retain",
+                default=10,
+                type=int,
+            ),
+        },
+        "reboot": {
+            "max_tries": typer.prompt(
+                "Maximum reboot tries",
+                default=30,
+                type=int,
+            ),
+            "retry_interval": typer.prompt(
+                "Reboot retry interval (seconds)",
+                default=60,
+                type=int,
+            ),
+        },
+        "readiness_checks": {
+            "enable": typer.confirm(
+                "Would you like to customize readiness checks?",
+                default=False,
+            ),
+            "checks": {},
+            "location": typer.prompt(
+                "Location to save readiness checks",
+                default="assurance/readiness_checks/",
+            ),
+        },
+        "snapshots": {
+            "enable": typer.confirm(
+                "Would you like to customize snapshots?", default=False
+            ),
+            "location": typer.prompt(
+                "Location to save snapshots",
+                default="assurance/snapshots/",
+            ),
+        },
+        "timeout_settings": {
+            "connection_timeout": typer.prompt(
+                "Connection timeout (seconds)",
+                default=30,
+                type=int,
+            ),
+            "command_timeout": typer.prompt(
+                "Command timeout (seconds)",
+                default=120,
+                type=int,
+            ),
+        },
+        "ha_settings": {
+            "sync_check_delay": typer.prompt(
+                "Delay between HA sync checks (seconds)",
+                default=10,
+                type=int,
+            ),
+        },
+    }
+
+    if config_data["readiness_checks"]["enable"]:
+        for check, info in AssuranceOptions.READINESS_CHECKS.items():
+            config_data["readiness_checks"]["checks"][check] = typer.confirm(
+                f"Enable {info['description']}?", default=True
+            )
+
+    if config_data["snapshots"]["enable"]:
+        for snapshot in AssuranceOptions.STATE_SNAPSHOTS:
+            config_data["snapshots"][snapshot] = typer.confirm(
+                f"Enable {snapshot} snapshot?", default=True
+            )
+
+    with open(config_file_path, "w") as f:
+        yaml.dump(
+            config_data,
+            f,
+            default_flow_style=False,
+            sort_keys=True,
+        )
+
+    typer.echo(f"Configuration saved to {config_file_path}")
 
 
 if __name__ == "__main__":
