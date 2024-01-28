@@ -77,13 +77,21 @@ Visit the [User Guide](user-guide/introduction.md) for detailed insights into se
 <div class="termy">
 
 ```console
-$ pan-os-upgrade batch
+pan-os-upgrade batch
 Panorama hostname or IP: panorama.cdot.io
 Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
 Dry Run? [y/N]:
+===========================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to perform a batch upgrade of firewalls through Panorama.
+
+No settings.yaml file was found. Default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+===========================================================================
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
 📝 Woodlands-fw2: 007954000123452 192.168.255.44
 📝 Woodlands-fw1: 007954000123451 192.168.255.43
