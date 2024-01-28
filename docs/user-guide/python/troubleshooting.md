@@ -38,7 +38,7 @@ Encountering issues while using the `pan-os-upgrade` tool is not uncommon, espec
 
 **Problem:** The script fails during readiness checks.
 
-**Solution:** Investigate individual readiness check failures. Common issues include unsynchronized system clocks, pending configuration changes, or insufficient disk space.
+**Solution:** Investigate individual readiness check failures. Common issues include unsynchronized system clocks, pending configuration changes, or insufficient disk space. Also consider using `pan-os-upgrade settings` to create a custom `settings.yaml` file that will allow you to bypass the readiness checks that you're comfortable with skipping.
 
 ### 7. HA Synchronization Issues
 
@@ -51,6 +51,23 @@ Encountering issues while using the `pan-os-upgrade` tool is not uncommon, espec
 **Problem:** The script fails to back up the firewall's configuration.
 
 **Solution:** Verify that there is enough disk space for the backup. Check permissions and paths specified for saving the backup files.
+
+### 9. WSL2 Locale Errors
+
+**Problem:** The script fails performing snapshots with the error of: `Error: unsupported locale setting`.
+
+**Solution:**
+
+1: Open your WSL2 terminal.
+2: Run the command `sudo dpkg-reconfigure locales`.
+3: In the configuration menu, scroll through the list of locales until you find `en_US.UTF-8`.
+4: Use the space bar to select `en_US.UTF-8`.
+5: Press Tab to select "Ok" and press Enter.
+6: When prompted to choose the default locale, select `en_US.UTF-8` again and confirm.
+
+After generating the locale, you can verify it's available by running `locale -a` in the terminal. You should see `en_US.UTF-8` in the list.
+
+If you cannot request `sudo` permissions within WSL2, either use the `pan-os-upgrade` script from the Windows CMD terminal, or use the Docker container.
 
 ## General Tips
 
