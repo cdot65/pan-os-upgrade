@@ -2269,8 +2269,8 @@ def console_welcome_banner(
     if mode == "settings":
         welcome_message = "Welcome to the PAN-OS upgrade settings menu"
         banner_message = (
-            "You will be presented with a series of configuration items, press enter to use the default setting.\n\n"
-            "This will create a `settings.yaml` file in your current working directory."
+            "You'll be presented with configuration items, press enter for default settings."
+            "\n\nThis will create a `settings.yaml` file in your current working directory."
         )
         # No config message for settings mode
         config_message = ""
@@ -2290,8 +2290,8 @@ def console_welcome_banner(
             config_message = f"Custom configuration loaded from:\n{config_path}"
         else:
             config_message = (
-                "No settings.yaml file was found. Default values for `pan-os-upgrade` will be used.\n"
-                "To customize settings, run 'pan-os-upgrade settings' to create a settings.yaml file."
+                "No settings.yaml file was found. Default values will be used.\n"
+                "Create a settings.yaml file with 'pan-os-upgrade settings' command."
             )
 
     # Calculate border length based on the longer message
