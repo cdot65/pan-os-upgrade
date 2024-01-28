@@ -2,10 +2,21 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 0.4.2
+
+**Release Date:** *<20240127>*
+
+### What's New
+
+- Created mechanism to override the default settings of `pan-os-upgrade`
+- Added support for new CLI argument, `pan-os-upgrade settings`
+- Created a banner message to help with usability
+
 ## Version 0.4.1
 
 **Release Date:** *<20240127>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Resolved an issue where missing fields in session snapshots for older PAN-OS versions caused errors in Pydantic models
