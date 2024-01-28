@@ -106,14 +106,14 @@ The following are the main commands (CLI arguments) for the `pan-os-upgrade` app
 
 Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
 
-| CLI Option   | Shorthand | Type    | Description                                                                             |
-| ------------ | --------- | ------- | --------------------------------------------------------------------------------------- |
-| `--dry-run`  | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing. |
-| `--filter`   | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama.   |
-| `--hostname` | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                |
-| `--password` | `-p`      | String  | The authentication password required for accessing the target device.                   |
-| `--username` | `-u`      | String  | The username for authentication with the target PAN-OS device.                          |
-| `--version`  | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                          |
+| CLI Option   | Shorthand | Description                                                                             |
+| ------------ | --------- | --------------------------------------------------------------------------------------- |
+| `--dry-run`  | `-d`      | Executes all preparatory steps without applying the actual upgrade, useful for testing. |
+| `--filter`   | `-f`      | Specifies criteria for selecting devices when performing batch upgrades via Panorama.   |
+| `--hostname` | `-h`      | The IP address or DNS name of the target firewall or Panorama appliance.                |
+| `--password` | `-p`      | The authentication password required for accessing the target device.                   |
+| `--username` | `-u`      | The username for authentication with the target PAN-OS device.                          |
+| `--version`  | `-v`      | Specifies the target PAN-OS version for the upgrade operation.                          |
 
 Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
 
