@@ -11,12 +11,20 @@ You can start the script interactively by simply issuing `pan-os-upgrade` from y
 <div class="termy">
 
 ```console
-$ pan-os-upgrade firewall
+pan-os-upgrade firewall
 Firewall hostname or IP: houston.cdot.io
 Firewall username: cdot
 Firewall password:
 Target version: 10.2.4-h4
 Dry Run? [y/N]: N
+===================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to upgrade a single Firewall appliance.
+
+No settings.yaml file was found. Default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+===================================================================
 📝 houston: 007054000242050 192.168.255.211
 📝 houston: HA mode: disabled
 📝 houston: Current version: 10.2.4-h3
@@ -61,7 +69,7 @@ Alternatively, you can pass these details as command-line arguments. This method
 #### Direct Firewall Targeting
 
 ```bash
-$ pan-os-upgrade firewall --hostname 192.168.255.1 --username admin --password secret --version 10.1.0
+pan-os-upgrade firewall --hostname 192.168.255.1 --username admin --password secret --version 10.1.0
 INFO - ✅ Connection to firewall established
 ... shortened output for brevity ...
 ```
@@ -71,21 +79,66 @@ INFO - ✅ Connection to firewall established
 When using Panorama as a proxy, the `--filter` argument is necessary to specify the criteria for selecting the managed firewalls to upgrade.
 
 ```bash
-$ pan-os-upgrade panorama --hostname panorama.cdot.io --filter 'hostname=houston' --username admin --password secret --version 10.1.0
+pan-os-upgrade panorama --hostname panorama.cdot.io --filter 'hostname=houston' --username admin --password secret --version 10.1.0
 ✅ Connection to Panorama established. Firewall connections will be proxied!
 ... shortened output for brevity ...
 ```
 
+### CLI Arguments vs. CLI Options
+
+In the context of the `pan-os-upgrade` application, it's important to distinguish between CLI arguments and CLI options:
+
+- **CLI Arguments** are the primary commands that determine the operation mode of the application. They are not prefixed by `--` or `-` and are essential for defining the core action the script should perform.
+- **CLI Options**, on the other hand, are additional modifiers or settings that further customize the behavior of the CLI arguments. They typically come with a `--` prefix (or `-` for shorthand) and are optional.
+
+#### CLI Arguments
+
+The following are the main commands (CLI arguments) for the `pan-os-upgrade` application, each tailored for specific upgrade scenarios:
+
+| CLI Argument | Description                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| `firewall`   | Targets an individual firewall for upgrade.                                                               |
+| `panorama`   | Targets an individual Panorama appliance for upgrade.                                                     |
+| `batch`      | Utilizes a Panorama appliance to orchestrate bulk upgrades of managed firewalls.                          |
+| `settings`   | Creates a `settings.yaml` that will allow users to customize the script's default settings and behaviors. |
+
+#### CLI Options
+
+Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
+
+| CLI Option   | Shorthand | Type    | Description                                                                             |
+| ------------ | --------- | ------- | --------------------------------------------------------------------------------------- |
+| `--dry-run`  | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing. |
+| `--filter`   | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama.   |
+| `--hostname` | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                |
+| `--password` | `-p`      | String  | The authentication password required for accessing the target device.                   |
+| `--username` | `-u`      | String  | The username for authentication with the target PAN-OS device.                          |
+| `--version`  | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                          |
+
+Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
+
+#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
+
+You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
+
 <div class="termy">
 
 ```console
-$ pan-os-upgrade batch
+pan-os-upgrade batch
 Panorama hostname or IP: panorama.cdot.io
 Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
 Dry Run? [y/N]:
+===========================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to perform a batch upgrade of firewalls through Panorama.
+
+No settings.yaml file was found. Default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+===========================================================================
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
 📝 Woodlands-fw2: 007954000123452 192.168.255.44
 📝 Woodlands-fw1: 007954000123451 192.168.255.43
@@ -179,89 +232,6 @@ Device 007954000123451 installing version: 10.2.3
 
 </div>
 
-### CLI Arguments vs. CLI Options
-
-In the context of the `pan-os-upgrade` application, it's important to distinguish between CLI arguments and CLI options:
-
-- **CLI Arguments** are the primary commands that determine the operation mode of the application. They are not prefixed by `--` or `-` and are essential for defining the core action the script should perform.
-- **CLI Options**, on the other hand, are additional modifiers or settings that further customize the behavior of the CLI arguments. They typically come with a `--` prefix (or `-` for shorthand) and are optional.
-
-#### CLI Arguments
-
-The following are the main commands (CLI arguments) for the `pan-os-upgrade` application, each tailored for specific upgrade scenarios:
-
-| CLI Argument | Description                                                                                                                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `firewall`   | Targets an individual firewall for upgrade. This command requires subsequent CLI options to specify the firewall details and desired actions.                                                       |
-| `panorama`   | Targets an individual Panorama appliance for upgrade, necessitating further CLI options for execution details.                                                                                      |
-| `batch`      | Utilizes a Panorama appliance to orchestrate bulk upgrades of managed firewalls, supporting up to ten concurrent operations. Requires additional CLI options for filtering and execution specifics. |
-
-#### CLI Options
-
-Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
-
-| CLI Option    | Shorthand | Type    | Description                                                                                                                               |
-| ------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dry-run`   | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing and verification purposes.                         |
-| `--filter`    | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama, such as device hostname patterns or serial numbers. |
-| `--hostname`  | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                                                                  |
-| `--log-level` | `-l`      | String  | Determines the verbosity of log output, with levels including debug, info, and warning among others.                                      |
-| `--password`  | `-p`      | String  | The authentication password required for accessing the target device.                                                                     |
-| `--username`  | `-u`      | String  | The username for authentication with the target PAN-OS device.                                                                            |
-| `--version`   | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                                                                            |
-
-Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
-
-#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
-
-You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
-
-<div class="termy">
-
-```console
-$ pan-os-upgrade firewall
-Firewall hostname or IP: houston.cdot.io
-Firewall username: cdot
-Firewall password:
-Target version: 10.2.4-h4
-Dry Run? [y/N]: N
-📝 houston: 007054000242050 192.168.255.211
-📝 houston: HA mode: disabled
-📝 houston: Current version: 10.2.4-h3
-📝 houston: Target version: 10.2.4-h4
-✅ houston: Upgrade required from 10.2.4-h3 to 10.2.4-h4
-✅ houston: version 10.2.4-h4 is available for download
-✅ houston: Base image for 10.2.4-h4 is already downloaded
-🚀 houston: Performing test to see if 10.2.4-h4 is already downloaded...
-✅ houston: version 10.2.4-h4 already on target device.
-✅ houston: version 10.2.4-h4 has been downloaded.
-🚀 houston: Performing snapshot of network state information...
-✅ houston: Network snapshot created successfully
-🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
-✅ houston: Passed Readiness Check: Check if there are pending changes on device
-✅ houston: Passed Readiness Check: No Expired Licenses
-✅ houston: Passed Readiness Check: Check if NTP is synchronized
-✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ houston: Readiness Checks completed
-🚀 houston: Performing backup of configuration to local filesystem...
-🚀 houston: Not a dry run, continue with upgrade...
-🚀 houston: Performing upgrade to version 10.2.4-h4...
-🚀 houston: Attempting upgrade to version 10.2.4-h4 (Attempt 1 of 3)...
-Device 007054000242050 installing version: 10.2.4-h4
-✅ houston: Upgrade completed successfully
-🚀 houston: Rebooting the standalone target device...
-📝 houston: Command succeeded with no output
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-📝 houston: Target device version: 10.2.4-h4
-✅ houston: Target device rebooted in 448 seconds
-```
-
-</div>
-
 ##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
 
 Alternatively, you can pass these details as command-line arguments when running the script.
@@ -284,6 +254,103 @@ If you're targeting a Panorama appliance to act as a proxy for communications to
 pan-os-upgrade batch --hostname panorama.cdot.io --username admin --password secret --version 10.1.0 --filter "hostname=Woodlands*"
 ```
 
+## Advanced Settings
+
+If you would like to change the default settings of `pan-os-upgrade` tool, you can run the `settings` CLI argument. This will walk you through a series of options to change.
+
+<div class="termy">
+
+```console
+pan-os-upgrade settings
+===============================================================================
+Welcome to the PAN-OS upgrade settings menu
+
+You'll be presented with configuration items, press enter for default settings.
+
+This will create a `settings.yaml` file in your current working directory.
+===============================================================================
+Number of concurrent threads [10]: 35
+Logging level [INFO]: debug
+Path for log files [logs/upgrade.log]:
+Maximum log file size (MB) [10]:
+Number of upgrade logs to retain [10]:
+Reboot retry interval (seconds) [60]:
+Maximum reboot tries [30]: 45
+Would you like to customize readiness checks? [y/N]:
+Location to save readiness checks [assurance/readiness_checks/]:
+Would you like to customize snapshots? [y/N]:
+Location to save snapshots [assurance/snapshots/]:
+Connection timeout (seconds) [30]:
+Command timeout (seconds) [120]:
+Configuration saved to /app/settings.yaml
+```
+
+</div>
+
+Once you have a `settings.yaml` file in your current working directory, take a moment to review its contents to make sure all of the settings match your expectations.
+
+Example `settings.yaml` file
+
+```yaml
+concurrency:
+  threads: 34
+logging:
+  file_path: logs/upgrade.log
+  level: INFO
+  max_size: 10
+  upgrade_log_count: 10
+readiness_checks:
+  checks: {}
+  customize: false
+  location: assurance/readiness_checks/
+reboot:
+  max_tries: 4
+  retry_interval: 10
+snapshots:
+  customize: true
+  location: assurance/snapshots/
+  state:
+    arp_table: true
+    content_version: true
+    ip_sec_tunnels: false
+    license: false
+    nics: true
+    routes: true
+    session_stats: false
+timeout_settings:
+  command_timeout: 120
+  connection_timeout: 30
+```
+
+You will be able to confirm that the file was discovered by the message within the banner `Custom configuration loaded from: /path/to/your/settings.yaml`. If you do *not* see this message in the banner, then you can assume that your `settings.yaml` file was not properly discovered by the script.
+
+<div class="termy">
+
+```console
+pan-os-upgrade firewall -v 10.2.5 -u cdot -h houston.cdot.io
+Firewall password:
+Dry Run? [y/N]:
+=========================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to upgrade a single Firewall appliance.
+
+Custom configuration loaded from:
+/Users/cdot/development/pan-os-upgrade/settings.yaml
+=========================================================
+📝 houston: 007054000242050 192.168.255.211
+📝 houston: HA mode: disabled
+📝 houston: Current version: 10.2.4-h4
+📝 houston: Target version: 10.2.5
+✅ houston: Upgrade required from 10.2.4-h4 to 10.2.5
+... shortened for brevity ...
+🟧 houston: Retry attempt 4 due to error: URLError: reason: [Errno 111] Connection refused
+📝 houston: Current device version: 10.2.5
+✅ houston: Device rebooted to the target version successfully.
+```
+
+</div>
+
 ## Output and Assurance Functions
 
 This output will include detailed logs of the process, such as establishing a connection, checking versions, performing upgrades, and rebooting the firewall or firewalls, especially when using Panorama as a proxy.
@@ -298,7 +365,7 @@ The script performs various assurance functions like readiness checks, snapshots
 
 ### Log Files and Levels
 
-Log entries are recorded in the `logs/` directory. The verbosity of logs can be controlled with the `--log-level` argument, with available options being `debug`, `info`, `warning`, `error`, and `critical`.
+Log entries are recorded in the `logs/` directory. The verbosity of logs can be controlled by creating a `settings.yaml` file with `pan-os-upgrade settings` CLI command. Available options being `debug`, `info`, `warning`, `error`, and `critical`.
 
 ## Next Steps
 

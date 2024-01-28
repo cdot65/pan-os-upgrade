@@ -1,44 +1,179 @@
 # Docker Execution for pan-os-upgrade
 
-The `pan-os-upgrade` tool can be conveniently run using Docker, offering a consistent and streamlined setup process across different systems. This guide will walk you through configuring and executing the tool within a Docker container, including steps for connecting to firewalls through Panorama as a proxy.
+Run `pan-os-upgrade` in Docker for a consistent setup across systems. This guide details the steps for Docker configuration and execution, including Panorama proxy connections.
 
 ## Pulling the Docker Image
 
-If you haven't already done so, start off by pulling the `pan-os-upgrade` Docker image from GitHub Packages:
+Pull the `pan-os-upgrade` image from GitHub Packages:
 
-```bash
+<div class="termy">
+
+```console
 docker pull ghcr.io/cdot65/pan-os-upgrade:latest
 ```
 
-## Setting Up the Docker Environment
+</div>
+
+## Docker Setup
 
 Before executing the tool, ensure your Docker environment is correctly set up.
 
-### Directory Setup
+### Prepare Directories
 
 Create `assurance` and `logs` directories in your working directory to store outputs and logs:
 
-```bash
+<div class="termy">
+
+```console
 mkdir assurance logs
 ```
 
-### Running the Docker Container
+</div>
 
-Run `pan-os-upgrade` in Docker using the following commands:
+If you plan on customizing the settings of the script, create an empty `settings.yaml` in your working directory. This file will be filled out correctly when you run the `settings` argument when running the container image (see the `Advanced Setttings` section):
 
-#### On macOS and Linux
+<div class="termy">
 
-```bash
+```console
+touch settings.yaml
+```
+
+</div>
+
+### Run Docker Container
+
+Before we get the execution, let's take a moment to review the flags that we need to pass at runtime.
+
+#### Docker CLI flags
+
+| flag   | description                                                             | required? |
+| ------ | ----------------------------------------------------------------------- | --------- |
+| -v     | mount files / folders from your local computer into the container       | yes       |
+| -it    | let Docker know that you need an interactive session with the container | yes       |
+| --rm   | remove the container after it completes its execution, good for hygiene | no        |
+| --name | assign a name to the container instance                                 | no        |
+
+##### Volume Mounts
+
+We will need to create at least two volume mounts with Docker, this workflow allows us to have our local files available within the Docker container. When a Docker container completes its execution, the default behavior is to stop the container and this will prevent us from viewing the logs, snapshots, configuration backups, and readiness checks.
+
+##### Interactive Teletype
+
+Since we are using a CLI tool that requires interaction from us during its execution, we also need to flag the container to work in an interactive teletype session.
+
+##### Optional Flags
+
+If you'd like, you can assign a name to your container. This can help you create a friendly name for the container instance that will help you revisit it, should that prove necessary.
+
+If you decide to assign your container a name that be common across multiple executions, you will want to also pass the `--rm` flag to remove the container after its execution completes. This is a good practice to reduce the amount of duplicate containers, but will prevent you from revisiting a specific container instance later on; this shouldn't be an issue since all logs, snapshots, checks, and backups are available in your host's current directory, thanks to the volume mounts.
+
+#### Example Execution on macOS and Linux
+
+In this example we will upgrade a firewall directly by using the `firewall` argument when executing the container. The `$(pwd)` on macOS and Linux is a shortcut for `full path to your current working directory`; feel free to simply run `pwd` from your terminal to get an understanding of the response.
+
+<div class="termy">
+
+```console
+docker run \
+-v $(pwd)/assurance:/app/assurance \
+-v $(pwd)/logs:/app/logs \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest firewall
+Firewall password:
+===================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to upgrade a single Firewall appliance.
+
+No settings.yaml file was found. Default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+===================================================================
+📝 houston: 007054000242050 192.168.255.211
+📝 houston: HA mode: disabled
+📝 houston: Current version: 10.2.5
+📝 houston: Target version: 10.2.6
+✅ houston: Upgrade required from 10.2.5 to 10.2.6
+✅ houston: version 10.2.6 is available for download
+✅ houston: Base image for 10.2.6 is already downloaded
+🚀 houston: Performing test to see if 10.2.6 is already downloaded...
+🔍 houston: version 10.2.6 is not on the target device
+🚀 houston: version 10.2.6 is beginning download
+Device 007054000242050 downloading version: 10.2.6
+🔧 houston: Downloading version 10.2.6 - Elapsed time: 5 seconds
+🔧 houston: Downloading version 10.2.6 - Elapsed time: 41 seconds
+🔧 houston: Downloading version 10.2.6 - Elapsed time: 76 seconds
+✅ houston: 10.2.6 downloaded in 109 seconds
+✅ houston: version 10.2.6 has been downloaded.
+🚀 houston: Performing snapshot of network state information...
+✅ houston: Network snapshot created successfully
+🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
+✅ houston: Passed Readiness Check: Check if there are pending changes on device
+✅ houston: Passed Readiness Check: No Expired Licenses
+✅ houston: Passed Readiness Check: Check if NTP is synchronized
+✅ houston: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
+✅ houston: Readiness Checks completed
+🚀 houston: Performing backup of configuration to local filesystem...
+✅ houston: Dry run complete, exiting...
+🛑 houston: Halting script.
+```
+
+</div>
+
+In the example I am using the `\` at execution to allow me to split the flags on separate lines, this is completely optional but I have found that it helps me review all flags without going cross-eyed. You can absolutely execute all commands on a single line
+
+<div class="termy">
+
+```console
 docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it ghcr.io/cdot65/pan-os-upgrade:latest firewall
 ```
 
-This mounts your host's `assurance` and `logs` directories to the container.
+</div>
 
-#### On Windows
+#### Example Execution on Windows
 
-```bash
+The volume mount flags need to point to a different shortcut to reference your current working directory on Windows:
+
+<div class="termy">
+
+```console
 docker run -v %CD%/assurance:/app/assurance -v %CD%/logs:/app/logs -it ghcr.io/cdot65/pan-os-upgrade:latest panorama
 ```
+
+</div>
+
+### CLI Arguments vs. CLI Options
+
+In the context of the `pan-os-upgrade` application, it's important to distinguish between CLI arguments and CLI options:
+
+- **CLI Arguments** are the primary commands that determine the operation mode of the application. They are not prefixed by `--` or `-` and are essential for defining the core action the script should perform.
+- **CLI Options**, on the other hand, are additional modifiers or settings that further customize the behavior of the CLI arguments. They typically come with a `--` prefix (or `-` for shorthand) and are optional.
+
+#### CLI Arguments
+
+The following are the main commands (CLI arguments) for the `pan-os-upgrade` application, each tailored for specific upgrade scenarios:
+
+| CLI Argument | Description                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| `firewall`   | Targets an individual firewall for upgrade.                                                               |
+| `panorama`   | Targets an individual Panorama appliance for upgrade.                                                     |
+| `batch`      | Utilizes a Panorama appliance to orchestrate bulk upgrades of managed firewalls.                          |
+| `settings`   | Creates a `settings.yaml` that will allow users to customize the script's default settings and behaviors. |
+
+#### CLI Options
+
+Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
+
+| CLI Option   | Shorthand | Type    | Description                                                                             |
+| ------------ | --------- | ------- | --------------------------------------------------------------------------------------- |
+| `--dry-run`  | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing. |
+| `--filter`   | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama.   |
+| `--hostname` | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                |
+| `--password` | `-p`      | String  | The authentication password required for accessing the target device.                   |
+| `--username` | `-u`      | String  | The username for authentication with the target PAN-OS device.                          |
+| `--version`  | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                          |
+
+Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
 
 ## Interacting with the Docker Container
 
@@ -47,13 +182,26 @@ The container runs interactively, prompting you for details like IP address, use
 <div class="termy">
 
 ```console
-$ docker run -v $(pwd)/assurance:/app/assurance -v $(pwd)/logs:/app/logs -it ghcr.io/cdot65/pan-os-upgrade:latest batch
+$ docker run \
+-v $(pwd)/assurance:/app/assurance \
+-v $(pwd)/logs:/app/logs \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest batch
+
 Panorama hostname or IP: panorama.cdot.io
 Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
 Dry Run? [y/N]:
+===========================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to perform a batch upgrade of firewalls through Panorama.
+
+No settings.yaml file was found. Default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+===========================================================================
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
 📝 Woodlands-fw2: 007954000123452 192.168.255.44
 📝 Woodlands-fw1: 007954000123451 192.168.255.43
@@ -147,110 +295,122 @@ Device 007954000123451 installing version: 10.2.3
 
 </div>
 
-### CLI Arguments vs. CLI Options
+## Advanced Settings
 
-In the context of the `pan-os-upgrade` application, it's important to distinguish between CLI arguments and CLI options:
+If you would like to change the default settings of `pan-os-upgrade` tool, you can create a `settings.yaml` file and run the `settings` CLI argument. This will walk you through a series of options to change.
 
-- **CLI Arguments** are the primary commands that determine the operation mode of the application. They are not prefixed by `--` or `-` and are essential for defining the core action the script should perform.
-- **CLI Options**, on the other hand, are additional modifiers or settings that further customize the behavior of the CLI arguments. They typically come with a `--` prefix (or `-` for shorthand) and are optional.
-
-#### CLI Arguments
-
-The following are the main commands (CLI arguments) for the `pan-os-upgrade` application, each tailored for specific upgrade scenarios:
-
-| CLI Argument | Description                                                                                                                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `firewall`   | Targets an individual firewall for upgrade. This command requires subsequent CLI options to specify the firewall details and desired actions.                                                       |
-| `panorama`   | Targets an individual Panorama appliance for upgrade, necessitating further CLI options for execution details.                                                                                      |
-| `batch`      | Utilizes a Panorama appliance to orchestrate bulk upgrades of managed firewalls, supporting up to ten concurrent operations. Requires additional CLI options for filtering and execution specifics. |
-
-#### CLI Options
-
-Below are the CLI options that can be used in conjunction with the above CLI arguments to customize the upgrade process:
-
-| CLI Option    | Shorthand | Type    | Description                                                                                                                               |
-| ------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dry-run`   | `-d`      | Boolean | Executes all preparatory steps without applying the actual upgrade, useful for testing and verification purposes.                         |
-| `--filter`    | `-f`      | String  | Specifies criteria for selecting devices when performing batch upgrades via Panorama, such as device hostname patterns or serial numbers. |
-| `--hostname`  | `-h`      | String  | The IP address or DNS name of the target firewall or Panorama appliance.                                                                  |
-| `--log-level` | `-l`      | String  | Determines the verbosity of log output, with levels including debug, info, and warning among others.                                      |
-| `--password`  | `-p`      | String  | The authentication password required for accessing the target device.                                                                     |
-| `--username`  | `-u`      | String  | The username for authentication with the target PAN-OS device.                                                                            |
-| `--version`   | `-v`      | String  | Specifies the target PAN-OS version for the upgrade operation.                                                                            |
-
-Each CLI option has a specific role in tailoring the upgrade process, from defining the target device and authentication credentials to setting operational parameters like the target PAN-OS version and logging verbosity.
-
-#### Option 1: Execute `pan-os-upgrade` without Command-Line Arguments
-
-You can simply get started by issuing `pan-os-upgrade` from your current working directory, you will be guided to input the missing requirement arguments through an interactive shell.
+Create the empty `settings.yaml` file within your current working directory
 
 <div class="termy">
 
 ```console
-$ pan-os-upgrade firewall
-Firewall hostname or IP: houston.cdot.io
-Firewall username: cdot
-Firewall password:
-Target version: 10.2.4-h4
-Dry Run? [y/N]: N
-📝 houston: 007054000242050 192.168.255.211
-📝 houston: HA mode: disabled
-📝 houston: Current version: 10.2.4-h3
-📝 houston: Target version: 10.2.4-h4
-✅ houston: Upgrade required from 10.2.4-h3 to 10.2.4-h4
-✅ houston: version 10.2.4-h4 is available for download
-✅ houston: Base image for 10.2.4-h4 is already downloaded
-🚀 houston: Performing test to see if 10.2.4-h4 is already downloaded...
-✅ houston: version 10.2.4-h4 already on target device.
-✅ houston: version 10.2.4-h4 has been downloaded.
-🚀 houston: Performing snapshot of network state information...
-✅ houston: Network snapshot created successfully
-🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
-✅ houston: Passed Readiness Check: Check if there are pending changes on device
-✅ houston: Passed Readiness Check: No Expired Licenses
-✅ houston: Passed Readiness Check: Check if NTP is synchronized
-✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ houston: Readiness Checks completed
-🚀 houston: Performing backup of configuration to local filesystem...
-🚀 houston: Not a dry run, continue with upgrade...
-🚀 houston: Performing upgrade to version 10.2.4-h4...
-🚀 houston: Attempting upgrade to version 10.2.4-h4 (Attempt 1 of 3)...
-Device 007054000242050 installing version: 10.2.4-h4
-✅ houston: Upgrade completed successfully
-🚀 houston: Rebooting the standalone target device...
-📝 houston: Command succeeded with no output
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-🔧 houston: Target device is rebooting...
-📝 houston: Target device version: 10.2.4-h4
-✅ houston: Target device rebooted in 448 seconds
+touch settings.yaml
 ```
 
 </div>
 
-##### Option 2: Execute `pan-os-upgrade` Using Command-Line Arguments
+> Note: Make sure that you created an empty `settings.yaml` file *before* you run the `settings` CLI argument, or else Docker will create `settings.yaml` as a folder instead of a file.
 
-Alternatively, you can pass these details as command-line arguments when running the script.
+<div class="termy">
 
-> Note: You *can* pass your password as a CLI option with either `--password` or `-p`, but make sure you understand the risk of having your password in your terminal's history.
+```console
+❯ docker run \
+-v $(pwd)/settings.yaml:/app/settings.yaml \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest settings
+===============================================================================
+Welcome to the PAN-OS upgrade settings menu
 
-```bash
-pan-os-upgrade firewall --hostname 192.168.1.1 --username admin --password secret --version 10.1.0
+You'll be presented with configuration items, press enter for default settings.
+
+This will create a `settings.yaml` file in your current working directory.
+===============================================================================
+Number of concurrent threads [10]: 35
+Logging level [INFO]: debug
+Path for log files [logs/upgrade.log]:
+Maximum log file size (MB) [10]:
+Number of upgrade logs to retain [10]:
+Reboot retry interval (seconds) [60]:
+Maximum reboot tries [30]: 45
+Would you like to customize readiness checks? [y/N]:
+Location to save readiness checks [assurance/readiness_checks/]:
+Would you like to customize snapshots? [y/N]:
+Location to save snapshots [assurance/snapshots/]:
+Connection timeout (seconds) [30]:
+Command timeout (seconds) [120]:
+Configuration saved to /app/settings.yaml
 ```
 
-For a dry run:
+</div>
 
-```bash
-pan-os-upgrade firewall --hostname 192.168.1.1 --username admin --password secret --version 10.1.0 --dry-run
+Once you have a `settings.yaml` file in your current working directory, and you have reviewed its contents to make sure all of the settings match your expectations, then we must add it to the list of volume mounts in order to make the file accessible by the script within the container.
+
+Example `settings.yaml` file
+
+```yaml
+concurrency:
+  threads: 34
+logging:
+  file_path: logs/upgrade.log
+  level: INFO
+  max_size: 10
+  upgrade_log_count: 10
+readiness_checks:
+  checks: {}
+  customize: false
+  location: assurance/readiness_checks/
+reboot:
+  max_tries: 4
+  retry_interval: 10
+snapshots:
+  customize: true
+  location: assurance/snapshots/
+  state:
+    arp_table: true
+    content_version: true
+    ip_sec_tunnels: false
+    license: false
+    nics: true
+    routes: true
+    session_stats: false
+timeout_settings:
+  command_timeout: 120
+  connection_timeout: 30
 ```
 
-If you're targeting a Panorama appliance to act as a proxy for communications to the firewall, make sure you include a filter pattern:
+You will be able to confirm that the file was discovered by the message within the banner `Custom configuration loaded from: /app/settings.yaml`. If you do *not* see this message in the banner, then you can assume that your `settings.yaml` file was not properly mounted to the container.
 
-```bash
-pan-os-upgrade batch --hostname panorama.cdot.io --username admin --password secret --version 10.1.0 --filter "hostname=Woodlands*"
+<div class="termy">
+
+```console
+$ docker run \
+-v $(pwd)/assurance:/app/assurance \
+-v $(pwd)/logs:/app/logs \
+-v $(pwd)/settings.yaml:/app/settings.yaml \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest firewall -v 10.2.5 -u cdot -h houston.cdot.io
+Firewall password:
+Dry Run? [y/N]:
+=========================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to upgrade a single Firewall appliance.
+
+Custom configuration loaded from:
+/app/settings.yaml
+=========================================================
+📝 houston: 007054000242050 192.168.255.211
+📝 houston: HA mode: disabled
+📝 houston: Current version: 10.2.4-h4
+📝 houston: Target version: 10.2.5
+✅ houston: Upgrade required from 10.2.4-h4 to 10.2.5
+... shortened for brevity ...
+🟧 houston: Retry attempt 4 due to error: URLError: reason: [Errno 111] Connection refused
+📝 houston: Current device version: 10.2.5
+✅ houston: Device rebooted to the target version successfully.
 ```
+
+</div>
 
 ## Troubleshooting Panorama Proxy Connections
 
