@@ -1434,6 +1434,15 @@ def software_update_check(
             )
             return False
     else:
+        # Version not found, let's find close matches
+        close_matches = find_close_matches(list(available_versions.keys()), version)
+
+        close_matches_str = ", ".join(close_matches)
+        logging.error(
+            f"{get_emoji('error')} {hostname}: Version {version} is not available for download. "
+            f"Closest matches: {close_matches_str}"
+        )
+
         logging.error(
             f"{get_emoji('error')} {hostname}: version {version} is not available for download"
         )
@@ -2402,6 +2411,47 @@ def filter_string_to_dict(filter_string: str) -> dict:
     return result
 
 
+def find_close_matches(available_versions, target_version, max_results=5):
+    """
+    Finds versions in the available_versions list that are closest to the specified target version.
+    Prioritizes versions based on the similarity to the target version components.
+
+    Parameters:
+    - available_versions: A list of strings containing version numbers.
+    - target_version: The target version string in the format 'major.minor.maintenance' or 'major.minor.maintenance-hhotfix'.
+    - max_results: Maximum number of close matches to return.
+
+    Returns:
+    - A list of strings containing the closest version matches.
+    """
+    # Parse the target version
+    target_major, target_minor, target_maintenance, target_hotfix = parse_version(
+        target_version
+    )
+
+    version_distances = []
+
+    for version in available_versions:
+        # Parse each available version
+        major, minor, maintenance, hotfix = parse_version(version)
+
+        # Calculate a simple "distance" between versions, considering major, minor, maintenance, and hotfix components
+        distance = (
+            abs(target_major - major) * 1000
+            + abs(target_minor - minor) * 100
+            + abs(target_maintenance - maintenance) * 10
+            + abs(target_hotfix - hotfix)
+        )
+
+        version_distances.append((distance, version))
+
+    # Sort by distance, then by version number to get the closest matches
+    version_distances.sort(key=lambda x: (x[0], x[1]))
+
+    # Return up to max_results closest versions
+    return [version for _, version in version_distances[:max_results]]
+
+
 def flatten_xml_to_dict(element: ET.Element) -> dict:
     """
     Transforms an XML ElementTree element into a nested dictionary, preserving structure and content.
@@ -2775,22 +2825,20 @@ def parse_version(version: str) -> Tuple[int, int, int, int]:
         If the version string is malformatted or contains non-numeric components where integers are expected,
         a ValueError is raised to indicate the parsing failure.
     """
-
     parts = version.split(".")
 
-    # When maintenance version is an integer
-    if len(parts) == 2:
-        major, minor = parts
-        maintenance, hotfix = 0, 0
-    # When maintenance version includes hotfix
-    else:
-        major, minor, maintenance = parts
-        if "-h" in maintenance:
-            maintenance, hotfix = maintenance.split("-h")
-        else:
-            hotfix = 0
+    major, minor = int(parts[0]), int(parts[1])
+    maintenance, hotfix = 0, 0
 
-    return int(major), int(minor), int(maintenance), int(hotfix)
+    if len(parts) > 2:
+        maintenance_part = parts[2]
+        if "-h" in maintenance_part:
+            maintenance, hotfix = maintenance_part.split("-h")
+            maintenance, hotfix = int(maintenance), int(hotfix)
+        else:
+            maintenance = int(maintenance_part)
+
+    return major, minor, maintenance, hotfix
 
 
 def resolve_hostname(hostname: str) -> bool:
