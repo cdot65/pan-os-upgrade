@@ -1356,7 +1356,7 @@ def software_update_check(
     """
     Verifies if a specified software version is available for upgrade on the target device, considering HA setup.
 
-    This function determines the feasibility of upgrading a target device to a specified software version. It performs a series of checks, including current software version assessment, target version availability in the device's software repository, and the presence of the required base image for the upgrade. The function accounts for High Availability (HA) setups by evaluating the upgrade compatibility within the HA context. Detailed logging provides insight into each step of the verification process.
+    This function determines the feasibility of upgrading a target device to a specified software version. It performs a series of checks, including current software version assessment, target version availability in the device's software repository, and the presence of the required base image for the upgrade. If the required base image is not present, the function attempts to download it, retrying up to a specified number of times with a delay between each attempt. The function accounts for High Availability (HA) setups by evaluating the upgrade compatibility within the HA context. Detailed logging provides insight into each step of the verification process.
 
     Parameters
     ----------
@@ -1372,7 +1372,7 @@ def software_update_check(
     Returns
     -------
     bool
-        True if the specified software version is available and constitutes a valid upgrade; False otherwise.
+        True if the specified software version is available and constitutes a valid upgrade; False otherwise. This includes scenarios where the base image is required but cannot be downloaded after the specified number of retries.
 
     Raises
     ------
@@ -1391,6 +1391,7 @@ def software_update_check(
     - The function ensures that the target version is not a downgrade compared to the current version on the device.
     - It checks the device's software repository for the target version and verifies the presence of the required base image.
     - In HA configurations, the function assesses upgrade viability while considering HA synchronization and compatibility requirements.
+    - If the base image is not downloaded, the function will attempt to download it with a specified number of retries and a wait time between each attempt.
     """
 
     # parse version
@@ -1415,36 +1416,75 @@ def software_update_check(
     target_device.software.check()
     available_versions = target_device.software.versions
 
-    # check to see if specified version is available for upgrade
     if version in available_versions:
+        retry_count = settings_file.get("download.max_tries", 3)
+        wait_time = settings_file.get("download.retry_interval", 60)
+
         logging.info(
             f"{get_emoji('success')} {hostname}: version {version} is available for download"
         )
 
-        # validate the specified version's base image is already downloaded
-        if available_versions[f"{major}.{minor}.0"]["downloaded"]:
+        base_version_key = f"{major}.{minor}.0"
+        if available_versions.get(base_version_key, {}).get("downloaded"):
             logging.info(
                 f"{get_emoji('success')} {hostname}: Base image for {version} is already downloaded"
             )
             return True
-
         else:
-            logging.error(
-                f"{get_emoji('error')} {hostname}: Base image for {version} is not downloaded"
-            )
-            return False
-    else:
-        # Version not found, let's find close matches
-        close_matches = find_close_matches(list(available_versions.keys()), version)
+            for attempt in range(retry_count):
+                logging.error(
+                    f"{get_emoji('error')} {hostname}: Base image for {version} is not downloaded. Attempting download..."
+                )
+                downloaded = software_download(
+                    target_device, hostname, base_version_key, ha_details
+                )
 
+                if downloaded:
+                    logging.info(
+                        f"{get_emoji('success')} {hostname}: Base image {base_version_key} downloaded successfully"
+                    )
+                    logging.info(
+                        f"{get_emoji('success')} {hostname}: Pausing for {wait_time} seconds to let {base_version_key} image load into the software manager before downloading {version}"
+                    )
+
+                    # Wait before retrying to ensure the device has processed the downloaded base image
+                    time.sleep(wait_time)
+
+                    # Re-check the versions after waiting
+                    target_device.software.check()
+                    if version in target_device.software.versions:
+                        # Proceed with the target version check again
+                        return software_update_check(
+                            target_device,
+                            hostname,
+                            version,
+                            ha_details,
+                        )
+
+                    else:
+                        logging.info(
+                            f"{get_emoji('report')} {hostname}: Waiting for device to recognize the new base image..."
+                        )
+                        # Retry if the version is still not recognized
+                        continue
+                else:
+                    if attempt < retry_count - 1:
+                        logging.error(
+                            f"{get_emoji('error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds..."
+                        )
+                        time.sleep(wait_time)
+                    else:
+                        logging.error(
+                            f"{get_emoji('error')} {hostname}: Failed to download base image after {retry_count} attempts."
+                        )
+                        return False
+
+    else:
+        # If the version is not available, find and log close matches
+        close_matches = find_close_matches(list(available_versions.keys()), version)
         close_matches_str = ", ".join(close_matches)
         logging.error(
-            f"{get_emoji('error')} {hostname}: Version {version} is not available for download. "
-            f"Closest matches: {close_matches_str}"
-        )
-
-        logging.error(
-            f"{get_emoji('error')} {hostname}: version {version} is not available for download"
+            f"{get_emoji('error')} {hostname}: Version {version} is not available for download. Closest matches: {close_matches_str}"
         )
         return False
 
@@ -3431,6 +3471,18 @@ def settings():
             "threads": typer.prompt(
                 "Number of concurrent threads",
                 default=10,
+                type=int,
+            ),
+        },
+        "download": {
+            "retry_interval": typer.prompt(
+                "Download retry interval (seconds)",
+                default=60,
+                type=int,
+            ),
+            "max_tries": typer.prompt(
+                "Maximum download tries",
+                default=3,
                 type=int,
             ),
         },
