@@ -521,7 +521,7 @@ def handle_ha_logic(
     dry_run: bool,
 ) -> Tuple[bool, Optional[Union[Firewall, Panorama]]]:
     """
-    Manages the High Availability (HA) logic for a target device during the upgrade process.
+    Manages the High Availability (HA) logic for a target device during the upgrade process, incorporating enhanced checks for devices in HA pairs that require revisiting due to synchronization delays.
 
     Evaluates the HA configuration of the target device to determine the appropriate upgrade approach.
     This includes understanding the device's role in an HA setup (active, passive, or standalone) and making
@@ -531,31 +531,30 @@ def handle_ha_logic(
     Parameters
     ----------
     target_device : Union[Firewall, Panorama]
-        The device being evaluated, which can be a Firewall or Panorama instance. This device may be part of an HA configuration.
+        The device being evaluated for upgrade. This can be either a Firewall or a Panorama instance and may be part of an HA configuration.
     hostname : str
-        The hostname or IP address of the target device, utilized for identification in logging outputs.
+        The hostname or IP address of the target device, used for logging and identification.
     dry_run : bool
-        A flag indicating whether the logic should be simulated (True) without making actual changes, or executed (False).
+        Indicates whether to simulate the upgrade process (True) without making actual changes or to execute the upgrade (False).
 
     Returns
     -------
     Tuple[bool, Optional[Union[Firewall, Panorama]]]
-        A tuple where the first element is a boolean indicating if the upgrade should proceed, and the second element is
-        an optional device instance (Firewall or Panorama) representing the HA peer, if the upgrade involves HA considerations.
+        A tuple where the first element is a boolean indicating if the upgrade should proceed, and the second element is an optional device instance representing the HA peer, if relevant.
 
     Example
     -------
-    Evaluating HA logic for a device upgrade:
-        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> proceed, ha_peer = handle_ha_logic(firewall, 'firewall1', dry_run=False)
-        >>> print(proceed)  # Indicates if upgrade should continue
-        >>> print(ha_peer)  # None if no HA peer involved or if not targeting peer, otherwise device instance
+    >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
+    >>> proceed, ha_peer = handle_ha_logic(firewall, 'firewall1', dry_run=False)
+    >>> print(proceed)  # Indicates if the upgrade should continue
+    >>> print(ha_peer)  # None if no HA peer involved, otherwise the device instance
 
     Notes
     -----
-    - The function initially retrieves the HA status to make informed decisions regarding the upgrade process.
-    - It accounts for HA roles and version discrepancies between HA peers to ensure a coherent upgrade strategy.
-    - The dry_run option allows for a non-disruptive evaluation of the HA logic, aiding in planning and testing.
+    - The function initially checks the HA status to make informed decisions.
+    - For devices in the revisit list, it waits for HA synchronization to complete, checking periodically based on configured intervals and retry counts.
+    - It handles different HA states and versions, ensuring the upgrade process proceeds only when appropriate, considering HA synchronization and peer versions.
+    - The use of a dry_run flag allows for testing the logic without performing actual upgrades.
     """
     deploy_info, ha_details = get_ha_status(
         target_device,
@@ -566,10 +565,57 @@ def handle_ha_logic(
     if not ha_details:
         return True, None
 
+    logging.debug(f"{get_emoji('report')} {hostname}: Deployment info: {deploy_info}")
+    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+
     local_state = ha_details["result"]["group"]["local-info"]["state"]
     local_version = ha_details["result"]["group"]["local-info"]["build-rel"]
     peer_version = ha_details["result"]["group"]["peer-info"]["build-rel"]
+
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
+    )
+
+    # Check if the firewall is in the revisit list
+    with target_devices_to_revisit_lock:
+        is_firewall_to_revisit = target_device in target_devices_to_revisit
+
+    if is_firewall_to_revisit:
+        # Initialize with default values
+        max_retries = 3
+        retry_interval = 60
+
+        # Override if settings.yaml exists and contains these settings
+        if settings_file_path.exists():
+            max_retries = settings_file.get("ha_sync.max_tries", max_retries)
+            retry_interval = settings_file.get("ha_sync.retry_interval", retry_interval)
+
+        for attempt in range(max_retries):
+            logging.info(
+                f"Waiting for HA synchronization to complete on {hostname}. Attempt {attempt + 1}/{max_retries}"
+            )
+            # Wait for HA synchronization
+            time.sleep(retry_interval)
+
+            # Re-fetch the HA status to get the latest state
+            deploy_info, ha_details = get_ha_status(target_device, hostname)
+            local_version = ha_details["result"]["group"]["local-info"]["build-rel"]
+            peer_version = ha_details["result"]["group"]["peer-info"]["build-rel"]
+
+            if peer_version != local_version:
+                logging.info(
+                    f"HA synchronization complete on {hostname}. Proceeding with upgrade."
+                )
+                break
+            else:
+                logging.info(
+                    f"HA synchronization still in progress on {hostname}. Rechecking after wait period."
+                )
+
     version_comparison = compare_versions(local_version, peer_version)
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
+    )
 
     # If the active and passive target devices are running the same version
     if version_comparison == "equal":
@@ -581,18 +627,28 @@ def handle_ha_logic(
                 f"{get_emoji('search')} {hostname}: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list."
             )
             return False, None
+
         elif local_state == "passive":
             # Continue with upgrade process on the passive target device
-            logging.debug(f"{get_emoji('report')} {hostname}: Target device is passive")
+            logging.info(
+                f"{get_emoji('report')} {hostname}: Target device is passive",
+            )
+            return True, None
+
+        elif local_state == "initial":
+            # Continue with upgrade process on the initial target device
+            logging.info(
+                f"{get_emoji('warning')} {hostname}: Target device is in initial HA state",
+            )
             return True, None
 
     elif version_comparison == "older":
-        logging.debug(
+        logging.info(
             f"{get_emoji('report')} {hostname}: Target device is on an older version"
         )
         # Suspend HA state of active if the passive is on a later release
         if local_state == "active" and not dry_run:
-            logging.debug(
+            logging.info(
                 f"{get_emoji('report')} {hostname}: Suspending HA state of active"
             )
             suspend_ha_active(
@@ -602,12 +658,12 @@ def handle_ha_logic(
         return True, None
 
     elif version_comparison == "newer":
-        logging.debug(
+        logging.info(
             f"{get_emoji('report')} {hostname}: Target device is on a newer version"
         )
         # Suspend HA state of passive if the active is on a later release
         if local_state == "passive" and not dry_run:
-            logging.debug(
+            logging.info(
                 f"{get_emoji('report')} {hostname}: Suspending HA state of passive"
             )
             suspend_ha_passive(
@@ -806,44 +862,51 @@ def perform_reboot(
     ha_details: Optional[dict] = None,
 ) -> None:
     """
-    Initiates a reboot of the specified target device to ensure it operates on the desired PAN-OS version.
+    Initiates a reboot of the target device and verifies it boots up with the specified PAN-OS version. This function is critical after an upgrade to apply the new software version fully. It supports High Availability (HA) setups by ensuring both the device and its HA peer (if present) are synchronized and operational post-reboot.
 
-    This function triggers a reboot on the target device and monitors it to confirm it restarts with the specified target version. It is particularly crucial in the context of upgrades where a reboot might be necessary to apply new configurations or complete the upgrade process. The function also accounts for High Availability (HA) configurations, ensuring the device and its HA peer remain synchronized post-reboot.
+    The reboot process includes sending a command to the device, waiting for it to go offline and come back online, and then verifying the PAN-OS version. If the device is part of an HA pair, additional steps are taken to confirm HA status and synchronization.
 
     Parameters
     ----------
     target_device : Union[Firewall, Panorama]
-        The device (Firewall or Panorama) to reboot. Must be initialized with proper credentials and connection details.
+        The Firewall or Panorama instance to reboot, initialized with connection details.
     hostname : str
-        Hostname or IP address of the target device, utilized for logging and identification throughout the reboot process.
+        The hostname or IP address of the target device, used for identification in logs.
     target_version : str
-        The version that the target device should be running post-reboot.
-    ha_details : Optional[dict], optional
-        HA configuration details of the target device, if part of an HA pair. This is used to ensure HA synchronization post-reboot. Defaults to None.
+        The PAN-OS version the device should be running after the reboot.
+    ha_details : Optional[dict], default None
+        A dictionary containing the HA configuration details of the target device. This parameter is used to ensure HA integrity post-reboot.
 
     Raises
     ------
     SystemExit
-        Exits the script if the device fails to reboot to the target version or if HA synchronization post-reboot cannot be verified.
+        If the device does not reboot to the target version within the specified attempts or if HA synchronization fails post-reboot.
 
     Examples
     --------
-    Rebooting a firewall and verifying its version post-reboot:
+    Rebooting a device post-upgrade:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> perform_reboot(firewall, 'firewall1', '9.1.0')
-        # Initiates a reboot and ensures the firewall is running version 9.1.0 afterwards.
+        >>> perform_reboot(firewall, 'fw1', '10.1.0')
+        # This will reboot the firewall and verify it's running version 10.1.0 afterward.
 
     Notes
     -----
-    - The reboot process involves sending a reboot command to the device and then repeatedly checking its availability and version.
-    - The function implements a retry mechanism with a fixed number of attempts and delay between them to accommodate the device's reboot time.
-    - For devices in an HA setup, additional checks are performed to ensure the HA pair's synchronization state is maintained post-reboot.
+    - The function utilizes a retry mechanism, allowing multiple attempts to check the device's availability and version post-reboot.
+    - Configuration settings such as the maximum number of retries and retry interval can be customized in a settings file (settings.yaml) and are applied dynamically.
+    - In HA configurations, additional validation is performed to ensure the device and its HA peer are both operational and synchronized after the reboot.
     """
 
     rebooted = False
     attempt = 0
-    MAX_RETRIES = 30
-    RETRY_DELAY = 60
+
+    # Initialize with default values
+    max_retries = 30
+    retry_interval = 60
+
+    # Override if settings.yaml exists and contains these settings
+    if settings_file_path.exists():
+        max_retries = settings_file.get("reboot.max_tries", max_retries)
+        retry_interval = settings_file.get("reboot.retry_interval", retry_interval)
 
     logging.info(f"{get_emoji('start')} {hostname}: Rebooting the target device...")
 
@@ -858,7 +921,7 @@ def perform_reboot(
     # Wait for the target device reboot process to initiate before checking status
     time.sleep(60)
 
-    while not rebooted and attempt < MAX_RETRIES:
+    while not rebooted and attempt < max_retries:
         try:
             # Refresh system information to check if the device is back online
             target_device.refresh_system_info()
@@ -889,11 +952,11 @@ def perform_reboot(
                 f"{get_emoji('warning')} {hostname}: Retry attempt {attempt + 1} due to error: {e}"
             )
             attempt += 1
-            time.sleep(RETRY_DELAY)
+            time.sleep(retry_interval)
 
     if not rebooted:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Failed to reboot to the target version after {MAX_RETRIES} attempts."
+            f"{get_emoji('error')} {hostname}: Failed to reboot to the target version after {max_retries} attempts."
         )
         sys.exit(1)
 
@@ -1040,14 +1103,14 @@ def perform_upgrade(
         # Triggers the upgrade of 'firewall1' to PAN-OS version '10.2.0'.
     """
 
-    # Check if settings.yaml exists and use its values for max_retries and retry_interval
+    # Initialize with default values
+    max_retries = 3
+    retry_interval = 60
+
+    # Override if settings.yaml exists and contains these settings
     if settings_file_path.exists():
-        max_retries = settings_file.get("reboot.max_tries", 30)
-        retry_interval = settings_file.get("reboot.retry_interval", 60)
-    else:
-        # Default values if settings.yaml does not exist or does not specify these settings
-        max_retries = 30
-        retry_interval = 60
+        max_retries = settings_file.get("install.max_tries", max_retries)
+        retry_interval = settings_file.get("install.retry_interval", retry_interval)
 
     logging.info(
         f"{get_emoji('start')} {hostname}: Performing upgrade to version {target_version}..."
@@ -1325,7 +1388,7 @@ def software_download(
                 )
                 if ha_details:
                     logging.info(
-                        f"{get_emoji('working')} {hostname}: {status_msg} - HA will sync image - Elapsed time: {elapsed_time} seconds"
+                        f"{get_emoji('working')} {hostname}: Downloading version {target_version} - HA will sync image - Elapsed time: {elapsed_time} seconds"
                     )
                 else:
                     logging.info(
@@ -1463,7 +1526,7 @@ def software_update_check(
 
                     else:
                         logging.info(
-                            f"{get_emoji('report')} {hostname}: Waiting for device to recognize the new base image..."
+                            f"{get_emoji('report')} {hostname}: Waiting for device to load the new base image into software manager"
                         )
                         # Retry if the version is still not recognized
                         continue
@@ -3476,12 +3539,24 @@ def settings():
         },
         "download": {
             "retry_interval": typer.prompt(
-                "Download retry interval (seconds)",
+                "PAN-OS download retry interval (seconds)",
                 default=60,
                 type=int,
             ),
             "max_tries": typer.prompt(
-                "Maximum download tries",
+                "PAN-OS maximum download tries",
+                default=3,
+                type=int,
+            ),
+        },
+        "install": {
+            "retry_interval": typer.prompt(
+                "PAN-OS install retry interval (seconds)",
+                default=60,
+                type=int,
+            ),
+            "max_tries": typer.prompt(
+                "PAN-OS maximum install attempts",
                 default=3,
                 type=int,
             ),
@@ -3502,12 +3577,12 @@ def settings():
         },
         "reboot": {
             "retry_interval": typer.prompt(
-                "Reboot retry interval (seconds)",
+                "Device reboot retry interval (seconds)",
                 default=60,
                 type=int,
             ),
             "max_tries": typer.prompt(
-                "Maximum reboot tries",
+                "Device maximum reboot tries",
                 default=30,
                 type=int,
             ),
