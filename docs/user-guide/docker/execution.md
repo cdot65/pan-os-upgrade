@@ -187,7 +187,6 @@ $ docker run \
 -v $(pwd)/logs:/app/logs \
 -it \
 ghcr.io/cdot65/pan-os-upgrade:latest batch
-
 Panorama hostname or IP: panorama.cdot.io
 Panorama username: cdot
 Panorama password:
