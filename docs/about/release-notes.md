@@ -2,10 +2,19 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.0.0
+
+**Release Date:** *<20240131>*
+
+### What's New
+
+- Shipping first release! 🚀
+
 ## Version 0.4.3
 
 **Release Date:** *<20240129>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Created workflow that will download the base image if making a major/minor upgrade

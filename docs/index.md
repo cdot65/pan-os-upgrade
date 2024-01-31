@@ -11,7 +11,7 @@ hide:
     <a href="https://paloaltonetworks.com"><img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/logo.svg?raw=true" alt="PaloAltoNetworks"></a>
 </p>
 <p align="center">
-    <em><code>pan-os-upgrade</code>, a Python CLI tool to help automate the upgrade process for PAN-OS firewalls using Typer</em>
+    <em><code>pan-os-upgrade</code>, a Python CLI tool to help automate the upgrade process for PAN-OS firewalls</em>
 </p>
 <p align="center">
 <a href="https://github.com/cdot65/pan-os-upgrade/graphs/contributors" target="_blank">
