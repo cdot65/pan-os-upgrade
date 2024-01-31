@@ -2,6 +2,8 @@
   "cSpell.words": [
     "adminpassword",
     "apikey",
+    "apipassword",
+    "apiuser",
     "defusedxml",
     "dynaconf",
     "Dynaconf",
@@ -9,6 +11,7 @@
     "highavailability",
     "hostnames",
     "levelname",
+    "lifecycles",
     "malformatted",
     "nics",
     "NXDOMAIN",
