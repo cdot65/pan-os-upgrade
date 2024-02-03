@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-os-upgrade"
-version = "1.0.0"
+version = "1.0.1"
 description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 license = "Apache 2.0"
@@ -17,6 +17,7 @@ setuptools = "^69.0.3"
 dnspython = "^2.5.0"
 dynaconf = "^3.2.4"
 pyyaml = "^6.0.1"
+reportlab = "^4.0.9"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
