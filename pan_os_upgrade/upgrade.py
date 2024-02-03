@@ -71,6 +71,7 @@ Notes
 
 # standard library imports
 import ipaddress
+import json
 import logging
 import os
 import sys
@@ -104,11 +105,17 @@ from panos.panorama import Panorama
 # Palo Alto Networks panos-upgrade-assurance imports
 from panos_upgrade_assurance.check_firewall import CheckFirewall
 from panos_upgrade_assurance.firewall_proxy import FirewallProxy
+from panos_upgrade_assurance.snapshot_compare import SnapshotCompare
 
 # third party imports
 import dns.resolver
-from dynaconf import Dynaconf
 import typer
+from dynaconf import Dynaconf
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.graphics.shapes import Drawing, Line
 
 # project imports
 from pan_os_upgrade.models import (
@@ -120,9 +127,7 @@ from pan_os_upgrade.models import (
 )
 
 
-# ----------------------------------------------------------------------------
 # Define panos-upgrade-assurance options
-# ----------------------------------------------------------------------------
 class AssuranceOptions:
     """
     Defines configuration options for readiness checks, reports, and state snapshots for the upgrade assurance process.
@@ -138,11 +143,11 @@ class AssuranceOptions:
         Maps names of readiness checks to their attributes, including descriptions, associated log levels, and flags indicating
         whether to exit the process upon check failure. These checks aim to ensure the device's readiness for an upgrade by
         validating various operational and configuration aspects.
-    REPORTS : list of str
+    REPORTS : dict
         Enumerates types of reports that can be generated to provide insights into the device's state pre- and post-upgrade.
         These reports cover various aspects such as ARP tables, content versions, IPsec tunnels, licenses, network interfaces,
         routing tables, and session statistics.
-    STATE_SNAPSHOTS : list of str
+    STATE_SNAPSHOTS : dict
         Lists categories of state snapshots that can be captured to document crucial data about the device's current state.
         These snapshots are valuable for diagnostics and for verifying the device's operational status before proceeding with
         the upgrade.
@@ -175,103 +180,159 @@ class AssuranceOptions:
             "description": "Check if active support is available",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "arp_entry_exist": {
             "description": "Check if a given ARP entry is available in the ARP table",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": False,
         },
         "candidate_config": {
             "description": "Check if there are pending changes on device",
             "log_level": "error",
             "exit_on_failure": True,
+            "enabled_by_default": True,
         },
         "certificates_requirements": {
             "description": "Check if the certificates' keys meet minimum size requirements",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": False,
         },
         "content_version": {
             "description": "Running Latest Content Version",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "dynamic_updates": {
             "description": "Check if any Dynamic Update job is scheduled to run within the specified time window",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "expired_licenses": {
             "description": "No Expired Licenses",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "free_disk_space": {
             "description": "Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "ha": {
             "description": "Checks HA pair status from the perspective of the current device",
-            "log_level": "info",
+            "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "ip_sec_tunnel_status": {
             "description": "Check if a given IPsec tunnel is in active state",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
-        # "jobs": {
-        #     "description": "Check for any job with status different than FIN",
-        #     "log_level": "warning",
-        #     "exit_on_failure": False,
-        # },
+        "jobs": {
+            "description": "Check for any job with status different than FIN",
+            "log_level": "warning",
+            "exit_on_failure": False,
+            "enabled_by_default": False,
+        },
         "ntp_sync": {
             "description": "Check if NTP is synchronized",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": False,
         },
         "planes_clock_sync": {
             "description": "Check if the clock is synchronized between dataplane and management plane",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
         "panorama": {
             "description": "Check connectivity with the Panorama appliance",
             "log_level": "warning",
             "exit_on_failure": False,
+            "enabled_by_default": True,
         },
-        # "session_exist": {
-        #     "description": "Check if a critical session is present in the sessions table",
-        #     "log_level": "error",
-        #     "exit_on_failure": True,
-        # },
+        "session_exist": {
+            "description": "Check if a critical session is present in the sessions table",
+            "log_level": "warning",
+            "exit_on_failure": False,
+            "enabled_by_default": False,
+        },
     }
 
-    REPORTS = [
-        "arp_table",
-        "content_version",
-        "ip_sec_tunnels",
-        "license",
-        "nics",
-        "routes",
-        "session_stats",
-    ]
+    # This is a placeholder for the report types, currently no reports are executed
+    REPORTS = {
+        "arp_table": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+        "content_version": {
+            "enabled_by_default": True,
+            "description": "",
+        },
+        "ip_sec_tunnels": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+        "license": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+        "nics": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+        "routes": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+        "session_stats": {
+            "enabled_by_default": True,
+            "description": "ARP Table",
+        },
+    }
 
-    STATE_SNAPSHOTS = [
-        "arp_table",
-        "content_version",
-        "ip_sec_tunnels",
-        "license",
-        "nics",
-        "routes",
-        "session_stats",
-    ]
+    STATE_SNAPSHOTS = {
+        "arp_table": {
+            "enabled_by_default": True,
+            "description": "Snapshot of the ARP Table",
+        },
+        "content_version": {
+            "enabled_by_default": True,
+            "description": "Snapshot of the Content Version",
+        },
+        "ip_sec_tunnels": {
+            "enabled_by_default": False,
+            "description": "Snapshot of the IPsec Tunnels",
+        },
+        "license": {
+            "enabled_by_default": True,
+            "description": "Snapshot of the License Information",
+        },
+        "nics": {
+            "enabled_by_default": True,
+            "description": "Snapshot of the Network Interfaces",
+        },
+        "routes": {
+            "enabled_by_default": True,
+            "description": "Snapshot of the Routing Table",
+        },
+        "session_stats": {
+            "enabled_by_default": False,
+            "description": "Snapshot of the Session Statistics",
+        },
+    }
 
 
-# ----------------------------------------------------------------------------
 # Core Upgrade Functions
-# ----------------------------------------------------------------------------
 def backup_configuration(
     target_device: Union[Firewall, Panorama],
     hostname: str,
@@ -498,7 +559,7 @@ def get_ha_status(
       making it a valuable tool for network administrators and automation scripts.
     """
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Getting {target_device.serial} deployment information..."
+        f"{get_emoji('start')} {hostname}: Getting {target_device.serial} deployment information."
     )
     deployment_type = target_device.show_highavailability_state()
     logging.debug(
@@ -725,7 +786,7 @@ def perform_ha_sync_check(
     - The function enhances automation scripts' robustness by preventing actions that could disrupt unsynchronized HA setups.
     """
 
-    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync...")
+    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
     if ha_details and ha_details["result"]["group"]["running-sync"] == "synchronized":
         logging.info(
             f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
@@ -808,21 +869,15 @@ def perform_readiness_checks(
             if enabled
         ]
     else:
-        # Default checks to run if settings.yaml does not exist or customize is False
+        # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
         selected_checks = [
-            "candidate_config",
-            "content_version",
-            "expired_licenses",
-            "ha",
-            # "jobs",
-            "free_disk_space",
-            "ntp_sync",
-            "panorama",
-            "planes_clock_sync",
+            check
+            for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
+            if attrs.get("enabled_by_default", False)
         ]
 
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall..."
+        f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall."
     )
 
     readiness_check = run_assurance(
@@ -908,7 +963,7 @@ def perform_reboot(
         max_retries = settings_file.get("reboot.max_tries", max_retries)
         retry_interval = settings_file.get("reboot.retry_interval", retry_interval)
 
-    logging.info(f"{get_emoji('start')} {hostname}: Rebooting the target device...")
+    logging.info(f"{get_emoji('start')} {hostname}: Rebooting the target device.")
 
     # Initiate reboot
     reboot_job = target_device.op(
@@ -965,102 +1020,123 @@ def perform_snapshot(
     firewall: Firewall,
     hostname: str,
     file_path: str,
-) -> None:
+    actions: Optional[List[str]] = None,
+) -> SnapshotReport:
     """
-    Captures and saves a comprehensive snapshot of the current network state of a specified firewall to a JSON file.
+    Captures and saves a detailed snapshot of the current network state of a specified firewall, including
+    specific actions if provided, to a JSON file. This function collects various network state information
+    from the firewall based on the actions specified, such as ARP tables, content versions, IPsec tunnel statuses,
+    license information, network interfaces, routing tables, and session statistics. The gathered data is then
+    serialized into JSON format and saved to the specified file path. This snapshot acts as a critical diagnostic
+    tool for evaluating the firewall's state before and after significant changes, such as upgrades or configuration
+    adjustments.
 
-    This function gathers detailed network state information from the firewall, such as ARP tables, content versions,
-    IPsec tunnel statuses, license information, network interfaces, routing tables, and session statistics. The
-    collected data is serialized into JSON format and saved to the provided file path. This snapshot serves as a
-    valuable diagnostic tool for assessing the firewall's state before and after significant events like upgrades
-    or configuration changes.
+    The retry logic and intervals for snapshot attempts can be customized via a `settings.yaml` file if provided.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class, representing the device from which the network state information is
-        collected. This object must be initialized with the necessary authentication details and connection parameters.
+        The Firewall class instance representing the device from which the network state information will be
+        collected. This instance should be initialized with the required authentication details and connection
+        parameters.
     hostname : str
-        The hostname or IP address of the firewall, utilized for logging and identification purposes throughout
-        the snapshot process.
+        The hostname or IP address of the firewall, used for logging and identification purposes during the
+        snapshot process.
     file_path : str
-        The filesystem path where the snapshot JSON file will be saved. The function ensures the existence of
-        the target directory, creating it if necessary.
+        The filesystem path where the snapshot JSON file will be stored. If the target directory does not exist,
+        it will be created.
+    actions : Optional[List[str]], optional
+        A list of strings specifying particular actions or data points to be included in the snapshot, allowing
+        for the customization of the snapshot's content according to operational needs.
+
+    Returns
+    -------
+    SnapshotReport
+        An object containing both the data and metadata of the snapshot, which includes detailed information on
+        the captured network state and any relevant operational insights gleaned from the snapshot.
 
     Raises
     ------
     IOError
-        Raised if an error occurs while writing the snapshot data to the filesystem, indicating issues with file
-        creation or disk access.
+        If there is an error while writing the snapshot data to the filesystem, indicative of file creation or
+        disk access issues.
 
     Examples
     --------
-    Taking and saving a network state snapshot of a firewall:
+    Capturing and saving a network state snapshot of a firewall with specific actions:
         >>> firewall_instance = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> perform_snapshot(firewall_instance, 'fw-hostname', '/backups/fw-snapshot.json')
-        # Gathers and saves the network state of 'fw-hostname' to '/backups/fw-snapshot.json'.
+        >>> actions = ['arp', 'routes', 'sessions']
+        >>> perform_snapshot(firewall_instance, 'fw-hostname', '/backups/fw-snapshot.json', actions=actions)
+        # This will collect and save specified network state information of 'fw-hostname' to '/backups/fw-snapshot.json'.
 
     Notes
     -----
-    - The function is designed to be non-disruptive and can be executed during normal firewall operations without
-      affecting network traffic.
-    - The selection of information to include in the snapshot can be customized via a `settings.yaml` file, allowing
-      administrators to tailor the snapshot content to specific requirements.
+    - This function is designed to be non-intrusive and can be executed during regular firewall operations without
+      impacting network traffic.
+    - The actions parameter enables administrators to tailor the snapshot to specific areas of interest, thereby
+      increasing the snapshot's diagnostic and auditing value.
+    - Default settings for retry logic and intervals can be overridden by specifying them in a `settings.yaml` file.
     """
 
-    # Determine snapshot actions to perform based on settings.yaml
-    if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
-        # Extract state actions where value is True
-        selected_actions = [
-            action
-            for action, enabled in settings_file.get("snapshots.state", {}).items()
-            if enabled
-        ]
-    else:
-        # Default actions to take if settings.yaml does not exist or customize is False
-        selected_actions = [
-            "arp_table",
-            "content_version",
-            "ip_sec_tunnels",
-            "license",
-            "nics",
-            "routes",
-            "session_stats",
-        ]
+    attempt = 0
+    snapshot = None
+
+    # Initialize with default values
+    max_retries = 3
+    retry_interval = 60
+
+    # Override if settings.yaml exists and contains these settings
+    if settings_file_path.exists():
+        max_retries = settings_file.get("snapshots.max_tries", max_retries)
+        retry_interval = settings_file.get("snapshots.retry_interval", retry_interval)
 
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing snapshot of network state information..."
+        f"{get_emoji('start')} {hostname}: Performing snapshot of network state information."
     )
 
-    # take snapshots
-    network_snapshot = run_assurance(
-        firewall,
-        hostname,
-        operation_type="state_snapshot",
-        actions=selected_actions,
-        config={},
-    )
+    while attempt < max_retries and snapshot is None:
+        try:
+            logging.info(
+                f"{get_emoji('start')} {hostname}: Attempting to capture network state snapshot (Attempt {attempt + 1} of {max_retries})."
+            )
 
-    # Check if a readiness check was successfully created
-    if isinstance(network_snapshot, SnapshotReport):
-        logging.info(
-            f"{get_emoji('success')} {hostname}: Network snapshot created successfully"
+            # Take snapshots
+            snapshot = run_assurance(
+                firewall,
+                hostname,
+                operation_type="state_snapshot",
+                actions=actions,
+                config={},
+            )
+
+            if snapshot is not None and isinstance(snapshot, SnapshotReport):
+                logging.info(
+                    f"{get_emoji('success')} {hostname}: Network snapshot created successfully on attempt {attempt + 1}."
+                )
+
+                # Save the snapshot to the specified file path as JSON
+                ensure_directory_exists(file_path)
+                with open(file_path, "w") as file:
+                    file.write(snapshot.model_dump_json(indent=4))
+
+                logging.info(
+                    f"{get_emoji('save')} {hostname}: Network state snapshot collected and saved to {file_path}"
+                )
+
+                return snapshot
+
+        # Catch specific and general exceptions
+        except (AttributeError, IOError, Exception) as error:
+            logging.warning(
+                f"{get_emoji('warning')} {hostname}: Snapshot attempt failed with error: {error}. Retrying after {retry_interval} seconds."
+            )
+            time.sleep(retry_interval)
+            attempt += 1
+
+    if snapshot is None:
+        logging.error(
+            f"{get_emoji('error')} {hostname}: Failed to create snapshot after {max_retries} attempts."
         )
-        network_snapshot_json = network_snapshot.model_dump_json(indent=4)
-        logging.debug(
-            f"{get_emoji('success')} {hostname}: Network snapshot JSON {network_snapshot_json}"
-        )
-
-        ensure_directory_exists(file_path)
-
-        with open(file_path, "w") as file:
-            file.write(network_snapshot_json)
-
-        logging.debug(
-            f"{get_emoji('save')} {hostname}: Network state snapshot collected and saved to {file_path}"
-        )
-    else:
-        logging.error(f"{get_emoji('error')} {hostname}: Failed to create snapshot")
 
 
 def perform_upgrade(
@@ -1070,37 +1146,59 @@ def perform_upgrade(
     ha_details: Optional[dict] = None,
 ) -> None:
     """
-    Initiates an upgrade of a specified target device to a desired PAN-OS version, with optional consideration for HA configurations.
-
-    This function triggers the upgrade process for a given target device to the specified PAN-OS version. It accounts for potential HA configurations by utilizing provided HA details. The process incorporates retry mechanisms to handle transient errors, such as when the software manager is busy. Detailed logging is provided throughout the process for monitoring and troubleshooting. The function terminates the script if it encounters critical errors or exhausts the allowed number of retry attempts.
+    Orchestrates the upgrade process for a Palo Alto Networks firewall or Panorama to a specified version. This
+    includes handling High Availability (HA) configurations, performing pre- and post-upgrade snapshots, comparing
+    network states before and after the upgrade, and supporting a dry run mode. The function manages the entire
+    upgrade lifecycle, from pre-upgrade checks and configuration backup to the actual upgrade, system reboot, and
+    post-upgrade validations. It captures network state snapshots before and after the upgrade, compares these
+    states to identify changes, and outputs a diff report. The ability to override default retry settings with a
+    settings.yaml file is supported if `settings_file_path` is used within the function.
 
     Parameters
     ----------
     target_device : Union[Firewall, Panorama]
-        The device (Firewall or Panorama) to be upgraded. This object must be initialized with the necessary credentials and connection details.
+        The device (either a Firewall or Panorama instance) to be upgraded. This object must be initialized with
+        necessary authentication details and connection parameters.
     hostname : str
-        The hostname or IP address of the target device, used for identification and logging purposes.
+        The hostname or IP address of the device, used for logging and identification purposes during the upgrade
+        process.
     target_version : str
-        The PAN-OS version to which the target device is to be upgraded, formatted as a string (e.g., '10.1.0').
+        The target PAN-OS version for the upgrade, specified as a string (e.g., '10.1.0').
     ha_details : Optional[dict], optional
-        Optional dictionary containing HA configuration details of the target device, if applicable. This information is leveraged to tailor the upgrade process to HA environments.
+        A dictionary containing High Availability (HA) configuration details, if applicable. This is used to handle
+        upgrades in HA environments properly.
 
     Raises
     ------
     SystemExit
-        If the upgrade process fails or encounters an unrecoverable error, resulting in script termination.
+        If the upgrade process encounters a critical failure at any stage, the script exits.
+
+    Examples
+    --------
+    Upgrading a firewall to a specific version:
+        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
+        >>> perform_upgrade(firewall, '192.168.1.1', '10.1.0')
+        # This initiates the upgrade of the firewall to version 10.1.0, following the defined upgrade process.
 
     Notes
     -----
-    - Retry mechanisms are employed to mitigate transient operational errors, enhancing the resilience of the upgrade process.
-    - The function supports customization of retry parameters through a `settings.yaml` file, allowing for adjustments to the retry behavior based on specific operational requirements.
+    - It is recommended to perform a dry run of the upgrade process (if supported by the function logic) to verify
+      the steps without affecting the operational state of the device.
+    - The function provides extensive logging throughout the upgrade process for monitoring progress and facilitating
+      troubleshooting.
+    - The comparison of pre- and post-upgrade snapshots offers valuable insights into the changes resulting from the
+      upgrade, aiding in validation and compliance efforts.
 
-    Example
-    -------
-    Executing the upgrade process with a specified target version:
-        >>> target_device = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> perform_upgrade(target_device, 'firewall1', '10.2.0')
-        # Triggers the upgrade of 'firewall1' to PAN-OS version '10.2.0'.
+    Workflow
+    --------
+    1. Validate the current system state and HA configuration, if applicable.
+    2. Conduct pre-upgrade readiness checks to ensure the device is prepared for the upgrade.
+    3. Download the required software version if it's not already present on the device.
+    4. Capture pre-upgrade snapshots and back up configurations for rollback purposes.
+    5. Perform the upgrade, including a system reboot to the target version.
+    6. Verify the device's post-upgrade status and functionality.
+    7. Take post-upgrade snapshots and compare them to pre-upgrade snapshots to identify any changes.
+    8. Generate and save a diff report based on the snapshots comparison.
     """
 
     # Initialize with default values
@@ -1113,14 +1211,15 @@ def perform_upgrade(
         retry_interval = settings_file.get("install.retry_interval", retry_interval)
 
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing upgrade to version {target_version}..."
+        f"{get_emoji('start')} {hostname}: Performing upgrade to version {target_version}.\n"
+        f"{get_emoji('report')} {hostname}: The install will take several minutes, check for status details within the GUI."
     )
 
     attempt = 0
     while attempt < max_retries:
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Attempting upgrade to version {target_version} (Attempt {attempt + 1} of {max_retries})..."
+                f"{get_emoji('start')} {hostname}: Attempting upgrade to version {target_version} (Attempt {attempt + 1} of {max_retries})."
             )
             install_job = target_device.software.install(target_version, sync=True)
 
@@ -1137,7 +1236,7 @@ def perform_upgrade(
                 attempt += 1
                 if attempt < max_retries:
                     logging.info(
-                        f"{get_emoji('warning')} {hostname}: Retrying in {retry_interval} seconds..."
+                        f"{get_emoji('warning')} {hostname}: Retrying in {retry_interval} seconds."
                     )
                     time.sleep(retry_interval)
 
@@ -1150,7 +1249,7 @@ def perform_upgrade(
                 attempt += 1
                 if attempt < max_retries:
                     logging.info(
-                        f"{get_emoji('warning')} {hostname}: Software manager is busy. Retrying in {retry_interval} seconds..."
+                        f"{get_emoji('warning')} {hostname}: Software manager is busy. Retrying in {retry_interval} seconds."
                     )
                     time.sleep(retry_interval)
             else:
@@ -1225,7 +1324,7 @@ def run_assurance(
 
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Performing readiness checks to determine if firewall is ready for upgrade..."
+                f"{get_emoji('start')} {hostname}: Performing readiness checks to determine if firewall is ready for upgrade."
             )
             result = checks_firewall.run_readiness_checks(actions)
 
@@ -1247,7 +1346,7 @@ def run_assurance(
     elif operation_type == "state_snapshot":
         # validate each type of action
         for action in actions:
-            if action not in AssuranceOptions.STATE_SNAPSHOTS:
+            if action not in AssuranceOptions.STATE_SNAPSHOTS.keys():
                 logging.error(
                     f"{get_emoji('error')} {hostname}: Invalid action for state snapshot: {action}"
                 )
@@ -1255,7 +1354,7 @@ def run_assurance(
 
         # take snapshots
         try:
-            logging.debug(f"{get_emoji('start')} {hostname}: Performing snapshots...")
+            logging.debug(f"{get_emoji('start')} {hostname}: Performing snapshots.")
             results = checks_firewall.run_snapshots(snapshots_config=actions)
             logging.debug(
                 f"{get_emoji('report')} {hostname}: Snapshot results {results}"
@@ -1275,7 +1374,7 @@ def run_assurance(
 
     elif operation_type == "report":
         for action in actions:
-            if action not in AssuranceOptions.REPORTS:
+            if action not in AssuranceOptions.REPORTS.keys():
                 logging.error(
                     f"{get_emoji('error')} {hostname}: Invalid action for report: {action}"
                 )
@@ -1496,7 +1595,7 @@ def software_update_check(
         else:
             for attempt in range(retry_count):
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Base image for {version} is not downloaded. Attempting download..."
+                    f"{get_emoji('error')} {hostname}: Base image for {version} is not downloaded. Attempting download."
                 )
                 downloaded = software_download(
                     target_device, hostname, base_version_key, ha_details
@@ -1533,7 +1632,7 @@ def software_update_check(
                 else:
                     if attempt < retry_count - 1:
                         logging.error(
-                            f"{get_emoji('error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds..."
+                            f"{get_emoji('error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds."
                         )
                         time.sleep(wait_time)
                     else:
@@ -1721,7 +1820,7 @@ def upgrade_firewall(
     """
 
     # Refresh system information to ensure we have the latest data
-    logging.debug(f"{get_emoji('start')} Refreshing system information...")
+    logging.debug(f"{get_emoji('start')} Refreshing system information.")
     firewall_details = SystemSettings.refreshall(firewall)[0]
     hostname = firewall_details.hostname
     logging.info(
@@ -1730,7 +1829,7 @@ def upgrade_firewall(
 
     # Determine if the firewall is standalone, HA, or in a cluster
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing test to see if firewall is standalone, HA, or in a cluster..."
+        f"{get_emoji('start')} {hostname}: Performing test to see if firewall is standalone, HA, or in a cluster."
     )
     deploy_info, ha_details = get_ha_status(
         firewall,
@@ -1758,7 +1857,7 @@ def upgrade_firewall(
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing tests to validate firewall's readiness..."
+        f"{get_emoji('start')} {hostname}: Performing tests to validate firewall's readiness."
     )
     update_available = software_update_check(
         firewall,
@@ -1777,7 +1876,7 @@ def upgrade_firewall(
 
     # Download the target version
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded..."
+        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
     )
     image_downloaded = software_download(
         firewall,
@@ -1797,16 +1896,33 @@ def upgrade_firewall(
     # Begin snapshots of the network state
     if not image_downloaded:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting..."
+            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting."
         )
 
         sys.exit(1)
 
+    # Determine snapshot actions to perform based on settings.yaml
+    if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
+        # Extract state actions where value is True from settings.yaml
+        selected_actions = [
+            action
+            for action, enabled in settings_file.get("snapshots.state", {}).items()
+            if enabled
+        ]
+    else:
+        # Select actions based on 'enabled_by_default' attribute from AssuranceOptions class
+        selected_actions = [
+            action
+            for action, attrs in AssuranceOptions.STATE_SNAPSHOTS.items()
+            if attrs.get("enabled_by_default", False)
+        ]
+
     # Perform the pre-upgrade snapshot
-    perform_snapshot(
+    pre_snapshot = perform_snapshot(
         firewall,
         hostname,
         f'assurance/snapshots/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+        selected_actions,
     )
 
     # Perform Readiness Checks
@@ -1830,7 +1946,7 @@ def upgrade_firewall(
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem..."
+        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
     )
     backup_config = backup_configuration(
         firewall,
@@ -1841,12 +1957,12 @@ def upgrade_firewall(
 
     # Exit execution is dry_run is True
     if dry_run is True:
-        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting...")
+        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting.")
         logging.info(f"{get_emoji('stop')} {hostname}: Halting script.")
         sys.exit(0)
     else:
         logging.info(
-            f"{get_emoji('start')} {hostname}: Not a dry run, continue with upgrade..."
+            f"{get_emoji('report')} {hostname}: Not a dry run, continue with upgrade."
         )
 
     # Perform the upgrade
@@ -1863,6 +1979,71 @@ def upgrade_firewall(
         hostname=hostname,
         target_version=target_version,
         ha_details=ha_details,
+    )
+
+    # Back up configuration to local filesystem
+    logging.info(
+        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
+    )
+    backup_config = backup_configuration(
+        firewall,
+        hostname,
+        f'assurance/configurations/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
+    )
+    logging.debug(f"{get_emoji('report')} {hostname}: {backup_config}")
+
+    # Wait for the device to become ready for the post upgrade snapshot
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Waiting for the device to become ready for the post upgrade snapshot."
+    )
+    time.sleep(120)
+
+    # Perform the post-upgrade snapshot
+    post_snapshot = perform_snapshot(
+        firewall,
+        hostname,
+        f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+        selected_actions,
+    )
+
+    # initialize object storing both snapshots
+    snapshot_compare = SnapshotCompare(
+        left_snapshot=pre_snapshot.model_dump(),
+        right_snapshot=post_snapshot.model_dump(),
+    )
+
+    pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
+
+    logging.debug(
+        f"{get_emoji('report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
+    )
+
+    folder_path = f"assurance/snapshots/{hostname}/diff"
+    ensure_directory_exists(folder_path)
+
+    pdf_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
+
+    # Generate the PDF report for the diff
+    generate_diff_report_pdf(
+        pre_post_diff,
+        pdf_report,
+        hostname,
+        firewall.version,
+        target_version,
+    )
+
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+    )
+
+    json_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
+
+    # Write the file to the local filesystem as JSON
+    with open(json_report, "w") as file:
+        file.write(json.dumps(pre_post_diff))
+
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
     )
 
 
@@ -1913,7 +2094,7 @@ def upgrade_panorama(
     """
 
     # Refresh system information to ensure we have the latest data
-    logging.debug(f"{get_emoji('start')} Refreshing system information...")
+    logging.debug(f"{get_emoji('start')} Refreshing system information.")
     panorama_details = SystemSettings.refreshall(panorama)[0]
     hostname = panorama_details.hostname
     logging.info(
@@ -1922,7 +2103,7 @@ def upgrade_panorama(
 
     # Determine if the Panorama is standalone, HA, or in a cluster
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing test to see if Panorama is standalone, HA, or in a cluster..."
+        f"{get_emoji('start')} {hostname}: Performing test to see if Panorama is standalone, HA, or in a cluster."
     )
     deploy_info, ha_details = get_ha_status(
         panorama,
@@ -1951,7 +2132,7 @@ def upgrade_panorama(
 
     # Check to see if the Panorama is ready for an upgrade
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing tests to validate Panorama's readiness..."
+        f"{get_emoji('start')} {hostname}: Performing tests to validate Panorama's readiness."
     )
     update_available = software_update_check(
         panorama,
@@ -1970,7 +2151,7 @@ def upgrade_panorama(
 
     # Download the target version
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded..."
+        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
     )
     image_downloaded = software_download(
         panorama,
@@ -1990,7 +2171,7 @@ def upgrade_panorama(
     # Begin snapshots of the network state
     if not image_downloaded:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting..."
+            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting."
         )
 
         sys.exit(1)
@@ -2009,7 +2190,7 @@ def upgrade_panorama(
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem..."
+        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
     )
     backup_config = backup_configuration(
         panorama,
@@ -2020,12 +2201,12 @@ def upgrade_panorama(
 
     # Exit execution is dry_run is True
     if dry_run is True:
-        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting...")
+        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting.")
         logging.info(f"{get_emoji('stop')} {hostname}: Halting script.")
         sys.exit(0)
     else:
         logging.info(
-            f"{get_emoji('start')} {hostname}: Not a dry run, continue with upgrade..."
+            f"{get_emoji('start')} {hostname}: Not a dry run, continue with upgrade."
         )
 
     # Perform the upgrade
@@ -2045,9 +2226,9 @@ def upgrade_panorama(
     )
 
 
-# ----------------------------------------------------------------------------
 # Utility Functions
-# ----------------------------------------------------------------------------
+
+
 def check_readiness_and_log(
     result: dict,
     hostname: str,
@@ -2098,9 +2279,9 @@ def check_readiness_and_log(
     """
 
     test_result = result.get(
-        test_name, {"state": False, "reason": "Test not performed"}
+        test_name, {"state": False, "reason": "Skipped Readiness Check"}
     )
-    log_message = f'{test_info["description"]} - {test_result["reason"]}'
+    log_message = f'{test_result["reason"]}: {test_info["description"]}'
 
     if test_result["state"]:
         logging.info(
@@ -2114,13 +2295,11 @@ def check_readiness_and_log(
 
                 sys.exit(1)
         elif test_info["log_level"] == "warning":
-            logging.debug(
-                f"{get_emoji('report')} {hostname}: Skipped Readiness Check: {test_info['description']}"
+            logging.info(
+                f"{get_emoji('skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
             )
         else:
-            logging.debug(
-                f"{get_emoji('report')} {hostname}: Log Message {log_message}"
-            )
+            logging.info(f"{get_emoji('report')} {hostname}: Log Message {log_message}")
 
 
 def compare_versions(
@@ -2622,6 +2801,136 @@ def flatten_xml_to_dict(element: ET.Element) -> dict:
     return result
 
 
+def generate_diff_report_pdf(
+    pre_post_diff: dict,
+    file_path: str,
+    hostname: str,
+    current_version: str,
+    target_version: str,
+) -> None:
+    """
+    Generates a PDF report summarizing the differences between pre- and post-upgrade network states,
+    featuring a custom-styled banner titled "Upgrade Diff Report" for improved readability.
+
+    Parameters
+    ----------
+    pre_post_diff : dict
+        A dictionary containing the differences between pre- and post-upgrade states. The dictionary structure
+        typically includes nested dictionaries with keys representing different sections and checks, and values
+        detailing the observed changes.
+    file_path : str
+        The file path where the generated PDF report will be saved. This includes the complete path with the
+        desired file name and .pdf extension.
+
+    Example
+    -------
+    Generating a diff report PDF with a custom-styled banner:
+        >>> pre_post_diff = {
+        ...     "section_1": {
+        ...         "passed": True,
+        ...         "sub_section_1": {
+        ...             "passed": False,
+        ...             "missing_keys": ["key1", "key2"],
+        ...             "added_keys": [],
+        ...             "changed_raw": {"key3": {"old": "value1", "new": "value2"}}
+        ...         }
+        ...     }
+        ... }
+        >>> generate_diff_report_pdf(pre_post_diff, '/path/to/diff_report.pdf')
+        # This will create a PDF report at '/path/to/diff_report.pdf' with a custom-styled banner.
+
+    Notes
+    -----
+    - The function uses reportlab's SimpleDocTemplate for PDF creation, allowing for easy customization and
+      addition of complex layouts.
+    - Custom styling enhances the report's readability and visual appeal, making it more user-friendly and
+      professional.
+    """
+    pdf = SimpleDocTemplate(file_path, pagesize=letter)
+    content = []
+    styles = getSampleStyleSheet()
+
+    # Custom Banner with Logo and Styling
+    logo = "assets/logo.png"
+    img = Image(logo, width=71, height=51)
+    img.hAlign = "LEFT"
+    content.append(img)
+
+    banner_style = styles["Title"]
+    banner_style.fontSize = 24
+    banner_style.textColor = colors.HexColor("#333333")
+    banner_style.alignment = 1  # Center alignment
+    banner_content = Paragraph(f"<b>{hostname} Upgrade Diff Report</b></br>{current_version} -> {target_version}", banner_style)
+    content.append(Spacer(1, 12))
+    content.append(banner_content)
+    content.append(Spacer(1, 20))
+
+    # Line separator
+    d = Drawing(500, 1)
+    line = Line(0, 0, 500, 0)
+    line.strokeColor = colors.HexColor("#F04E23")
+    line.strokeWidth = 2
+    d.add(line)
+    content.append(d)
+    content.append(Spacer(1, 20))
+
+    for section, details in pre_post_diff.items():
+        # Section title with background color
+        section_style = styles["Heading2"]
+        section_style.backColor = colors.HexColor("#EEEEEE")
+        section_content = Paragraph(section.replace("_", " ").title(), section_style)
+        content.append(section_content)
+        content.append(Spacer(1, 12))
+
+        for sub_section, sub_details in details.items():
+            if sub_section == "passed":
+                # Overall status of the section
+                status = "Passed" if sub_details else "Failed"
+                status_style = styles["BodyText"]
+                status_style.textColor = colors.green if sub_details else colors.red
+                status_content = Paragraph(
+                    f"Overall Status: <b>{status}</b>", status_style
+                )
+                content.append(status_content)
+            else:
+                # Sub-section details
+                sub_section_title = sub_section.replace("_", " ").title()
+                passed = "Passed" if sub_details["passed"] else "Failed"
+                passed_style = styles["BodyText"]
+                passed_style.textColor = (
+                    colors.green if sub_details["passed"] else colors.red
+                )
+                content.append(
+                    Paragraph(
+                        f"{sub_section_title} (Status: <b>{passed}</b>)", passed_style
+                    )
+                )
+
+                keys = (
+                    sub_details.get("missing_keys", [])
+                    + sub_details.get("added_keys", [])
+                    + list(sub_details.get("changed_raw", {}).keys())
+                )
+
+                # Format keys for display
+                if keys:
+                    for key in keys:
+                        key_content = Paragraph(f"- {key}", styles["BodyText"])
+                        content.append(key_content)
+                else:
+                    content.append(
+                        Paragraph("No changes detected.", styles["BodyText"])
+                    )
+
+            content.append(Spacer(1, 12))
+
+        # Add some space after each section
+        content.append(Spacer(1, 20))
+
+    # Build the PDF
+    pdf.build(content)
+
+
 def get_emoji(action: str) -> str:
     """
     Retrieves a corresponding emoji for a given action keyword, intended to enhance readability and visual appeal in log messages or user interfaces.
@@ -2646,8 +2955,8 @@ def get_emoji(action: str) -> str:
         >>> logging.error(f"{get_emoji('error')} Error encountered during execution.")
 
     Improving user interface prompts with emojis for clarity:
-        >>> print(f"{get_emoji('start')} Starting process...")
-        >>> print(f"{get_emoji('stop')} Stopping process...")
+        >>> print(f"{get_emoji('start')} Starting process.")
+        >>> print(f"{get_emoji('stop')} Stopping process.")
 
     Notes
     -----
@@ -2665,6 +2974,7 @@ def get_emoji(action: str) -> str:
         "report": "📝",
         "search": "🔍",
         "save": "💾",
+        "skipped": "🟨",
         "stop": "🛑",
         "start": "🚀",
     }
@@ -2986,15 +3296,12 @@ def resolve_hostname(hostname: str) -> bool:
         return False
 
 
-# ----------------------------------------------------------------------------
 # Define Typer command-line interface
-# ----------------------------------------------------------------------------
+
 app = typer.Typer(help="PAN-OS Upgrade script")
 
 
-# ----------------------------------------------------------------------------
 # Global variables
-# ----------------------------------------------------------------------------
 
 # Define the path to the settings file
 settings_file_path = Path.cwd() / "settings.yaml"
@@ -3019,9 +3326,7 @@ LOGGING_LEVELS = {
 }
 
 
-# ----------------------------------------------------------------------------
 # Common setup for all subcommands
-# ----------------------------------------------------------------------------
 def common_setup(
     hostname: str,
     username: str,
@@ -3083,9 +3388,7 @@ def common_setup(
     return device
 
 
-# ----------------------------------------------------------------------------
 # Subcommand for upgrading a firewall
-# ----------------------------------------------------------------------------
 @app.command()
 def firewall(
     hostname: Annotated[
@@ -3190,9 +3493,7 @@ def firewall(
     )
 
 
-# ----------------------------------------------------------------------------
 # Subcommand for upgrading Panorama
-# ----------------------------------------------------------------------------
 @app.command()
 def panorama(
     hostname: Annotated[
@@ -3297,9 +3598,7 @@ def panorama(
     )
 
 
-# ----------------------------------------------------------------------------
 # Subcommand for batch upgrades using Panorama as a communication proxy
-# ----------------------------------------------------------------------------
 @app.command()
 def batch(
     hostname: Annotated[
@@ -3498,9 +3797,7 @@ def batch(
             target_devices_to_revisit.clear()
 
 
-# ----------------------------------------------------------------------------
 # Subcommand for creating a settings.yaml file to override default settings
-# ----------------------------------------------------------------------------
 @app.command()
 def settings():
     """
@@ -3607,6 +3904,16 @@ def settings():
                 "Location to save snapshots",
                 default="assurance/snapshots/",
             ),
+            "retry_interval": typer.prompt(
+                "Device snapshot retry interval (seconds)",
+                default=60,
+                type=int,
+            ),
+            "max_tries": typer.prompt(
+                "Device maximum snapshot tries",
+                default=30,
+                type=int,
+            ),
         },
         "timeout_settings": {
             "connection_timeout": typer.prompt(
@@ -3629,7 +3936,7 @@ def settings():
             )
 
     if config_data["snapshots"]["customize"]:
-        for snapshot in AssuranceOptions.STATE_SNAPSHOTS:
+        for snapshot in AssuranceOptions.STATE_SNAPSHOTS.items():
             config_data["snapshots"]["state"][snapshot] = typer.confirm(
                 f"Enable {snapshot} snapshot?", default=True
             )
