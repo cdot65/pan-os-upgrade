@@ -2860,7 +2860,10 @@ def generate_diff_report_pdf(
     banner_style.fontSize = 24
     banner_style.textColor = colors.HexColor("#333333")
     banner_style.alignment = 1  # Center alignment
-    banner_content = Paragraph(f"<b>{hostname} Upgrade Diff Report</b></br>{current_version} -> {target_version}", banner_style)
+    banner_content = Paragraph(
+        f"<b>{hostname} Upgrade {current_version} -> {target_version} Diff Report</b>",
+        banner_style,
+    )
     content.append(Spacer(1, 12))
     content.append(banner_content)
     content.append(Spacer(1, 20))
