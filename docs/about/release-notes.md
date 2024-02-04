@@ -2,10 +2,19 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.1.1
+
+**Release Date:** *<20240204>*
+
+### What's New
+
+- Fixed a bug that prevented access to the `logo.png` file used by the PDF generation process
+
 ## Version 1.1.0
 
 **Release Date:** *<20240204>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Pre/Post upgrade diff report created in PDF format
