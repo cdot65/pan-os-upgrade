@@ -4043,13 +4043,14 @@ def settings():
     if config_data["readiness_checks"]["customize"]:
         for check, info in AssuranceOptions.READINESS_CHECKS.items():
             config_data["readiness_checks"]["checks"][check] = typer.confirm(
-                f"Enable {info['description']}?", default=True
+                f"Enable {info['description']}?", default=info["enabled_by_default"]
             )
 
     if config_data["snapshots"]["customize"]:
-        for snapshot in AssuranceOptions.STATE_SNAPSHOTS.items():
-            config_data["snapshots"]["state"][snapshot] = typer.confirm(
-                f"Enable {snapshot} snapshot?", default=True
+        for snapshot_name, snapshot_info in AssuranceOptions.STATE_SNAPSHOTS.items():
+            config_data["snapshots"]["state"][snapshot_name] = typer.confirm(
+                f"Enable {snapshot_info['description']}?",
+                default=snapshot_info["enabled_by_default"],
             )
 
     with open(config_file_path, "w") as f:
