@@ -69,6 +69,21 @@ After generating the locale, you can verify it's available by running `locale -a
 
 If you cannot request `sudo` permissions within WSL2, either use the `pan-os-upgrade` script from the Windows CMD terminal, or use the Docker container.
 
+### 10. ARP Table Comparison Failures
+
+**Problem:** When capturing ARP tables for comparison, the script fails with `WrongDataTypeException: Unknown value format for key ttl`.
+
+**Solution:** This issue can arise when ARP table entries contain integer values for `ttl`, which the current implementation may not handle properly. To address this, consider installing a custom fork of `panos-upgrade-assurance` that includes a fix for this issue, available at [https://github.com/cdot65/pan-os-upgrade-assurance/tree/main](https://github.com/cdot65/pan-os-upgrade-assurance/tree/main). Alternatively, you can configure the script to omit ARP snapshots from the tests if modifying the script is not feasible.
+
+**Steps to Install Custom Fork:**
+
+1. Run this command: `pip install git+https://github.com/cdot65/pan-os-upgrade-assurance.git@main`
+
+**Steps to Omit ARP Snapshots:**
+
+1. If using a `settings.yaml` file, ensure ARP snapshots are disabled.
+2. If running the script interactively, choose not to capture ARP snapshots when prompted.
+
 ## General Tips
 
 - Always perform a dry run (`--dry-run`) before executing the actual upgrade.
