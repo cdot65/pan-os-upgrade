@@ -78,8 +78,9 @@ docker run \
 -v $(pwd)/assurance:/app/assurance \
 -v $(pwd)/logs:/app/logs \
 -it \
-ghcr.io/cdot65/pan-os-upgrade:latest firewall
+ghcr.io/cdot65/pan-os-upgrade:latest firewall -v 11.1.1 -u cdot -h houston.cdot.io
 Firewall password:
+Dry Run? [y/N]:
 ===================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -90,32 +91,89 @@ Create a settings.yaml file with 'pan-os-upgrade settings' command.
 ===================================================================
 📝 houston: 007054000242050 192.168.255.211
 📝 houston: HA mode: disabled
-📝 houston: Current version: 10.2.5
-📝 houston: Target version: 10.2.6
-✅ houston: Upgrade required from 10.2.5 to 10.2.6
-✅ houston: version 10.2.6 is available for download
-✅ houston: Base image for 10.2.6 is already downloaded
-🚀 houston: Performing test to see if 10.2.6 is already downloaded...
-🔍 houston: version 10.2.6 is not on the target device
-🚀 houston: version 10.2.6 is beginning download
-Device 007054000242050 downloading version: 10.2.6
-🔧 houston: Downloading version 10.2.6 - Elapsed time: 5 seconds
-🔧 houston: Downloading version 10.2.6 - Elapsed time: 41 seconds
-🔧 houston: Downloading version 10.2.6 - Elapsed time: 76 seconds
-✅ houston: 10.2.6 downloaded in 109 seconds
-✅ houston: version 10.2.6 has been downloaded.
-🚀 houston: Performing snapshot of network state information...
-✅ houston: Network snapshot created successfully
-🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade...
+📝 houston: Current version: 10.1.3
+📝 houston: Target version: 11.1.1
+✅ houston: Upgrade required from 10.1.3 to 11.1.1
+🔧 houston: Refreshing list of available software versions
+✅ houston: version 11.1.1 is available for download
+❌ houston: Base image for 11.1.1 is not downloaded. Attempting download.
+🔍 houston: version 11.1.0 is not on the target device
+🚀 houston: version 11.1.0 is beginning download
+Device 007054000242050 downloading version: 11.1.0
+🔧 houston: Downloading version 11.1.0 - Elapsed time: 3 seconds
+🔧 houston: Downloading version 11.1.0 - Elapsed time: 37 seconds
+🔧 houston: Downloading version 11.1.0 - Elapsed time: 69 seconds
+🔧 houston: Downloading version 11.1.0 - Elapsed time: 102 seconds
+🔧 houston: Downloading version 11.1.0 - Elapsed time: 134 seconds
+✅ houston: 11.1.0 downloaded in 167 seconds
+✅ houston: Base image 11.1.0 downloaded successfully
+✅ houston: Pausing for 60 seconds to let 11.1.0 image load into the software manager before downloading 11.1.1
+📝 houston: Current version: 10.1.3
+📝 houston: Target version: 11.1.1
+✅ houston: Upgrade required from 10.1.3 to 11.1.1
+🔧 houston: Refreshing list of available software versions
+✅ houston: version 11.1.1 is available for download
+✅ houston: Base image for 11.1.1 is already downloaded
+🚀 houston: Performing test to see if 11.1.1 is already downloaded.
+🔍 houston: version 11.1.1 is not on the target device
+🚀 houston: version 11.1.1 is beginning download
+Device 007054000242050 downloading version: 11.1.1
+🔧 houston: Downloading version 11.1.1 - Elapsed time: 6 seconds
+🔧 houston: Downloading version 11.1.1 - Elapsed time: 40 seconds
+🔧 houston: Downloading version 11.1.1 - Elapsed time: 74 seconds
+✅ houston: 11.1.1 downloaded in 110 seconds
+✅ houston: version 11.1.1 has been downloaded.
+🚀 houston: Performing snapshot of network state information.
+🚀 houston: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ houston: Network snapshot created successfully on attempt 1.
+💾 houston: Network state snapshot collected and saved to assurance/snapshots/houston/pre/2024-02-04_09-19-25.json
+🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ houston: Passed Readiness Check: Check if active support is available
+🟨 houston: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
 ✅ houston: Passed Readiness Check: Check if there are pending changes on device
+🟨 houston: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 houston: Skipped Readiness Check: Running Latest Content Version
+✅ houston: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
 ✅ houston: Passed Readiness Check: No Expired Licenses
-✅ houston: Passed Readiness Check: Check if NTP is synchronized
-✅ houston: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ houston: Passed Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+🟨 houston: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 houston: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 houston: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 houston: Skipped Readiness Check: Check if NTP is synchronized
+🟨 houston: Skipped Readiness Check: Check if the clock is synchronized between dataplane and management plane
 ✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 houston: Skipped Readiness Check: Check if a critical session is present in the sessions table
 ✅ houston: Readiness Checks completed
-🚀 houston: Performing backup of configuration to local filesystem...
-✅ houston: Dry run complete, exiting...
-🛑 houston: Halting script.
+🚀 houston: Performing backup of configuration to local filesystem.
+📝 houston: Not a dry run, continue with upgrade.
+🚀 houston: Performing upgrade to version 11.1.1.
+📝 houston: The install will take several minutes, check for status details within the GUI.
+🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 1 of 3).
+Device 007054000242050 installing version: 11.1.1
+❌ houston: Upgrade error: Device 007054000242050 attempt to install version 11.1.1 failed: ['Failed to install 11.1.1 with the following errors.\nSW version is 11.1.1\nThe software manager is currently in use. Please try again later.\nFailed to install   version  11.1.1  type  panos\n\n']
+🟧 houston: Software manager is busy. Retrying in 60 seconds.
+🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 2 of 3).
+Device 007054000242050 installing version: 11.1.1
+✅ houston: Upgrade completed successfully
+🚀 houston: Rebooting the target device.
+📝 houston: Command succeeded with no output
+🟧 houston: Retry attempt 1 due to error: URLError: reason: [Errno 60] Operation timed out
+🟧 houston: Retry attempt 2 due to error: URLError: reason: [Errno 60] Operation timed out
+🟧 houston: Retry attempt 3 due to error: URLError: reason: [Errno 61] Connection refused
+🟧 houston: Retry attempt 4 due to error: URLError: reason: [Errno 61] Connection refused
+🟧 houston: Retry attempt 5 due to error: URLError: reason: [Errno 61] Connection refused
+🟧 houston: Retry attempt 6 due to error: URLError: code: 403 reason: API Error: Invalid Credential
+🟧 houston: Retry attempt 7 due to error: URLError: code: 403 reason: API Error: Invalid Credential
+🟧 houston: Retry attempt 8 due to error: URLError: code: 403 reason: API Error: Invalid Credential
+📝 houston: Current device version: 11.1.1
+✅ houston: Device rebooted to the target version successfully.
+🚀 houston: Performing backup of configuration to local filesystem.
+🔧 houston: Waiting for the device to become ready for the post upgrade snapshot.
+🚀 houston: Performing snapshot of network state information.
+🚀 houston: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ houston: Network snapshot created successfully on attempt 1.
+💾 houston: Network state snapshot collected and saved to assurance/snapshots/houston/post/2024-02-04_09-44-21.json
+💾 houston: Snapshot comparison PDF report saved to assurance/snapshots/houston/diff/2024-02-04_09-44-25_report.pdf
 ```
 
 </div>
@@ -190,7 +248,7 @@ ghcr.io/cdot65/pan-os-upgrade:latest batch
 Panorama hostname or IP: panorama.cdot.io
 Panorama username: cdot
 Panorama password:
-Firewall target version (ex: 10.1.2): 10.2.3
+Firewall target version (ex: 10.1.2): 10.2.7-h3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
 Dry Run? [y/N]:
 ===========================================================================
@@ -202,93 +260,174 @@ No settings.yaml file was found. Default values will be used.
 Create a settings.yaml file with 'pan-os-upgrade settings' command.
 ===========================================================================
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
-📝 Woodlands-fw2: 007954000123452 192.168.255.44
-📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw2: HA mode: passive
-📝 Woodlands-fw1: HA mode: active
-🔍 Woodlands-fw1: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list.
-📝 Woodlands-fw2: Current version: 10.2.2-h2
-📝 Woodlands-fw2: Target version: 10.2.3
-✅ Woodlands-fw2: Upgrade required from 10.2.2-h2 to 10.2.3
-✅ Woodlands-fw2: version 10.2.3 is available for download
-✅ Woodlands-fw2: Base image for 10.2.3 is already downloaded
-🚀 Woodlands-fw2: Performing test to see if 10.2.3 is already downloaded...
-✅ Woodlands-fw2: version 10.2.3 already on target device.
-✅ Woodlands-fw2: 10.2.3 has been downloaded and sync'd to HA peer.
-🚀 Woodlands-fw2: Performing snapshot of network state information...
-✅ Woodlands-fw2: Network snapshot created successfully
-🚀 Woodlands-fw2: Performing readiness checks to determine if firewall is ready for upgrade...
+📝 Woodlands-fw2: 007954000987652 192.168.255.44
+📝 Woodlands-fw1: 007954000987651 192.168.255.43
+📝 Woodlands-fw2: HA mode: active
+📝 Woodlands-fw1: HA mode: passive
+📝 Woodlands-fw2: Local state: active, Local version: 10.1.3, Peer version: 10.1.3
+📝 Woodlands-fw2: Version comparison: equal
+🔍 Woodlands-fw2: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list.
+📝 Woodlands-fw1: Local state: passive, Local version: 10.1.3, Peer version: 10.1.3
+📝 Woodlands-fw1: Version comparison: equal
+📝 Woodlands-fw1: Target device is passive
+📝 Woodlands-fw1: Current version: 10.1.3
+📝 Woodlands-fw1: Target version: 10.2.7-h3
+✅ Woodlands-fw1: Upgrade required from 10.1.3 to 10.2.7-h3
+🔧 Woodlands-fw1: Refreshing list of available software versions
+✅ Woodlands-fw1: version 10.2.7-h3 is available for download
+❌ Woodlands-fw1: Base image for 10.2.7-h3 is not downloaded. Attempting download.
+🔍 Woodlands-fw1: version 10.2.0 is not on the target device
+🚀 Woodlands-fw1: version 10.2.0 is beginning download
+Device 007954000987651 downloading version: 10.2.0
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 3 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 35 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 66 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 98 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 129 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 160 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 192 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 223 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 257 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.0 - HA will sync image - Elapsed time: 289 seconds
+✅ Woodlands-fw1: 10.2.0 downloaded in 321 seconds
+✅ Woodlands-fw1: Base image 10.2.0 downloaded successfully
+✅ Woodlands-fw1: Pausing for 60 seconds to let 10.2.0 image load into the software manager before downloading 10.2.7-h3
+📝 Woodlands-fw1: Current version: 10.1.3
+📝 Woodlands-fw1: Target version: 10.2.7-h3
+✅ Woodlands-fw1: Upgrade required from 10.1.3 to 10.2.7-h3
+🔧 Woodlands-fw1: Refreshing list of available software versions
+✅ Woodlands-fw1: version 10.2.7-h3 is available for download
+✅ Woodlands-fw1: Base image for 10.2.7-h3 is already downloaded
+🚀 Woodlands-fw1: Performing test to see if 10.2.7-h3 is already downloaded.
+🔍 Woodlands-fw1: version 10.2.7-h3 is not on the target device
+🚀 Woodlands-fw1: version 10.2.7-h3 is beginning download
+Device 007954000987651 downloading version: 10.2.7-h3
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 3 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 35 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 67 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 103 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 135 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 168 seconds
+🔧 Woodlands-fw1: Downloading version 10.2.7-h3 - HA will sync image - Elapsed time: 201 seconds
+✅ Woodlands-fw1: 10.2.7-h3 downloaded in 233 seconds
+✅ Woodlands-fw1: 10.2.7-h3 has been downloaded and sync'd to HA peer.
+🚀 Woodlands-fw1: Performing snapshot of network state information.
+🚀 Woodlands-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ Woodlands-fw1: Network snapshot created successfully on attempt 1.
+💾 Woodlands-fw1: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw1/pre/2024-02-04_09-15-40.json
+🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ Woodlands-fw1: Passed Readiness Check: Check if active support is available
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
+✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 Woodlands-fw1: Skipped Readiness Check: Running Latest Content Version
+✅ Woodlands-fw1: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
+✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+✅ Woodlands-fw1: Passed Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 Woodlands-fw1: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if NTP is synchronized
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 Woodlands-fw1: Skipped Readiness Check: Check if a critical session is present in the sessions table
+✅ Woodlands-fw1: Readiness Checks completed
+🚀 Woodlands-fw1: Checking if HA peer is in sync.
+✅ Woodlands-fw1: HA peer sync test has been completed.
+🚀 Woodlands-fw1: Performing backup of configuration to local filesystem.
+📝 Woodlands-fw1: Not a dry run, continue with upgrade.
+🚀 Woodlands-fw1: Performing upgrade to version 10.2.7-h3.
+📝 Woodlands-fw1: The install will take several minutes, check for status details within the GUI.
+🚀 Woodlands-fw1: Attempting upgrade to version 10.2.7-h3 (Attempt 1 of 3).
+Device 007954000987651 installing version: 10.2.7-h3
+✅ Woodlands-fw1: Upgrade completed successfully
+🚀 Woodlands-fw1: Rebooting the target device.
+📝 Woodlands-fw1: Command succeeded with no output
+🟧 Woodlands-fw1: Retry attempt 1 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 2 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 3 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 4 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 5 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 6 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 7 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 8 due to error: 007954000987651 not connected
+🟧 Woodlands-fw1: Retry attempt 9 due to error: 007954000987651 not connected
+📝 Woodlands-fw1: Current device version: 10.2.7-h3
+✅ Woodlands-fw1: Device rebooted to the target version successfully.
+🚀 Woodlands-fw1: Performing backup of configuration to local filesystem.
+🔧 Woodlands-fw1: Waiting for the device to become ready for the post upgrade snapshot.
+🚀 Woodlands-fw1: Performing snapshot of network state information.
+🚀 Woodlands-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ Woodlands-fw1: Network snapshot created successfully on attempt 1.
+💾 Woodlands-fw1: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw1/post/2024-02-04_09-35-39.json
+💾 Woodlands-fw1: Snapshot comparison PDF report saved to assurance/snapshots/Woodlands-fw1/diff/2024-02-04_09-35-40_report.pdf
+🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
+📝 Woodlands-fw2: 007954000987652 192.168.255.44
+📝 Woodlands-fw2: HA mode: non-functional
+📝 Woodlands-fw2: Local state: non-functional, Local version: 10.1.3, Peer version: 10.2.7-h3
+Waiting for HA synchronization to complete on Woodlands-fw2. Attempt 1/3
+HA synchronization complete on Woodlands-fw2. Proceeding with upgrade.
+📝 Woodlands-fw2: Version comparison: older
+📝 Woodlands-fw2: Target device is on an older version
+📝 Woodlands-fw2: Current version: 10.1.3
+📝 Woodlands-fw2: Target version: 10.2.7-h3
+✅ Woodlands-fw2: Upgrade required from 10.1.3 to 10.2.7-h3
+🔧 Woodlands-fw2: Refreshing list of available software versions
+✅ Woodlands-fw2: version 10.2.7-h3 is available for download
+✅ Woodlands-fw2: Base image for 10.2.7-h3 is already downloaded
+🚀 Woodlands-fw2: Performing test to see if 10.2.7-h3 is already downloaded.
+✅ Woodlands-fw2: version 10.2.7-h3 already on target device.
+✅ Woodlands-fw2: version 10.2.7-h3 has been downloaded.
+🚀 Woodlands-fw2: Performing snapshot of network state information.
+🚀 Woodlands-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ Woodlands-fw2: Network snapshot created successfully on attempt 1.
+💾 Woodlands-fw2: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw2/pre/2024-02-04_09-36-48.json
+🚀 Woodlands-fw2: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ Woodlands-fw2: Passed Readiness Check: Check if active support is available
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
 ✅ Woodlands-fw2: Passed Readiness Check: Check if there are pending changes on device
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 Woodlands-fw2: Skipped Readiness Check: Running Latest Content Version
+✅ Woodlands-fw2: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
 ✅ Woodlands-fw2: Passed Readiness Check: No Expired Licenses
-✅ Woodlands-fw2: Passed Readiness Check: Checks HA pair status from the perspective of the current device
-✅ Woodlands-fw2: Passed Readiness Check: Check if NTP is synchronized
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+🟨 Woodlands-fw2: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 Woodlands-fw2: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if NTP is synchronized
 ✅ Woodlands-fw2: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
 ✅ Woodlands-fw2: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 Woodlands-fw2: Skipped Readiness Check: Check if a critical session is present in the sessions table
 ✅ Woodlands-fw2: Readiness Checks completed
-🚀 Woodlands-fw2: Checking if HA peer is in sync...
-✅ Woodlands-fw2: HA peer sync test has been completed.
-🚀 Woodlands-fw2: Performing backup of configuration to local filesystem...
-🚀 Woodlands-fw2: Not a dry run, continue with upgrade...
-🚀 Woodlands-fw2: Performing upgrade to version 10.2.3...
-🚀 Woodlands-fw2: Attempting upgrade to version 10.2.3 (Attempt 1 of 3)...
-Device 007954000123452 installing version: 10.2.3
+🚀 Woodlands-fw2: Checking if HA peer is in sync.
+🟧 Woodlands-fw2: HA peer state is not in sync. This will be noted, but the script will continue.
+🚀 Woodlands-fw2: Performing backup of configuration to local filesystem.
+📝 Woodlands-fw2: Not a dry run, continue with upgrade.
+🚀 Woodlands-fw2: Performing upgrade to version 10.2.7-h3.
+📝 Woodlands-fw2: The install will take several minutes, check for status details within the GUI.
+🚀 Woodlands-fw2: Attempting upgrade to version 10.2.7-h3 (Attempt 1 of 3).
+Device 007954000987652 installing version: 10.2.7-h3
 ✅ Woodlands-fw2: Upgrade completed successfully
-🚀 Woodlands-fw2: Rebooting the passive HA target device...
+🚀 Woodlands-fw2: Rebooting the target device.
 📝 Woodlands-fw2: Command succeeded with no output
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: Target device is rebooting...
-🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
-🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
-🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
-🔧 Woodlands-fw2: HA passive target device rebooted but not yet synchronized with its peer. Will try again in 60 seconds.
-🟧 Woodlands-fw2: HA passive target device rebooted but did not complete a configuration sync with the active after 5 attempts.
-🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
-📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw1: HA mode: active
-❌ Woodlands-fw1: Error suspending active target device HA state: argument of type 'NoneType' is not iterable
-📝 Woodlands-fw1: Current version: 10.2.2-h2
-📝 Woodlands-fw1: Target version: 10.2.3
-✅ Woodlands-fw1: Upgrade required from 10.2.2-h2 to 10.2.3
-✅ Woodlands-fw1: version 10.2.3 is available for download
-✅ Woodlands-fw1: Base image for 10.2.3 is already downloaded
-🚀 Woodlands-fw1: Performing test to see if 10.2.3 is already downloaded...
-✅ Woodlands-fw1: version 10.2.3 already on target device.
-✅ Woodlands-fw1: 10.2.3 has been downloaded and sync'd to HA peer.
-🚀 Woodlands-fw1: Performing snapshot of network state information...
-✅ Woodlands-fw1: Network snapshot created successfully
-🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade...
-✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
-✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
-✅ Woodlands-fw1: Passed Readiness Check: Check if NTP is synchronized
-✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
-✅ Woodlands-fw1: Readiness Checks completed
-🚀 Woodlands-fw1: Checking if HA peer is in sync...
-🟧 Woodlands-fw1: HA peer state is not in sync. This will be noted, but the script will continue.
-🚀 Woodlands-fw1: Performing backup of configuration to local filesystem...
-🚀 Woodlands-fw1: Not a dry run, continue with upgrade...
-🚀 Woodlands-fw1: Performing upgrade to version 10.2.3...
-🚀 Woodlands-fw1: Attempting upgrade to version 10.2.3 (Attempt 1 of 3)...
-Device 007954000123451 installing version: 10.2.3
-✅ Woodlands-fw1: Upgrade completed successfully
-🚀 Woodlands-fw1: Rebooting the passive HA target device...
-📝 Woodlands-fw1: Command succeeded with no output
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-🔧 Woodlands-fw1: Target device is rebooting...
-✅ Woodlands-fw1: HA passive target device rebooted and synchronized with its peer in 631 seconds
+🟧 Woodlands-fw2: Retry attempt 1 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 2 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 3 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 4 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 5 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 6 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 7 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 8 due to error: 007954000987652 not connected
+🟧 Woodlands-fw2: Retry attempt 9 due to error: 007954000987652 not connected
+📝 Woodlands-fw2: Current device version: 10.2.7-h3
+✅ Woodlands-fw2: Device rebooted to the target version successfully.
+🚀 Woodlands-fw2: Performing backup of configuration to local filesystem.
+🔧 Woodlands-fw2: Waiting for the device to become ready for the post upgrade snapshot.
+🚀 Woodlands-fw2: Performing snapshot of network state information.
+🚀 Woodlands-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ Woodlands-fw2: Network snapshot created successfully on attempt 1.
+💾 Woodlands-fw2: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw2/post/2024-02-04_09-57-36.json
+💾 Woodlands-fw2: Snapshot comparison PDF report saved to assurance/snapshots/Woodlands-fw2/diff/2024-02-04_09-57-38_report.pdf
 ✅ panorama.cdot.io: Completed revisiting firewalls
 ```
 
@@ -299,6 +438,60 @@ Device 007954000123451 installing version: 10.2.3
 If you would like to change the default settings of `pan-os-upgrade` tool, you can create a `settings.yaml` file and run the `settings` CLI argument. This will walk you through a series of options to change.
 
 Create the empty `settings.yaml` file within your current working directory
+
+### Readiness Checks
+
+The following table lists the available readiness checks, their descriptions, and whether they are enabled by default. These checks are designed to ensure the device's readiness for an upgrade by validating its operational and configuration status.
+
+| Readiness Check             | Description                                                                               | Enabled by Default |
+| --------------------------- | ----------------------------------------------------------------------------------------- | :----------------: |
+| `active_support`            | Check if active support is available                                                      |        Yes         |
+| `arp_entry_exist`           | Check if a given ARP entry is available in the ARP table                                  |         No         |
+| `candidate_config`          | Check if there are pending changes on device                                              |        Yes         |
+| `certificates_requirements` | Check if the certificates' keys meet minimum size requirements                            |         No         |
+| `content_version`           | Running Latest Content Version                                                            |        Yes         |
+| `dynamic_updates`           | Check if any Dynamic Update job is scheduled to run within the specified time window      |        Yes         |
+| `expired_licenses`          | No Expired Licenses                                                                       |        Yes         |
+| `free_disk_space`           | Check if there is enough space on the `/opt/panrepo` volume for downloading a PanOS image |        Yes         |
+| `ha`                        | Checks HA pair status from the perspective of the current device                          |        Yes         |
+| `ip_sec_tunnel_status`      | Check if a given IPsec tunnel is in active state                                          |        Yes         |
+| `jobs`                      | Check for any job with status different than FIN                                          |         No         |
+| `ntp_sync`                  | Check if NTP is synchronized                                                              |         No         |
+| `panorama`                  | Check connectivity with the Panorama appliance                                            |        Yes         |
+| `planes_clock_sync`         | Check if the clock is synchronized between dataplane and management plane                 |        Yes         |
+| `session_exist`             | Check if a critical session is present in the sessions table                              |         No         |
+
+### State Snapshots
+
+The following table lists the categories of state snapshots that can be captured to document essential data about the device's current state. These snapshots are crucial for diagnostics and verifying the device's operational status before proceeding with the upgrade.
+
+| Snapshot          | Description                         | Enabled by Default |
+| ----------------- | ----------------------------------- | :----------------: |
+| `arp_table`       | Snapshot of the ARP Table           |        Yes         |
+| `content_version` | Snapshot of the Content Version     |        Yes         |
+| `ip_sec_tunnels`  | Snapshot of the IPsec Tunnels       |         No         |
+| `license`         | Snapshot of the License Information |        Yes         |
+| `nics`            | Snapshot of the Network Interfaces  |        Yes         |
+| `routes`          | Snapshot of the Routing Table       |        Yes         |
+| `session_stats`   | Snapshot of the Session Statistics  |         No         |
+
+### Customizing Default Settings
+
+The default settings for readiness checks and snapshots can be customized using the `pan-os-upgrade settings` subcommand. This interactive command guides you through a series of prompts to configure various aspects of the script's behavior, including which readiness checks and snapshots are enabled.
+
+To override the default settings:
+
+1. Run the `pan-os-upgrade settings` command.
+2. Follow the prompts to enable or disable specific readiness checks and snapshots.
+3. The resulting configurations are saved to a `settings.yaml` file in the current working directory.
+
+    ```bash
+    pan-os-upgrade settings
+    ```
+
+#### Note
+
+The `settings.yaml` file created by this command can be edited manually for further customization.
 
 <div class="termy">
 
@@ -404,8 +597,6 @@ Custom configuration loaded from:
 📝 houston: Target version: 10.2.5
 ✅ houston: Upgrade required from 10.2.4-h4 to 10.2.5
 ... shortened for brevity ...
-🟧 houston: Retry attempt 4 due to error: URLError: reason: [Errno 111] Connection refused
-📝 houston: Current device version: 10.2.5
 ✅ houston: Device rebooted to the target version successfully.
 ```
 

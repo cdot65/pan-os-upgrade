@@ -2,10 +2,25 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.1.0
+
+**Release Date:** *<20240204>*
+
+### What's New
+
+- Pre/Post upgrade diff report created in PDF format
+- Changed structure of AssuranceOptions
+- `enabled_by_default` key added to allow for declaring which tests will execute by default
+- Introduced "skipped" emoji to bring awareness to which tests and checks are skipped
+- Using custom fork for `panos-upgrade-assurance` to account for integer values for `ttl` in ARP snapshots
+- Added a new troubleshooting item to address how to handle when ARP snapshots fail due to a bug in the dependency
+- Formatting and docstrings revisited
+
 ## Version 1.0.0
 
 **Release Date:** *<20240131>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Shipping first release! 🚀
