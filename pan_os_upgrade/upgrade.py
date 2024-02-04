@@ -72,6 +72,7 @@ Notes
 
 
 # standard library imports
+import importlib.resources as pkg_resources
 import ipaddress
 import json
 import logging
@@ -2969,11 +2970,13 @@ def generate_diff_report_pdf(
     content = []
     styles = getSampleStyleSheet()
 
-    # Custom Banner with Logo and Styling
-    logo = "assets/logo.png"
-    img = Image(logo, width=71, height=51)
-    img.hAlign = "LEFT"
-    content.append(img)
+    # Accessing logo.png using importlib.resources, creating a custom banner with logo and styling
+    with pkg_resources.files("pan_os_upgrade.assets").joinpath("logo.png") as logo_path:
+        img = Image(
+            str(logo_path), width=71, height=51
+        )  # Convert Traversable object to string for Image path
+        img.hAlign = "LEFT"
+        content.append(img)
 
     banner_style = styles["Title"]
     banner_style.fontSize = 24
