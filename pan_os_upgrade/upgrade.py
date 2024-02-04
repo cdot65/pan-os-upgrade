@@ -1575,6 +1575,9 @@ def software_update_check(
     )
 
     # retrieve available versions of PAN-OS
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Refreshing list of available software versions"
+    )
     target_device.software.check()
     available_versions = target_device.software.versions
 
@@ -2019,16 +2022,14 @@ def upgrade_firewall(
     )
 
     folder_path = f"assurance/snapshots/{hostname}/diff"
-    ensure_directory_exists(folder_path)
-
     pdf_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
+    ensure_directory_exists(pdf_report)
 
     # Generate the PDF report for the diff
     generate_diff_report_pdf(
         pre_post_diff,
         pdf_report,
         hostname,
-        firewall.version,
         target_version,
     )
 
@@ -2805,7 +2806,6 @@ def generate_diff_report_pdf(
     pre_post_diff: dict,
     file_path: str,
     hostname: str,
-    current_version: str,
     target_version: str,
 ) -> None:
     """
@@ -2861,7 +2861,7 @@ def generate_diff_report_pdf(
     banner_style.textColor = colors.HexColor("#333333")
     banner_style.alignment = 1  # Center alignment
     banner_content = Paragraph(
-        f"<b>{hostname} Upgrade {current_version} -> {target_version} Diff Report</b>",
+        f"<b>{hostname} Upgrade {target_version} Diff Report</b>",
         banner_style,
     )
     content.append(Spacer(1, 12))
