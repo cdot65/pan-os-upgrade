@@ -2,10 +2,19 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.1.2
+
+**Release Date:** *<20240208>*
+
+### What's New
+
+- Fixed a bug that prevented HA Panorama appliances from being targeted for upgrades
+
 ## Version 1.1.1
 
 **Release Date:** *<20240204>*
 
+<!-- trunk-ignore(markdownlint/MD024) -->
 ### What's New
 
 - Fixed a bug that prevented access to the `logo.png` file used by the PDF generation process
