@@ -890,10 +890,13 @@ def handle_panorama_ha(
             )
             return True, None
 
-        elif local_state == "secondary-suspended":
-            # Continue with upgrade process on the secondary-suspended target device
+        elif (
+            local_state == "secondary-suspended"
+            or local_state == "secondary-non-functional"
+        ):
+            # Continue with upgrade process on the secondary-suspended or secondary-non-functional target device
             logging.info(
-                f"{get_emoji('warning')} {hostname}: Target device is secondary-suspended",
+                f"{get_emoji('warning')} {hostname}: Target device is {local_state}",
             )
             return True, None
 
@@ -930,7 +933,7 @@ def handle_panorama_ha(
     return False, None
 
 
-def perform_ha_sync_check(
+def ha_sync_check_firewall(
     hostname: str,
     ha_details: dict,
     strict_sync_check: bool = True,
@@ -968,10 +971,10 @@ def perform_ha_sync_check(
     Example
     -------
     >>> ha_details = {'result': {'group': {'running-sync': 'synchronized'}}}
-    >>> perform_ha_sync_check('firewall1', ha_details)
+    >>> ha_sync_check_firewall('firewall1', ha_details)
     True  # Indicates that the HA peers are synchronized
 
-    >>> perform_ha_sync_check('firewall1', ha_details, strict_sync_check=False)
+    >>> ha_sync_check_firewall('firewall1', ha_details, strict_sync_check=False)
     False  # HA peers are unsynchronized, but script continues due to lenient check
 
     Notes
@@ -986,6 +989,80 @@ def perform_ha_sync_check(
 
     logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
     if ha_details and ha_details["result"]["group"]["running-sync"] == "synchronized":
+        logging.info(
+            f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
+        )
+        return True
+    else:
+        if strict_sync_check:
+            logging.error(
+                f"{get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
+            )
+            logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
+            sys.exit(1)
+        else:
+            logging.warning(
+                f"{get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
+            )
+            return False
+
+
+def ha_sync_check_panorama(
+    hostname: str,
+    ha_details: dict,
+    strict_sync_check: bool = True,
+) -> bool:
+    """
+    Checks the synchronization status between High Availability (HA) peers of a Palo Alto Networks device.
+
+    Ensuring HA peers are synchronized is vital before executing operations that might impact the device's state,
+    such as firmware upgrades or configuration changes. This function evaluates the HA synchronization status using
+    provided HA details. It offers an option to enforce a strict synchronization check, where failure to sync
+    results in script termination, ensuring operations proceed only in a fully synchronized HA environment.
+
+    Parameters
+    ----------
+    hostname : str
+        The hostname or IP address of the target device, used for logging purposes to identify the device under evaluation.
+    ha_details : dict
+        A dictionary containing HA information for the device, specifically the synchronization status with its HA peer.
+    strict_sync_check : bool, optional
+        If True (default), the function will exit the script upon detecting unsynchronized HA peers to prevent potential
+        disruptions. If False, the script logs a warning but continues execution, suitable for less critical operations.
+
+    Returns
+    -------
+    bool
+        Returns True if the HA peers are confirmed to be synchronized, indicating readiness for sensitive operations.
+        Returns False if the HA peers are not synchronized, with subsequent actions dependent on the `strict_sync_check` parameter.
+
+    Raises
+    ------
+    SystemExit
+        Triggered if `strict_sync_check` is True and the HA peers are found to be unsynchronized, halting the script to avoid
+        potential issues in an unsynchronized HA environment.
+
+    Example
+    -------
+    >>> ha_details = {'result': {'group': {'running-sync': 'synchronized'}}}
+    >>> ha_sync_check_firewall('firewall1', ha_details)
+    True  # Indicates that the HA peers are synchronized
+
+    >>> ha_sync_check_firewall('firewall1', ha_details, strict_sync_check=False)
+    False  # HA peers are unsynchronized, but script continues due to lenient check
+
+    Notes
+    -----
+    - In HA configurations, maintaining synchronization between peers is critical to ensure consistent state and behavior
+      across devices.
+    - This function is particularly useful in automated workflows and scripts where actions need to be conditional on the
+      synchronization state of HA peers to maintain system integrity and prevent split-brain scenarios.
+    - The option to override strict synchronization checks allows for flexibility in operations where immediate consistency
+      between HA peers may not be as critical.
+    """
+
+    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
+    if ha_details and ha_details["result"]["running-sync"] == "synchronized":
         logging.info(
             f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
         )
@@ -1949,8 +2026,8 @@ def suspend_ha_active(
             )
             return False
     except Exception as e:
-        logging.error(
-            f"{get_emoji('error')} {hostname}: Error suspending active target device HA state: {e}"
+        logging.warning(
+            f"{get_emoji('warning')} {hostname}: Error received when suspending active target device HA state: {e}"
         )
         return False
 
@@ -2187,7 +2264,7 @@ def upgrade_firewall(
 
     # Perform HA sync check, skipping standalone firewalls
     if ha_details:
-        perform_ha_sync_check(
+        ha_sync_check_firewall(
             hostname,
             ha_details,
             strict_sync_check=not is_device_to_revisit,
@@ -2392,7 +2469,6 @@ def upgrade_panorama(
         target_version,
         ha_details,
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: Readiness check complete")
 
     # gracefully exit if the Panorama is not ready for an upgrade to target version
     if not update_available:
@@ -2411,7 +2487,7 @@ def upgrade_panorama(
         target_version,
         ha_details,
     )
-    if deploy_info == "active" or deploy_info == "passive":
+    if deploy_info == "primary-active" or deploy_info == "secondary-passive":
         logging.info(
             f"{get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
         )
@@ -2434,7 +2510,7 @@ def upgrade_panorama(
 
     # Perform HA sync check, skipping standalone Panoramas
     if ha_details:
-        perform_ha_sync_check(
+        ha_sync_check_panorama(
             hostname,
             ha_details,
             strict_sync_check=not is_panorama_to_revisit,
@@ -3718,7 +3794,7 @@ def firewall(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Launches the upgrade process for a Palo Alto Networks firewall, facilitating a comprehensive and controlled upgrade workflow.
@@ -3823,7 +3899,7 @@ def panorama(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Manages the upgrade process for a Panorama management platform, orchestrating the sequence of actions required for a successful upgrade.
@@ -3937,7 +4013,7 @@ def batch(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Executes a coordinated upgrade of multiple firewalls managed by a Panorama appliance using specified criteria.
