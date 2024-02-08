@@ -80,7 +80,7 @@ docker run \
 -it \
 ghcr.io/cdot65/pan-os-upgrade:latest firewall -v 11.1.1 -u cdot -h houston.cdot.io
 Firewall password:
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -250,7 +250,7 @@ Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.7-h3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===========================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -582,7 +582,7 @@ $ docker run \
 -it \
 ghcr.io/cdot65/pan-os-upgrade:latest firewall -v 10.2.5 -u cdot -h houston.cdot.io
 Firewall password:
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 =========================================================
 Welcome to the PAN-OS upgrade tool
 

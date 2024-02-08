@@ -5,7 +5,7 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+[![Apache2.0 License][license-shield]][license-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -72,7 +72,7 @@ Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.7-h3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===========================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -316,5 +316,5 @@ This project is built upon the shoulders of two powerful Python libraries: `pan-
 [stars-url]: https://github.com/cdot65/pan-os-upgrade/stargazers
 [issues-shield]: https://img.shields.io/github/issues/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [issues-url]: https://github.com/cdot65/pan-os-upgrade/issues
-[license-shield]: https://img.shields.io/github/**license**/cdot65/pan-os-upgrade.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge
 [license-url]: https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE

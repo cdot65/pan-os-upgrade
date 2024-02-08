@@ -26,6 +26,9 @@ hide:
 <a href="https://github.com/cdot65/pan-os-upgrade/issues" target="_blank">
     <img src="https://img.shields.io/github/issues/cdot65/pan-os-upgrade.svg?style=for-the-badge" alt="Issues">
 </a>
+<a href="https://github.com/cdot65/pan-os-upgrade/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/cdot65/pan-os-upgrade.svg?style=for-the-badge" alt="License">
+</a>
 </p>
 
 ---
@@ -52,7 +55,9 @@ hide:
 - **Multi-threading for Efficiency**: Utilizes multi-threading to parallelize upgrades, especially beneficial when upgrading multiple devices through Panorama, enhancing performance and reducing overall upgrade time.
 - **Customizable and Extensible**: Execution of the script can be tailored to fit diverse network environments and requirements, offering flexibility for various deployment scenarios.
 - **Comprehensive PAN-OS Interactions**: Facilitates extensive interactions with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
-****
+
+---
+
 ## Python Virtual Environment Workflow
 
 This approach involves setting up a Python virtual environment and running `pan-os-upgrade` within this isolated environment, ensuring compatibility and preventing any conflicts with system-wide Python installations.
@@ -98,7 +103,7 @@ Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.7-h3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===========================================================================
 Welcome to the PAN-OS upgrade tool
 

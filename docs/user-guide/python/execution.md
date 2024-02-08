@@ -16,7 +16,7 @@ Firewall hostname or IP: houston.cdot.io
 Firewall username: cdot
 Firewall password:
 Target version: 11.1.1
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -182,7 +182,7 @@ Panorama username: cdot
 Panorama password:
 Firewall target version (ex: 10.1.2): 10.2.7-h3
 Filter string (ex: hostname=Woodlands*) []: hostname=Woodlands*
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 ===========================================================================
 Welcome to the PAN-OS upgrade tool
 
@@ -516,7 +516,7 @@ You will be able to confirm that the file was discovered by the message within t
 ```console
 pan-os-upgrade firewall -v 10.2.5 -u cdot -h houston.cdot.io
 Firewall password:
-Dry Run? [y/N]:
+Dry Run? [Y/n]:
 =========================================================
 Welcome to the PAN-OS upgrade tool
 
