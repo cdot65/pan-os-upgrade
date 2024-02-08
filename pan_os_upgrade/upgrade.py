@@ -70,7 +70,6 @@ Notes
 - The `settings.yaml` file allows for the customization of various aspects of the upgrade process, including the selection of readiness checks and snapshot configurations.
 """
 
-
 # standard library imports
 import importlib.resources as pkg_resources
 import ipaddress
@@ -336,9 +335,7 @@ class AssuranceOptions:
     }
 
 
-# Core Upgrade Functions
-
-
+# Core Functions
 def backup_configuration(
     target_device: Union[Firewall, Panorama],
     hostname: str,
@@ -594,11 +591,11 @@ def get_ha_status(
         return deployment_type[0], None
 
 
-def handle_ha_logic(
-    target_device: Union[Firewall, Panorama],
+def handle_firewall_ha(
+    target_device: Firewall,
     hostname: str,
     dry_run: bool,
-) -> Tuple[bool, Optional[Union[Firewall, Panorama]]]:
+) -> Tuple[bool, Optional[Firewall]]:
     """
     Determines and handles High Availability (HA) logic for the target device during the upgrade process.
 
@@ -609,8 +606,8 @@ def handle_ha_logic(
 
     Parameters
     ----------
-    target_device : Union[Firewall, Panorama]
-        The device being evaluated for upgrade. It must be an instance of either a Firewall or Panorama and might be part of
+    target_device: Firewall
+        The device being evaluated for upgrade. It must be an instance of Firewall and might be part of
         an HA configuration.
     hostname : str
         The hostname or IP address of the target device for identification and logging purposes.
@@ -620,14 +617,14 @@ def handle_ha_logic(
 
     Returns
     -------
-    Tuple[bool, Optional[Union[Firewall, Panorama]]]
+    Tuple[bool, Optional[Firewall]]
         A tuple where the first element is a boolean indicating whether the upgrade process should continue, and the second
         element is an optional device instance representing the HA peer if relevant and applicable.
 
     Example
     -------
     >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-    >>> proceed, ha_peer = handle_ha_logic(firewall, '192.168.1.1', dry_run=False)
+    >>> proceed, ha_peer = handle_firewall_ha(firewall, '192.168.1.1', dry_run=False)
     >>> print(proceed)  # Indicates whether the upgrade should continue
     >>> if ha_peer:
     ...     print(ha_peer)  # The HA peer device instance if applicable
@@ -666,9 +663,9 @@ def handle_ha_logic(
 
     # Check if the firewall is in the revisit list
     with target_devices_to_revisit_lock:
-        is_firewall_to_revisit = target_device in target_devices_to_revisit
+        is_device_to_revisit = target_device in target_devices_to_revisit
 
-    if is_firewall_to_revisit:
+    if is_device_to_revisit:
         # Initialize with default values
         max_retries = 3
         retry_interval = 60
@@ -763,7 +760,180 @@ def handle_ha_logic(
     return False, None
 
 
-def perform_ha_sync_check(
+def handle_panorama_ha(
+    target_device: Panorama,
+    hostname: str,
+    dry_run: bool,
+) -> Tuple[bool, Optional[Panorama]]:
+    """
+    Determines and handles High Availability (HA) logic for the Panorama device during the upgrade process.
+
+    This function assesses the HA configuration of the specified Panorama device to decide the appropriate course of action for
+    the upgrade. It considers the device's role in an HA setup (primary-active, secondary-passive) and uses the 'dry_run' flag to
+    determine whether to simulate or execute the upgrade. Based on the device's HA status and synchronization state with its
+    HA peer, the function guides whether to proceed with the upgrade and performs HA-specific preparations if necessary.
+
+    Parameters
+    ----------
+    target_device: Panorama
+        The device being evaluated for upgrade. It must be an instance of Panorama and might be part of
+        an HA configuration.
+    hostname : str
+        The hostname or IP address of the target device for identification and logging purposes.
+    dry_run : bool
+        A flag indicating whether to simulate the upgrade process (True) without making actual changes or to proceed with
+        the upgrade (False).
+
+    Returns
+    -------
+    Tuple[bool, Optional[Panorama]]
+        A tuple where the first element is a boolean indicating whether the upgrade process should continue, and the second
+        element is an optional device instance representing the HA peer if relevant and applicable.
+
+    Example
+    -------
+    >>> panorama = Panorama(hostname='192.168.1.1', api_username='admin', api_password='admin')
+    >>> proceed, ha_peer = handle_panorama_ha(firewall, '192.168.1.1', dry_run=False)
+    >>> print(proceed)  # Indicates whether the upgrade should continue
+    >>> if ha_peer:
+    ...     print(ha_peer)  # The HA peer device instance if applicable
+
+    Notes
+    -----
+    - This function is crucial for managing the upgrade process in HA environments to ensure consistency and minimize
+      downtime.
+    - It incorporates checks for synchronization states and versions between HA peers, ensuring upgrades are conducted
+      safely and effectively.
+    - The 'dry_run' option allows administrators to validate the upgrade logic without impacting the actual device
+      configuration or operation.
+    - Settings such as retry counts and intervals for HA synchronization checks can be customized via the 'settings.yaml'
+      file, providing flexibility for different network environments and requirements.
+    """
+
+    deploy_info, ha_details = get_ha_status(
+        target_device,
+        hostname,
+    )
+
+    # If the target device is not part of an HA configuration, proceed with the upgrade
+    if not ha_details:
+        return True, None
+
+    logging.debug(f"{get_emoji('report')} {hostname}: Deployment info: {deploy_info}")
+    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+
+    local_state = ha_details["result"]["local-info"]["state"]
+    local_version = ha_details["result"]["local-info"]["build-rel"]
+    # peer_state = ha_details["result"]["peer-info"]["state"]
+    peer_version = ha_details["result"]["peer-info"]["build-rel"]
+
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
+    )
+
+    # Check if the firewall is in the revisit list
+    with target_devices_to_revisit_lock:
+        is_device_to_revisit = target_device in target_devices_to_revisit
+
+    if is_device_to_revisit:
+        # Initialize with default values
+        max_retries = 3
+        retry_interval = 60
+
+        # Override if settings.yaml exists and contains these settings
+        if settings_file_path.exists():
+            max_retries = settings_file.get("ha_sync.max_tries", max_retries)
+            retry_interval = settings_file.get("ha_sync.retry_interval", retry_interval)
+
+        for attempt in range(max_retries):
+            logging.info(
+                f"Waiting for HA synchronization to complete on {hostname}. Attempt {attempt + 1}/{max_retries}"
+            )
+            # Wait for HA synchronization
+            time.sleep(retry_interval)
+
+            # Re-fetch the HA status to get the latest state
+            deploy_info, ha_details = get_ha_status(target_device, hostname)
+            local_version = ha_details["result"]["local-info"]["build-rel"]
+            peer_version = ha_details["result"]["peer-info"]["build-rel"]
+
+            if peer_version != local_version:
+                logging.info(
+                    f"HA synchronization complete on {hostname}. Proceeding with upgrade."
+                )
+                break
+            else:
+                logging.info(
+                    f"HA synchronization still in progress on {hostname}. Rechecking after wait period."
+                )
+
+    version_comparison = compare_versions(local_version, peer_version)
+    logging.info(
+        f"{get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
+    )
+
+    # If the active and passive target devices are running the same version
+    if version_comparison == "equal":
+        if local_state == "primary-active":
+            # Add the active target device to the list and exit the upgrade process
+            with target_devices_to_revisit_lock:
+                target_devices_to_revisit.append(target_device)
+            logging.info(
+                f"{get_emoji('search')} {hostname}: Detected primary-active target device in HA pair running the same version as its peer. Added target device to revisit list."
+            )
+            return False, None
+
+        elif local_state == "secondary-passive":
+            # Continue with upgrade process on the secondary-passive target device
+            logging.info(
+                f"{get_emoji('report')} {hostname}: Target device is secondary-passive",
+            )
+            return True, None
+
+        elif (
+            local_state == "secondary-suspended"
+            or local_state == "secondary-non-functional"
+        ):
+            # Continue with upgrade process on the secondary-suspended or secondary-non-functional target device
+            logging.info(
+                f"{get_emoji('warning')} {hostname}: Target device is {local_state}",
+            )
+            return True, None
+
+    elif version_comparison == "older":
+        logging.info(
+            f"{get_emoji('report')} {hostname}: Target device is on an older version"
+        )
+        # Suspend HA state of active if the primary-active is on a later release
+        if local_state == "primary-active" and not dry_run:
+            logging.info(
+                f"{get_emoji('report')} {hostname}: Suspending HA state of primary-active"
+            )
+            suspend_ha_active(
+                target_device,
+                hostname,
+            )
+        return True, None
+
+    elif version_comparison == "newer":
+        logging.info(
+            f"{get_emoji('report')} {hostname}: Target device is on a newer version"
+        )
+        # Suspend HA state of secondary-passive if the primary-active is on a later release
+        if local_state == "primary-active" and not dry_run:
+            logging.info(
+                f"{get_emoji('report')} {hostname}: Suspending HA state of primary-active"
+            )
+            suspend_ha_passive(
+                target_device,
+                hostname,
+            )
+        return True, None
+
+    return False, None
+
+
+def ha_sync_check_firewall(
     hostname: str,
     ha_details: dict,
     strict_sync_check: bool = True,
@@ -801,10 +971,10 @@ def perform_ha_sync_check(
     Example
     -------
     >>> ha_details = {'result': {'group': {'running-sync': 'synchronized'}}}
-    >>> perform_ha_sync_check('firewall1', ha_details)
+    >>> ha_sync_check_firewall('firewall1', ha_details)
     True  # Indicates that the HA peers are synchronized
 
-    >>> perform_ha_sync_check('firewall1', ha_details, strict_sync_check=False)
+    >>> ha_sync_check_firewall('firewall1', ha_details, strict_sync_check=False)
     False  # HA peers are unsynchronized, but script continues due to lenient check
 
     Notes
@@ -819,6 +989,80 @@ def perform_ha_sync_check(
 
     logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
     if ha_details and ha_details["result"]["group"]["running-sync"] == "synchronized":
+        logging.info(
+            f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
+        )
+        return True
+    else:
+        if strict_sync_check:
+            logging.error(
+                f"{get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
+            )
+            logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
+            sys.exit(1)
+        else:
+            logging.warning(
+                f"{get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
+            )
+            return False
+
+
+def ha_sync_check_panorama(
+    hostname: str,
+    ha_details: dict,
+    strict_sync_check: bool = True,
+) -> bool:
+    """
+    Checks the synchronization status between High Availability (HA) peers of a Palo Alto Networks device.
+
+    Ensuring HA peers are synchronized is vital before executing operations that might impact the device's state,
+    such as firmware upgrades or configuration changes. This function evaluates the HA synchronization status using
+    provided HA details. It offers an option to enforce a strict synchronization check, where failure to sync
+    results in script termination, ensuring operations proceed only in a fully synchronized HA environment.
+
+    Parameters
+    ----------
+    hostname : str
+        The hostname or IP address of the target device, used for logging purposes to identify the device under evaluation.
+    ha_details : dict
+        A dictionary containing HA information for the device, specifically the synchronization status with its HA peer.
+    strict_sync_check : bool, optional
+        If True (default), the function will exit the script upon detecting unsynchronized HA peers to prevent potential
+        disruptions. If False, the script logs a warning but continues execution, suitable for less critical operations.
+
+    Returns
+    -------
+    bool
+        Returns True if the HA peers are confirmed to be synchronized, indicating readiness for sensitive operations.
+        Returns False if the HA peers are not synchronized, with subsequent actions dependent on the `strict_sync_check` parameter.
+
+    Raises
+    ------
+    SystemExit
+        Triggered if `strict_sync_check` is True and the HA peers are found to be unsynchronized, halting the script to avoid
+        potential issues in an unsynchronized HA environment.
+
+    Example
+    -------
+    >>> ha_details = {'result': {'group': {'running-sync': 'synchronized'}}}
+    >>> ha_sync_check_firewall('firewall1', ha_details)
+    True  # Indicates that the HA peers are synchronized
+
+    >>> ha_sync_check_firewall('firewall1', ha_details, strict_sync_check=False)
+    False  # HA peers are unsynchronized, but script continues due to lenient check
+
+    Notes
+    -----
+    - In HA configurations, maintaining synchronization between peers is critical to ensure consistent state and behavior
+      across devices.
+    - This function is particularly useful in automated workflows and scripts where actions need to be conditional on the
+      synchronization state of HA peers to maintain system integrity and prevent split-brain scenarios.
+    - The option to override strict synchronization checks allows for flexibility in operations where immediate consistency
+      between HA peers may not be as critical.
+    """
+
+    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
+    if ha_details and ha_details["result"]["running-sync"] == "synchronized":
         logging.info(
             f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
         )
@@ -1782,8 +2026,8 @@ def suspend_ha_active(
             )
             return False
     except Exception as e:
-        logging.error(
-            f"{get_emoji('error')} {hostname}: Error suspending active target device HA state: {e}"
+        logging.warning(
+            f"{get_emoji('warning')} {hostname}: Error received when suspending active target device HA state: {e}"
         )
         return False
 
@@ -1922,7 +2166,7 @@ def upgrade_firewall(
 
     # If firewall is part of HA pair, determine if it's active or passive
     if ha_details:
-        proceed_with_upgrade, peer_firewall = handle_ha_logic(
+        proceed_with_upgrade, peer_firewall = handle_firewall_ha(
             firewall,
             hostname,
             dry_run,
@@ -2016,14 +2260,14 @@ def upgrade_firewall(
 
     # Determine strictness of HA sync check
     with target_devices_to_revisit_lock:
-        is_firewall_to_revisit = firewall in target_devices_to_revisit
+        is_device_to_revisit = firewall in target_devices_to_revisit
 
     # Perform HA sync check, skipping standalone firewalls
     if ha_details:
-        perform_ha_sync_check(
+        ha_sync_check_firewall(
             hostname,
             ha_details,
-            strict_sync_check=not is_firewall_to_revisit,
+            strict_sync_check=not is_device_to_revisit,
         )
 
     # Back up configuration to local filesystem
@@ -2199,7 +2443,7 @@ def upgrade_panorama(
 
     # If Panorama is part of HA pair, determine if it's active or passive
     if ha_details:
-        proceed_with_upgrade, peer_panorama = handle_ha_logic(
+        proceed_with_upgrade, peer_panorama = handle_panorama_ha(
             panorama,
             hostname,
             dry_run,
@@ -2225,7 +2469,6 @@ def upgrade_panorama(
         target_version,
         ha_details,
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: Readiness check complete")
 
     # gracefully exit if the Panorama is not ready for an upgrade to target version
     if not update_available:
@@ -2244,7 +2487,7 @@ def upgrade_panorama(
         target_version,
         ha_details,
     )
-    if deploy_info == "active" or deploy_info == "passive":
+    if deploy_info == "primary-active" or deploy_info == "secondary-passive":
         logging.info(
             f"{get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
         )
@@ -2267,7 +2510,7 @@ def upgrade_panorama(
 
     # Perform HA sync check, skipping standalone Panoramas
     if ha_details:
-        perform_ha_sync_check(
+        ha_sync_check_panorama(
             hostname,
             ha_details,
             strict_sync_check=not is_panorama_to_revisit,
@@ -3551,7 +3794,7 @@ def firewall(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Launches the upgrade process for a Palo Alto Networks firewall, facilitating a comprehensive and controlled upgrade workflow.
@@ -3656,7 +3899,7 @@ def panorama(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Manages the upgrade process for a Panorama management platform, orchestrating the sequence of actions required for a successful upgrade.
@@ -3770,7 +4013,7 @@ def batch(
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
         ),
-    ] = False,
+    ] = True,
 ):
     """
     Executes a coordinated upgrade of multiple firewalls managed by a Panorama appliance using specified criteria.
