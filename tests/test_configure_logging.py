@@ -48,3 +48,77 @@ def test_configure_logging_debug_level(reset_logging, tmp_path):
 def test_configure_logging_invalid_level(reset_logging):
     with pytest.raises(ValueError):
         configure_logging("INVALID_LEVEL")
+
+
+@pytest.mark.parametrize("log_level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+def test_configure_logging_levels(reset_logging, tmp_path, log_level):
+    log_file_path = tmp_path / f"{log_level.lower()}_test.log"
+    configure_logging(
+        log_level,
+        encoding="utf-8",
+        log_file_path=str(log_file_path),
+    )
+
+    logger = logging.getLogger()
+    assert logger.level == getattr(
+        logging, log_level
+    ), f"Logging level should be set to {log_level}."
+
+    assert any(
+        isinstance(h, logging.StreamHandler) for h in logger.handlers
+    ), "Console handler should be added."
+    assert any(
+        isinstance(h, RotatingFileHandler) for h in logger.handlers
+    ), "File handler should be added."
+
+    file_handler = next(
+        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
+    )
+    assert file_handler.baseFilename == str(
+        log_file_path
+    ), "File handler should use the specified log file path."
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "iso-8859-1"])
+def test_configure_logging_encodings(reset_logging, tmp_path, encoding):
+    log_file_path = tmp_path / f"encoding_{encoding}_test.log"
+    configure_logging(
+        "INFO",
+        encoding=encoding,
+        log_file_path=str(log_file_path),
+    )
+
+    logger = logging.getLogger()  # Define logger here
+    file_handler = next(
+        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
+    )
+    assert (
+        file_handler.encoding == encoding
+    ), f"File handler should use the specified encoding {encoding}."
+
+
+@pytest.mark.parametrize("invalid_level", ["INVALID", "LOG", "TRACE"])
+def test_configure_logging_invalid_levels(reset_logging, invalid_level):
+    with pytest.raises(ValueError):
+        configure_logging(invalid_level)
+
+
+# Test default parameters are used correctly
+def test_configure_logging_default_parameters(reset_logging, tmp_path, monkeypatch):
+    # Monkeypatch the settings to return certain values
+    monkeypatch.setattr("pan_os_upgrade.upgrade.settings_file.get", lambda k, d: d)
+
+    log_file_path = "logs/upgrade.log"  # Default path
+    configure_logging("INFO")
+
+    logger = logging.getLogger()
+    assert (
+        logger.level == logging.INFO
+    ), "Logging level should be set to INFO by default."
+
+    file_handler = next(
+        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
+    )
+    assert file_handler.baseFilename.endswith(
+        log_file_path
+    ), "Default log file path should be used."
