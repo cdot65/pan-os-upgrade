@@ -88,7 +88,6 @@ from threading import Lock
 from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-# trunk-ignore(bandit/B405)
 import xml.etree.ElementTree as ET
 
 # Palo Alto Networks imports
@@ -2680,6 +2679,8 @@ def compare_versions(
 def configure_logging(
     level: str,
     encoding: str = "utf-8",
+    log_file_path: str = "logs/upgrade.log",
+    log_max_size: int = 10 * 1024 * 1024,
 ) -> None:
     """
     Configures the logging system with a specified level and encoding for the application.
@@ -2714,17 +2715,23 @@ def configure_logging(
     - The rotating file handler mechanism ensures that logging does not consume excessive disk space, automatically managing log file rotation and archival.
     - Logging configuration can be adjusted via the `settings.yaml` file, allowing for flexible setup based on operational requirements or personal preferences.
     """
+    allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    if level.upper() not in allowed_levels:
+        raise ValueError(
+            f"Invalid log level: {level}. Allowed levels are: {', '.join(allowed_levels)}"
+        )
 
     # Use the provided log_level parameter if given, otherwise fall back to settings file or default
     log_level = (
         level.upper() if level else settings_file.get("logging.level", "INFO").upper()
     )
 
-    # Use the provided log_file_path parameter if given, otherwise fall back to settings file or default
-    log_file_path = settings_file.get("logging.file_path", "logs/upgrade.log")
-
-    # Convert MB to bytes
-    log_max_size = settings_file.get("logging.max_size", 10) * 1024 * 1024
+    # Override if settings.yaml exists and contains these settings
+    if settings_file_path.exists():
+        # Use the provided log_file_path parameter if given, otherwise fall back to settings file or default
+        log_file_path = settings_file.get("logging.file_path", "logs/upgrade.log")
+        # Convert MB to bytes
+        log_max_size = settings_file.get("logging.max_size", 10) * 1024 * 1024
 
     # Use the provided log_upgrade_log_count parameter if given, otherwise fall back to settings file or default
     log_upgrade_log_count = settings_file.get("logging.upgrade_log_count", 3)
