@@ -8,10 +8,8 @@ from dotenv import load_dotenv
 
 @pytest.fixture
 def show_devices_all_fixture():
-    # trunk-ignore(bandit/B405)
     from xml.etree.ElementTree import fromstring
 
-    # trunk-ignore(bandit/B314)
     return fromstring(
         """
         <response status="success">
@@ -109,7 +107,6 @@ class TestModelCreation:
 
         test_xml = show_devices_all_fixture
 
-        # trunk-ignore(bandit/B101)
         assert model_from_api_response(test_xml, ManagedDevices) == ManagedDevices(
             **{
                 "devices": [
@@ -129,7 +126,6 @@ class TestPanoramaMethods:
         from pan_os_upgrade.upgrade import get_managed_devices
 
         unfiltered = get_managed_devices(panorama)
-        # trunk-ignore(bandit/B101)
         assert unfiltered
 
     def test_get_managed_devices(self, show_devices_all_fixture):
@@ -140,7 +136,6 @@ class TestPanoramaMethods:
         mock_panorama.op = MagicMock(return_value=show_devices_all_fixture)
 
         devices = get_managed_devices(mock_panorama)
-        # trunk-ignore(bandit/B101)
         assert devices == [
             ManagedDevice(
                 hostname="pantf-outbound-fw000000",
@@ -149,21 +144,15 @@ class TestPanoramaMethods:
             )
         ]
 
-        # trunk-ignore(bandit/B101)
         assert not get_managed_devices(mock_panorama, hostname="badhostname")
-        # trunk-ignore(bandit/B101)
         assert get_managed_devices(mock_panorama, serial="111111111111111")
         # regex tests
-        # trunk-ignore(bandit/B101)
         assert get_managed_devices(mock_panorama, hostname="pantf.*")
-        # trunk-ignore(bandit/B101)
         assert not get_managed_devices(mock_panorama, hostname="badregex.*")
 
 
 def test_filter_string_to_dict():
     from pan_os_upgrade.upgrade import filter_string_to_dict
 
-    # trunk-ignore(bandit/B101)
     assert filter_string_to_dict("test=x") == {"test": "x"}
-    # trunk-ignore(bandit/B101)
     assert filter_string_to_dict("test=x,test2=y") == {"test": "x", "test2": "y"}

@@ -15,7 +15,6 @@ from pan_os_upgrade.upgrade import (
     ],
 )
 def test_compare_versions_older(version1, version2, expected):
-    # trunk-ignore(bandit/B101)
     assert compare_versions(version1, version2) == expected
 
 
@@ -30,7 +29,6 @@ def test_compare_versions_older(version1, version2, expected):
     ],
 )
 def test_compare_versions_newer(version1, version2, expected):
-    # trunk-ignore(bandit/B101)
     assert compare_versions(version1, version2) == expected
 
 
@@ -44,5 +42,4 @@ def test_compare_versions_newer(version1, version2, expected):
     ],
 )
 def test_compare_versions_equal(version1, version2):
-    # trunk-ignore(bandit/B101)
     assert compare_versions(version1, version2) == "equal"
