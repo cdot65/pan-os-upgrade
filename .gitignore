@@ -166,3 +166,4 @@ cython_debug/
 assurance
 logs
 pan_os_upgrade/settings.yaml
+.dev.env
