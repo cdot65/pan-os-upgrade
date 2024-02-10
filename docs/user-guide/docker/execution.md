@@ -30,7 +30,7 @@ mkdir assurance logs
 
 </div>
 
-If you plan on customizing the settings of the script, create an empty `settings.yaml` in your working directory. This file will be filled out correctly when you run the `settings` argument when running the container image (see the `Advanced Setttings` section):
+If you plan on customizing the settings of the script, create an empty `settings.yaml` in your working directory. This file will be filled out correctly when you run the `settings` argument when running the container image (see the `Advanced Settings` section):
 
 <div class="termy">
 
