@@ -2602,7 +2602,10 @@ def check_readiness_and_log(
     test_result = result.get(
         test_name, {"state": False, "reason": "Skipped Readiness Check"}
     )
-    log_message = f'{test_result["reason"]}: {test_info["description"]}'
+
+    # Use .get() with a default value for 'reason' to avoid KeyError
+    reason = test_result.get("reason", "No reason provided")
+    log_message = f'{reason}: {test_info["description"]}'
 
     if test_result["state"]:
         logging.info(
