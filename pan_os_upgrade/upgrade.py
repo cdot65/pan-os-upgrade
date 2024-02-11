@@ -3605,21 +3605,41 @@ def parse_version(version: str) -> Tuple[int, int, int, int]:
     those settings can potentially influence the parsing logic, enabling customization of version handling.
     """
 
+    # Remove .xfr suffix from the version string, keeping the hotfix part intact
+    version = re.sub(r"\.xfr$", "", version)
+
     parts = version.split(".")
+    # Ensure there are two or three parts, and if three, the third part does not contain invalid characters like 'h' or 'c' without a preceding '-'
+    if (
+        len(parts) < 2
+        or len(parts) > 3
+        or (len(parts) == 3 and re.search(r"[^0-9\-]h|[^0-9\-]c", parts[2]))
+    ):
+        raise ValueError(f"Invalid version format: '{version}'.")
 
-    major, minor = int(parts[0]), int(parts[1])
-    maintenance, hotfix = 0, 0
+    major, minor = map(int, parts[:2])  # Raises ValueError if conversion fails
 
-    if len(parts) > 2:
+    maintenance = 0
+    hotfix = 0
+
+    if len(parts) == 3:
         maintenance_part = parts[2]
         if "-h" in maintenance_part:
-            maintenance, hotfix = maintenance_part.split("-h")
-            maintenance, hotfix = int(maintenance), int(hotfix)
+            maintenance_str, hotfix_str = maintenance_part.split("-h")
         elif "-c" in maintenance_part:
-            maintenance, hotfix = maintenance_part.split("-c")
-            maintenance, hotfix = int(maintenance), int(hotfix)
+            maintenance_str, hotfix_str = maintenance_part.split("-c")
         else:
-            maintenance = int(maintenance_part)
+            maintenance_str = maintenance_part
+            hotfix_str = "0"
+
+        # Validate and convert maintenance and hotfix parts
+        if not maintenance_str.isdigit() or not hotfix_str.isdigit():
+            raise ValueError(
+                f"Invalid maintenance or hotfix format in version '{version}'."
+            )
+
+        maintenance = int(maintenance_str)
+        hotfix = int(hotfix_str)
 
     return major, minor, maintenance, hotfix
 
