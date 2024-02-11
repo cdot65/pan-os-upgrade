@@ -14,8 +14,8 @@ WORKDIR /app
 ADD settings.yaml /app
 
 # Install any needed packages specified in requirements.txt
-# Note: The requirements.txt should contain pan-os-upgrade==1.1.3
-RUN pip install --no-cache-dir pan-os-upgrade==1.1.3
+# Note: The requirements.txt should contain pan-os-upgrade==1.1.6
+RUN pip install --no-cache-dir pan-os-upgrade==1.1.6
 
 # Set the locale to avoid issues with emoji rendering
 ENV LANG C.UTF-8
