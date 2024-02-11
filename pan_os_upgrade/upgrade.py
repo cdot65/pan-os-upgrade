@@ -1196,46 +1196,48 @@ def perform_reboot(
     initial_sleep_duration: int = 60,
 ) -> None:
     """
-    Initiates a reboot sequence for a target device, ensuring it restarts with the specified PAN-OS version.
-    This operation is vital for finalizing the upgrade process. The function accommodates High Availability (HA)
-    configurations, validating post-reboot synchronization and functionality of both the device and its HA counterpart,
-    if applicable.
+    Initiates a reboot on a specified device (Firewall or Panorama) and verifies it boots up with the desired PAN-OS version.
+    This function is critical in completing the upgrade process, ensuring that the device is running the expected software version
+    post-reboot. It also supports High Availability (HA) configurations, checking for the HA pair's synchronization and functional status
+    after the reboot.
 
-    The reboot procedure involves issuing a reboot command to the device, monitoring its offline and online transition,
-    and subsequently confirming the PAN-OS version. For HA setups, it includes additional verifications to ascertain
-    the HA status and synchronization post-reboot.
+    The process sends a reboot command to the device, waits for it to go offline and come back online, and then checks if the rebooted
+    PAN-OS version matches the target version. For devices in an HA setup, additional steps are taken to verify the HA status and
+    synchronization between the HA peers post-reboot.
 
     Parameters
     ----------
     target_device : Union[Firewall, Panorama]
-        The device instance (Firewall or Panorama) to be rebooted, initialized with proper connectivity details.
+        The device object representing either a Firewall or Panorama, with necessary connectivity details.
     hostname : str
-        The hostname or IP address of the device, utilized for identification and logging purposes.
+        The hostname or IP address of the target device, used for identification in logs and status messages.
     target_version : str
-        The expected PAN-OS version for the device post-reboot.
+        The PAN-OS version that the device should be running after the reboot.
     ha_details : Optional[dict], default None
-        An optional dictionary detailing the HA configuration of the device, used to ensure HA coherence after the reboot.
+        A dictionary containing High Availability configuration details, if applicable, to ensure HA coherence post-reboot.
+    initial_sleep_duration : int, default 60
+        The initial waiting period (in seconds) after issuing the reboot command, before starting to check the device's status.
 
     Raises
     ------
     SystemExit
-        Exits the script if the device does not restart with the specified PAN-OS version after a defined number of attempts,
-        or if HA synchronization post-reboot is unsuccessful.
+        If the device fails to reboot to the specified PAN-OS version after a set number of retries, or if HA synchronization
+        is not achieved post-reboot, the script will terminate with an error.
 
     Examples
     --------
-    Rebooting a firewall after an upgrade operation:
+    Rebooting a device post-upgrade and verifying its PAN-OS version:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
         >>> perform_reboot(firewall, 'fw1', '10.1.0')
-        # Initiates a reboot on the firewall and verifies it's running PAN-OS 10.1.0 afterward.
+        # This reboots the specified firewall and ensures it is running the expected PAN-OS version after the reboot.
 
     Notes
     -----
-    - The function employs a retry mechanism to allow multiple checks for the device's availability and version post-reboot.
-    - Settings such as maximum retry attempts and retry intervals can be customized through a settings file (`settings.yaml`)
-      and are dynamically applied, enhancing flexibility for various operational scenarios.
-    - For HA environments, the function conducts thorough checks to confirm both the primary device and its HA peer are
-      operational and synchronized post-reboot, ensuring HA integrity.
+    - A retry mechanism is implemented to accommodate temporary network issues or delays in the device's reboot process.
+    - Certain parameters such as the maximum number of retries and the interval between retries can be customized through a 'settings.yaml'
+      file. This allows for dynamic adjustments according to different operational environments or requirements.
+    - In the case of HA configurations, the function includes additional validations to ensure both the primary device and its HA peer
+      are operational and in sync after the reboot, maintaining the HA setup's integrity.
     """
 
     rebooted = False
@@ -1310,58 +1312,60 @@ def perform_snapshot(
     actions: Optional[List[str]] = None,
 ) -> SnapshotReport:
     """
-    Captures and saves a comprehensive snapshot of the current state of a specified firewall, focusing on
-    selected aspects such as ARP tables, content versions, IPsec tunnel statuses, licensing, network interfaces,
-    routing tables, and session statistics. The snapshot is then saved in JSON format to a designated file path.
-    This snapshot serves as an invaluable tool for pre- and post-change analysis, particularly useful for upgrade
-    assessments or troubleshooting.
+    Captures and saves a comprehensive snapshot of a specified firewall's current state, focusing on key areas such
+    as ARP tables, content versions, IPsec tunnel statuses, licensing, network interfaces, routing tables, and session
+    statistics. The snapshot is saved in JSON format at a specified file path. This functionality is particularly useful
+    for conducting pre- and post-change analyses, such as upgrade assessments or troubleshooting tasks.
 
-    Customization of the snapshot content is possible through the 'actions' parameter, allowing focus on areas
-    of specific interest. Additionally, retry logic and intervals for capturing snapshots can be tailored using
-    settings defined in a 'settings.yaml' file, enhancing adaptability for various operational contexts.
+    The snapshot content can be customized through the 'actions' parameter, allowing for a focused analysis on specified
+    areas of interest. The function also supports customization of retry logic and intervals for capturing snapshots via
+    a 'settings.yaml' file, providing flexibility for various operational requirements.
 
     Parameters
     ----------
     firewall : Firewall
-        An instance of the Firewall class, properly authenticated and connected, representing the device from which
-        the snapshot will be taken.
+        The Firewall object representing the device from which the snapshot will be captured. This object should be
+        initialized and authenticated prior to calling this function.
     hostname : str
-        The hostname or IP address of the firewall, utilized for logging and identification during the snapshot process.
+        The hostname or IP address of the firewall. This is used for identification and logging purposes throughout the
+        snapshot process.
     file_path : str
-        The path on the filesystem where the snapshot JSON file will be saved. The directory will be created if it
-        does not already exist.
+        The filesystem path where the snapshot JSON file will be saved. If the specified directory does not exist, it will
+        be created.
     actions : Optional[List[str]], optional
-        An optional list of specific data points to include in the snapshot, enabling customization of the snapshot
-        contents according to operational requirements.
+        A list of specific data points to be included in the snapshot. This allows for customization of the snapshot's
+        content based on operational needs. If not specified, a default set of data points will be captured.
 
     Returns
     -------
     SnapshotReport
-        An object encapsulating the collected state data and metadata, offering a detailed view of the firewall's
-        operational state at the time of the snapshot.
+        An object containing detailed information about the firewall's state at the time of the snapshot. This includes
+        both the data specified in the 'actions' parameter and metadata about the snapshot process itself.
 
     Raises
     ------
     IOError
-        Raised in the event of an issue with writing the snapshot data to the filesystem, such as problems with file
-        creation or disk space limitations.
+        If there are issues with writing the snapshot data to the filesystem, such as problems creating the file or insufficient
+        disk space, an IOError will be raised.
 
     Examples
     --------
-    Taking a targeted snapshot of a firewall's network state:
+    Taking a snapshot focusing on specific network elements:
         >>> firewall_instance = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
         >>> actions = ['arp_table', 'routes', 'session_stats']
-        >>> snapshot_report = perform_snapshot(firewall_instance, 'fw1', '/path/to/fw_snapshot.json', actions=actions)
-        # This captures and saves selected network state information of 'fw1' to '/path/to/fw_snapshot.json'.
+        >>> snapshot_report = perform_snapshot(firewall_instance, 'fw1', '/path/to/snapshot.json', actions=actions)
+        # This creates a snapshot containing ARP tables, routing tables, and session statistics for the firewall
+        # identified as 'fw1' and saves it to '/path/to/snapshot.json'.
 
     Notes
     -----
-    - Execution of this function is designed to be minimally intrusive, allowing for operational continuity without
-      impacting network performance.
-    - Through the 'actions' parameter, the snapshot can be tailored to focus on specific network state aspects, enhancing
-      its utility for diagnostics and compliance auditing.
-    - Settings for snapshot capture retries and intervals can be overridden through a 'settings.yaml' file, offering
-      flexibility for customization to fit different operational scenarios.
+    - The function is designed to be minimally invasive, allowing snapshots to be taken without impacting the operational
+      performance of the network or the firewall.
+    - The 'actions' parameter provides a means to tailor the snapshot to specific requirements, enhancing the function's
+      utility for a wide range of diagnostic and compliance purposes.
+    - Retry parameters, such as the maximum number of attempts and the interval between attempts, can be customized through
+      a 'settings.yaml' file, allowing the function's behavior to be adapted to different network environments and operational
+      policies.
     """
 
     attempt = 0
@@ -1552,56 +1556,58 @@ def run_assurance(
     config: Dict[str, Union[str, int, float, bool]],
 ) -> Union[SnapshotReport, ReadinessCheckReport, None]:
     """
-    Executes operational checks or captures state snapshots on a firewall, depending on the specified operation type.
-
-    This function facilitates executing predefined operational tasks on a specified firewall. Based on the 'operation_type',
-    it can perform readiness checks or capture state snapshots, among other operations. It leverages a list of 'actions'
-    relevant to the operation type and employs additional parameters provided in 'config' to tailor the execution. The
-    function returns an appropriate report object upon completion or None in case of failure or invalid operation.
+    Executes specified operational tasks, such as readiness checks or state snapshots, on a firewall based on the given
+    operation type. This function is a versatile tool for conducting various operational checks or capturing the current
+    state of the firewall for analysis. It uses a list of actions relevant to the chosen operation type and additional
+    configuration parameters to customize the execution. Depending on the operation's success and type, it returns a
+    report object or None in case of failure or if the operation type is invalid.
 
     Parameters
     ----------
     firewall : Firewall
-        The firewall instance for which the assurance operations are to be performed, initialized with proper authentication.
+        The Firewall object representing the device on which the assurance operations will be performed. This object
+        must be initialized and authenticated prior to use.
     hostname : str
-        The hostname or IP address of the firewall, utilized for identification and logging purposes.
+        The hostname or IP address of the firewall. This is used for identification and logging purposes.
     operation_type : str
-        The type of operational task to perform, such as 'readiness_check' or 'state_snapshot'.
+        A string specifying the type of operation to perform. Supported types include 'readiness_check' and 'state_snapshot'.
     actions : List[str]
-        The specific actions to execute as part of the operation, defined based on the operation type.
+        A list of actions to be performed as part of the operation. The valid actions depend on the operation type.
     config : Dict[str, Union[str, int, float, bool]]
-        Additional configuration options for the operation, specifying parameters like thresholds or specific elements to check.
+        A dictionary of additional configuration options that customize the operation. These might include thresholds,
+        specific elements to check, or other operation-specific parameters.
 
     Returns
     -------
     Union[SnapshotReport, ReadinessCheckReport, None]
-        A report object corresponding to the operation type, populated with the results of the executed actions, or None if
-        the operation fails or is deemed invalid.
+        Depending on the operation type, returns a SnapshotReport, ReadinessCheckReport, or None if the operation fails
+        or the operation type is invalid.
 
     Raises
     ------
     SystemExit
-        If an invalid action is specified for the given operation type or if an unrecoverable error occurs during the operation.
+        Exits the script if an invalid action is specified for the given operation type or if an unrecoverable error
+        occurs during the operation execution.
 
     Examples
     --------
-    Executing readiness checks on a firewall:
+    Executing readiness checks before a firewall upgrade:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='password')
         >>> result = run_assurance(firewall, '192.168.1.1', 'readiness_check', ['pending_changes', 'system_health'], {})
-        # Returns a ReadinessCheckReport object or None in case of failure.
+        # This might return a ReadinessCheckReport object with the results of the specified checks.
 
-    Capturing a state snapshot of a firewall:
+    Capturing the current state of a firewall for analysis:
         >>> result = run_assurance(firewall, '192.168.1.1', 'state_snapshot', ['arp_table', 'routes'], {})
-        # Returns a SnapshotReport object or None in case of failure.
+        # This might return a SnapshotReport object with the current state information of the specified elements.
 
     Notes
     -----
-    - The 'operation_type' determines the nature of the tasks executed by this function, making it a versatile tool for
-      firewall management and diagnostics.
-    - The function is designed to be extensible, allowing for the addition of new operation types and actions as needed
-      by the operational requirements.
-    - Customization through a 'settings.yaml' file is supported for certain operational parameters if 'settings_file_path'
-      is used within the function, enhancing flexibility and control over the operation execution.
+    - The 'operation_type' parameter is key to defining the nature of the operation, making this function adaptable to
+      a wide range of firewall management and diagnostic tasks.
+    - This function is designed for extensibility, allowing new operation types and associated actions to be added as
+      operational needs evolve.
+    - Some operational parameters can be dynamically adjusted by providing a 'settings.yaml' file if the function
+      utilizes a 'settings_file_path' to load these settings, offering greater control and customization of the operations.
     """
 
     # setup Firewall client
@@ -2564,39 +2570,48 @@ def check_readiness_and_log(
     test_info: dict,
 ) -> None:
     """
-    Logs the results of readiness tests performed on a firewall or Panorama device, highlighting critical failures that could impact an upgrade.
-
-    This function analyzes the outcomes of various readiness tests, each designed to ensure the target device is prepared for an upgrade. It logs the results with appropriate severity levels, drawing attention to any failures, especially those deemed critical to the upgrade process. In cases where a critical test fails, the script will terminate to prevent proceeding with a potentially risky upgrade.
+    Analyzes and logs the outcomes of readiness checks for a firewall or Panorama device, emphasizing failures that
+    could impact the upgrade process. This function is integral to the pre-upgrade validation phase, ensuring that
+    each device meets the necessary criteria before proceeding with an upgrade. It logs detailed results for each
+    readiness check, using severity levels appropriate to the outcome of each test. Critical failures, identified by
+    the 'exit_on_failure' flag in the test metadata, will cause the script to terminate, preventing potentially
+    hazardous upgrade attempts.
 
     Parameters
     ----------
     result : dict
-        A dictionary containing the results of the readiness tests, where each key is a test name and its value is another dictionary with 'state' (pass or fail) and 'reason' for the test outcome.
+        The results of the readiness checks, structured as a dictionary where each key represents a test name and its
+        value is a dictionary detailing the test's outcome ('state') and an explanation ('reason').
     hostname : str
-        The hostname or IP address of the device under test, used to contextualize the log messages.
+        The hostname or IP address of the device being tested, utilized for logging context.
     test_name : str
-        The name of the readiness test being logged, which corresponds to a key in the 'result' dictionary.
+        The identifier for the specific readiness check being logged, which should match a key in the 'result' dictionary.
     test_info : dict
-        Metadata about the test, including a human-readable 'description', the 'log_level' determining the severity of the log message, and an 'exit_on_failure' flag indicating whether a test failure should halt the script.
+        A dictionary containing metadata about the readiness check, including a descriptive label ('description'), the
+        severity level for logging ('log_level'), and a flag indicating whether failure of this test should halt script
+        execution ('exit_on_failure').
 
     Raises
     ------
     SystemExit
-        The script will exit if a critical test (indicated by 'exit_on_failure': True) fails, to prevent potential upgrade issues.
+        If a test marked as critical (where 'exit_on_failure' is True) fails, the script will exit to avert an unsafe upgrade.
 
     Examples
     --------
-    Logging the outcome of a readiness test named 'software_version_check':
-        >>> result = {'software_version_check': {'state': False, 'reason': 'Unsupported software version'}}
-        >>> test_info = {'description': 'Software Version Check', 'log_level': 'error', 'exit_on_failure': True}
-        >>> check_readiness_and_log(result, 'fw01.example.com', 'software_version_check', test_info)
-        # Logs an error due to the failed software version check and terminates the script execution.
+    Handling a failed readiness check that is critical for upgrade:
+        >>> result = {'connectivity_check': {'state': False, 'reason': 'Network unreachable'}}
+        >>> test_info = {'description': 'Connectivity Check', 'log_level': 'error', 'exit_on_failure': True}
+        >>> check_readiness_and_log(result, 'firewall01', 'connectivity_check', test_info)
+        # This logs an error for the failed connectivity check and exits the script to prevent proceeding with the upgrade.
 
     Notes
     -----
-    - This function plays a pivotal role in the upgrade preparation phase, ensuring that only devices meeting the necessary criteria proceed with the upgrade.
-    - It supports a structured approach to logging, making it easier to diagnose and address potential issues before they affect the upgrade process.
-    - The ability to specify the log level and criticality of each test allows for flexible and targeted logging tailored to the importance of each readiness criterion.
+    - This function is pivotal in ensuring that devices are fully prepared for an upgrade by rigorously logging the
+      outcomes of various readiness checks.
+    - The structured approach to logging facilitates easy identification and troubleshooting of potential issues prior
+      to initiating the upgrade process.
+    - Flexibility in defining the log level and criticality of each test allows for nuanced logging that reflects the
+      importance and implications of each readiness check.
     """
 
     test_result = result.get(
@@ -2684,38 +2699,50 @@ def configure_logging(
     log_max_size: int = 10 * 1024 * 1024,
 ) -> None:
     """
-    Configures the logging system with a specified level and encoding for the application.
-
-    This function sets up the logging framework to capture and record events at the specified level of detail. It establishes handlers for both console output and file storage, ensuring that log messages are visible during execution and preserved for subsequent review. The file logging employs a rotating file strategy to manage disk space usage by archiving older logs and keeping the size of the active log file within predefined limits. The encoding parameter allows customization of the character encoding used in log files, facilitating compatibility with various environments and locales.
+    Sets up the logging infrastructure for the application, specifying the minimum severity level of messages to log,
+    character encoding for log files, and file logging details such as path and maximum size. The function initializes
+    logging to both the console and a rotating file, ensuring that log messages are both displayed in real-time and
+    archived for future analysis. The rotating file handler helps manage disk space by limiting the log file size and
+    archiving older logs. This setup is crucial for monitoring application behavior, troubleshooting issues, and
+    maintaining an audit trail of operations.
 
     Parameters
     ----------
     level : str
-        The minimum logging level for capturing log messages. Acceptable values include 'DEBUG', 'INFO', 'WARNING', 'ERROR', and 'CRITICAL', corresponding to increasing levels of severity.
+        The minimum severity level of log messages to record. Valid levels are 'DEBUG', 'INFO', 'WARNING', 'ERROR',
+        and 'CRITICAL', in order of increasing severity.
     encoding : str, optional
-        The character encoding to use for the log files, ensuring correct representation of logged text. Defaults to 'utf-8'.
+        The character encoding for the log files. Defaults to 'utf-8', accommodating a wide range of characters and symbols.
+    log_file_path : str, optional
+        The path to the log file where messages will be stored. Defaults to 'logs/upgrade.log'.
+    log_max_size : int, optional
+        The maximum size of the log file in bytes before it is rotated. Defaults to 10 MB (10 * 1024 * 1024 bytes).
 
     Raises
     ------
     ValueError
-        Raises an exception if an invalid logging level is provided, ensuring that only appropriate log messages are captured.
+        If the specified logging level is invalid, ensuring that log messages are captured at appropriate severity levels.
 
     Examples
     --------
-    Configuring logging to capture debug and higher level messages:
-        >>> configure_logging('DEBUG')
-        # Initializes logging to include detailed debugging information, useful for development or troubleshooting.
+    Basic logging configuration with default settings:
+        >>> configure_logging('INFO')
+        # Configures logging to capture messages of level INFO and above, using default encoding and file settings.
 
-    Configuring logging with informational level and a specific encoding:
-        >>> configure_logging('INFO', 'iso-8859-1')
-        # Sets up logging to record informational and more critical messages, using ISO-8859-1 encoding for log file storage.
+    Advanced logging configuration with custom settings:
+        >>> configure_logging('DEBUG', 'iso-8859-1', '/var/log/myapp.log', 5 * 1024 * 1024)
+        # Configures logging to capture all messages including debug, using ISO-8859-1 encoding, storing logs in
+        # '/var/log/myapp.log', with a maximum file size of 5 MB before rotating.
 
     Notes
     -----
-    - Proper logging setup is essential for effective monitoring, troubleshooting, and auditing of application behavior.
-    - The rotating file handler mechanism ensures that logging does not consume excessive disk space, automatically managing log file rotation and archival.
-    - Logging configuration can be adjusted via the `settings.yaml` file, allowing for flexible setup based on operational requirements or personal preferences.
+    - It is essential to configure logging appropriately to capture sufficient detail for effective monitoring and
+      troubleshooting, without overwhelming the system with excessive log data.
+    - The logging setup, including file path and maximum size, can be customized via a 'settings.yaml' file if the
+      application supports loading configuration settings from such a file. This allows for dynamic adjustment of
+      logging behavior based on operational needs or user preferences.
     """
+
     allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     if level.upper() not in allowed_levels:
         raise ValueError(
@@ -3168,56 +3195,56 @@ def generate_diff_report_pdf(
     target_version: str,
 ) -> None:
     """
-    Generates a PDF report that summarizes the differences between pre- and post-upgrade network states
-    for a given device, providing a clear and structured comparison of changes resulting from the upgrade.
+    Creates a PDF report detailing the differences observed in the network state of a device before and after an
+    upgrade. The report organizes the changes into sections and highlights modifications, deletions, and additions in
+    the device's configuration and operational state. It serves as a comprehensive document for reviewing the impact
+    of the upgrade and verifying the changes made.
 
-    This function constructs a PDF document that visually represents the differences identified between
-    the network state snapshots taken before and after the upgrade of a device. It structures the report
-    into sections and sub-sections according to the provided difference dictionary, highlighting changes
-    such as added, removed, or modified configurations. The report includes a header with the device's hostname
-    and the target upgrade version, enhancing the context for the report's audience.
+    The function employs a structured format to present the data, with a header section that includes the device's
+    hostname and the target firmware version. This aids in quick identification of the report's context. The body of
+    the report systematically lists the differences, categorized by the type of change, making it easy to assess the
+    extent and nature of the modifications.
 
     Parameters
     ----------
     pre_post_diff : dict
-        A dictionary containing the differences identified between the pre- and post-upgrade states, structured
-        by sections and sub-sections with details about the changes observed.
+        The differences between the pre-upgrade and post-upgrade states, structured as a nested dictionary. Each key
+        represents a category (e.g., 'interfaces', 'policies'), with sub-keys detailing the specific changes (e.g.,
+        'added', 'removed', 'modified').
     file_path : str
-        The file path where the PDF report will be saved, including the filename and .pdf extension.
+        The destination path for the generated PDF report, including the file name and extension.
     hostname : str
-        The hostname of the device that underwent the upgrade, used to personalize the report header.
+        The hostname of the device for which the upgrade was performed, used to personalize the report.
     target_version : str
-        The target version to which the device was upgraded, included in the report header for reference.
+        The version of the firmware to which the device was upgraded, included for reference in the report's header.
 
     Raises
     ------
     IOError
-        If there is an issue writing the PDF file to the specified file_path, indicative of problems like
-        insufficient permissions, non-existent directories, or disk space limitations.
+        If the PDF file cannot be created or written to the specified path, possibly due to issues like inadequate
+        file permissions, non-existent directory paths, or insufficient disk space.
 
     Examples
     --------
-    Generating a PDF report to document the differences after upgrading a device:
+    Generating a PDF report to document configuration changes after an upgrade:
         >>> pre_post_diff = {
         ...     'interfaces': {
-        ...         'Ethernet1/1': {'status': 'Changed', 'details': 'IP address changed from 192.168.1.1 to 192.168.1.2'},
-        ...         'Ethernet1/2': {'status': 'Added', 'details': 'New interface configured with IP 192.168.2.1'},
-        ...     },
-        ...     'policies': {
-        ...         'SecurityPolicy1': {'status': 'Removed', 'details': 'Policy removed during upgrade'},
-        ...     },
+        ...         'added': ['Ethernet1/3'],
+        ...         'removed': ['Ethernet1/4'],
+        ...         'modified': {'Ethernet1/1': {'before': '192.168.1.1', 'after': '192.168.1.2'}}
+        ...     }
         ... }
-        >>> generate_diff_report_pdf(pre_post_diff, '/path/to/upgrade_diff_report.pdf', 'fw-hostname', '9.1.3')
-        # This generates a PDF report at '/path/to/upgrade_diff_report.pdf' summarizing the changes made during the upgrade.
+        >>> generate_diff_report_pdf(pre_post_diff, '/tmp/device_upgrade_report.pdf', 'device123', '10.0.0')
+        # This will create a PDF report at '/tmp/device_upgrade_report.pdf' summarizing the changes made during the upgrade to version 10.0.0.
 
     Notes
     -----
-    - The PDF report is designed to provide a concise and easily understandable overview of the changes
-      resulting from the upgrade, aiding in audit and compliance efforts.
-    - The function leverages the ReportLab library for PDF generation, enabling the creation of well-formatted
-      and visually appealing reports.
-    - Default settings for PDF generation, such as font sizes and page margins, can be customized via a
-      `settings.yaml` file if `settings_file_path` is used within the function, allowing for tailored report styling.
+    - The report aims to provide a clear and concise summary of changes, facilitating audits and documentation of the
+      upgrade process.
+    - The PDF format ensures the report is accessible and easily distributable for review by various stakeholders.
+    - Configuration for the PDF generation, such as layout and styling, can be customized through a `settings.yaml`
+      file if the `settings_file_path` variable is utilized in the function, allowing for adaptation to specific
+      reporting standards or preferences.
     """
 
     pdf = SimpleDocTemplate(file_path, pagesize=letter)
@@ -3559,51 +3586,49 @@ def model_from_api_response(
 
 def parse_version(version: str) -> Tuple[int, int, int, int]:
     """
-    Extracts numerical components from a version string into a structured format for comparison and sorting.
-
-    Given a version string typically in the format 'major.minor.maintenance' or 'major.minor.maintenance-hhotfix',
-    this function decomposes it into its constituent numerical parts: major, minor, maintenance versions, and an
-    optional hotfix component. The hotfix is identified by a '-h' prefix and, if absent, defaults to 0. This
-    structured breakdown into a tuple of integers facilitates numerical comparison of versions, essential for
-    version management tasks such as sorting, compatibility checks, and upgrade paths.
+    Decomposes a version string into a structured numerical format, facilitating easy comparison and analysis
+    of version numbers. The version string is expected to follow a conventional format, with major, minor, and
+    maintenance components, and an optional hotfix identifier. This function extracts these components into a
+    tuple of integers, where the hotfix component defaults to 0 if not specified. This standardized representation
+    is crucial for tasks like determining upgrade paths, assessing compatibility, and sorting version numbers.
 
     Parameters
     ----------
     version : str
-        The version string to be parsed. It should follow the format 'major.minor.maintenance' or
-        'major.minor.maintenance-hhotfix', where each part is a numerical value.
+        A version string following the 'major.minor.maintenance' or 'major.minor.maintenance-hhotfix' format,
+        where 'major', 'minor', 'maintenance', and 'hotfix' are numerical values.
 
     Returns
     -------
     Tuple[int, int, int, int]
-        A tuple of four integers representing the major, minor, maintenance, and hotfix components of the version.
-        The hotfix component defaults to 0 if it is not specified in the version string.
+        A tuple containing the major, minor, maintenance, and hotfix components as integers. The hotfix is set
+        to 0 if it is not explicitly included in the version string.
 
     Examples
     --------
-    Parsing a standard version string:
-        >>> parse_version("3.1.4")
-        (3, 1, 4, 0)
+    Parsing a version without a hotfix:
+        >>> parse_version("10.0.1")
+        (10, 0, 1, 0)
 
-    Parsing a version string with a hotfix component:
-        >>> parse_version("3.1.4-h1")
-        (3, 1, 4, 1)
+    Parsing a version with a hotfix component:
+        >>> parse_version("10.0.1-h2")
+        (10, 0, 1, 2)
 
     Notes
     -----
-    - This parsing function is crucial for operations requiring version comparisons, ensuring consistent and
-      reliable interpretation of version strings.
-    - The function strictly expects the version string to conform to the outlined format. Deviations or
-      malformations in the version string format may result in incorrect parsing outcomes or raise exceptions.
+    - Accurate version parsing is essential for software management operations, such as upgrades and compatibility checks.
+    - The function is designed to strictly interpret the version string based on the expected format. Any deviation from
+      this format may lead to incorrect parsing results or errors.
 
     Raises
     ------
     ValueError
-        Raised when the version string does not adhere to the expected format or contains non-numeric values
-        in segments where integers are expected, indicating an invalid or malformatted version string.
+        If the version string does not conform to the expected format or includes non-numeric values where integers
+        are anticipated, indicating the version string is malformed or invalid.
 
-    If `settings_file_path` is utilized within the application and contains version format specifications,
-    those settings can potentially influence the parsing logic, enabling customization of version handling.
+    This function's behavior can be influenced by version format settings specified in a `settings.yaml` file, if such
+    settings are supported and utilized within the broader application context. This allows for adaptability in version
+    parsing according to customized or application-specific versioning schemes.
     """
 
     # Remove .xfr suffix from the version string, keeping the hotfix part intact
