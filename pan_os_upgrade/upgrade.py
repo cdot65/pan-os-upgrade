@@ -304,7 +304,7 @@ class AssuranceOptions:
 
     STATE_SNAPSHOTS = {
         "arp_table": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Snapshot of the ARP Table",
         },
         "content_version": {
