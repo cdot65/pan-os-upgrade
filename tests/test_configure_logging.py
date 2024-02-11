@@ -104,21 +104,16 @@ def test_configure_logging_invalid_levels(reset_logging, invalid_level):
 
 
 # Test default parameters are used correctly
-def test_configure_logging_default_parameters(reset_logging, tmp_path, monkeypatch):
-    # Monkeypatch the settings to return certain values
-    monkeypatch.setattr("pan_os_upgrade.upgrade.settings_file.get", lambda k, d: d)
-
-    log_file_path = "logs/upgrade.log"  # Default path
-    configure_logging("INFO")
+def test_configure_logging_default_parameters(reset_logging, tmp_path):
+    log_file_path = tmp_path / "upgrade.log"  # Use a temporary directory
+    configure_logging("INFO", log_file_path=str(log_file_path))
 
     logger = logging.getLogger()
-    assert (
-        logger.level == logging.INFO
-    ), "Logging level should be set to INFO by default."
+    assert logger.level == logging.INFO, "Logging level should be set to INFO."
 
     file_handler = next(
         h for h in logger.handlers if isinstance(h, RotatingFileHandler)
     )
-    assert file_handler.baseFilename.endswith(
+    assert file_handler.baseFilename == str(
         log_file_path
-    ), "Default log file path should be used."
+    ), "File handler should use the specified log file path."
