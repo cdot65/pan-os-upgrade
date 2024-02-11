@@ -1193,6 +1193,7 @@ def perform_reboot(
     hostname: str,
     target_version: str,
     ha_details: Optional[dict] = None,
+    initial_sleep_duration: int = 60,
 ) -> None:
     """
     Initiates a reboot sequence for a target device, ensuring it restarts with the specified PAN-OS version.
@@ -1260,7 +1261,7 @@ def perform_reboot(
     logging.info(f"{get_emoji('report')} {hostname}: {reboot_job_result['result']}")
 
     # Wait for the target device reboot process to initiate before checking status
-    time.sleep(60)
+    time.sleep(initial_sleep_duration)
 
     while not rebooted and attempt < max_retries:
         try:
