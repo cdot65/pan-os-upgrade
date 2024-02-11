@@ -16,9 +16,6 @@ from .ip_sec_tunnel import IPSecTunnelEntry
 from .license import LicenseFeatureEntry
 
 # trunk-ignore(ruff/F401)
-from .nics import NetworkInterfaceStatus
-
-# trunk-ignore(ruff/F401)
 from .routes import RouteEntry
 
 # trunk-ignore(ruff/F401)

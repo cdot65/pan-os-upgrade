@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import MagicMock
 from dotenv import load_dotenv
 
+
 @pytest.fixture
 def show_devices_all_fixture():
     from xml.etree.ElementTree import fromstring
@@ -149,7 +150,9 @@ class TestPanoramaMethods:
         assert get_managed_devices(mock_panorama, hostname="pantf.*")
         assert not get_managed_devices(mock_panorama, hostname="badregex.*")
 
+
 def test_filter_string_to_dict():
     from pan_os_upgrade.upgrade import filter_string_to_dict
+
     assert filter_string_to_dict("test=x") == {"test": "x"}
     assert filter_string_to_dict("test=x,test2=y") == {"test": "x", "test2": "y"}

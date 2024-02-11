@@ -1,3 +1,5 @@
+# models/devices.py
+
 from pydantic import BaseModel
 from pan_os_upgrade.models.mixins import FromAPIResponseMixin
 

@@ -6,9 +6,11 @@ from .arp_table import ArpTableEntry
 from .content_version import ContentVersion
 from .ip_sec_tunnel import IPSecTunnelEntry
 from .license import LicenseFeatureEntry
-from .nics import NetworkInterfaceStatus
 from .routes import RouteEntry
 from .session_stats import SessionStats
+
+# deprecated models, will revisit if the need arises for additional data validation
+# from .nics import NetworkInterfaceStatus
 
 
 class SnapshotReport(BaseModel):
@@ -17,7 +19,7 @@ class SnapshotReport(BaseModel):
     content_version: Optional[ContentVersion] = None
     ip_sec_tunnels: Optional[Dict[str, IPSecTunnelEntry]] = None
     license: Optional[Dict[str, LicenseFeatureEntry]] = None
-    nics: Optional[Dict[str, NetworkInterfaceStatus]] = None
+    nics: Optional[Dict[str, str]] = None
     routes: Optional[Dict[str, RouteEntry]] = None
     session_stats: Optional[SessionStats] = None
 
