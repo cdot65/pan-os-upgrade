@@ -25,6 +25,7 @@ def panorama():
     return Panorama(hostname=hostname, api_username=username, api_password=password)
 
 
+@pytest.mark.integration
 def test_get_firewalls_from_panorama_with_serial_filter(panorama):
     """Test getting firewalls from Panorama with optional filters."""
 
@@ -54,6 +55,7 @@ def test_get_firewalls_from_panorama_with_serial_filter(panorama):
     ), "Expected at least one firewall to match the filter criteria."
 
 
+@pytest.mark.integration
 def test_get_firewalls_from_panorama_with_hostname_filter(panorama):
     """Test getting firewalls from Panorama using a hostname pattern filter."""
 

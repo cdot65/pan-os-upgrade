@@ -5,6 +5,7 @@ from pan_os_upgrade.upgrade import connect_to_host, backup_configuration
 from dotenv import load_dotenv
 
 
+@pytest.mark.integration
 def test_backup_configuration():
     load_dotenv(".dev.env")
 

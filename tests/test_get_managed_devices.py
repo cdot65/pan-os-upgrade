@@ -22,6 +22,7 @@ def panorama():
     return Panorama(hostname=hostname, api_username=username, api_password=password)
 
 
+@pytest.mark.integration
 def test_get_managed_devices_with_serial_filter(panorama):
     """Test getting managed devices from Panorama with a serial number filter."""
 
@@ -39,6 +40,7 @@ def test_get_managed_devices_with_serial_filter(panorama):
     ), "All returned devices should match the filter criteria."
 
 
+@pytest.mark.integration
 def test_get_managed_devices_with_hostname_pattern_filter(panorama):
     """Test getting managed devices from Panorama using a hostname pattern filter."""
 

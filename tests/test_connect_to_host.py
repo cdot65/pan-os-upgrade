@@ -30,6 +30,7 @@ def mock_pan_device():
         yield mock_create
 
 
+@pytest.mark.integration
 def test_connect_to_host_valid(mock_pan_device):
     """Test connection with valid credentials."""
     connected_device = connect_to_host("mock_hostname", "valid_user", "valid_password")
@@ -41,6 +42,7 @@ def test_connect_to_host_valid(mock_pan_device):
     ), "Should match the mock device's hostname."
 
 
+@pytest.mark.integration
 def test_connect_to_host(mock_pan_device):
     """Validate connection to a device, either mock or real based on environment setup."""
     load_dotenv(".dev.env")
