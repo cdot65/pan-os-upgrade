@@ -304,7 +304,7 @@ class AssuranceOptions:
 
     STATE_SNAPSHOTS = {
         "arp_table": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Snapshot of the ARP Table",
         },
         "content_version": {
@@ -521,11 +521,11 @@ def determine_upgrade(
             f"{get_emoji('success')} {hostname}: Upgrade required from {target_device.version} to {target_major}.{target_minor}.{target_maintenance}"
         )
     else:
-        logging.error(
-            f"{get_emoji('error')} {hostname}: No upgrade required or downgrade attempt detected."
+        logging.info(
+            f"{get_emoji('skipped')} {hostname}: No upgrade required or downgrade attempt detected."
         )
-        logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
-        sys.exit(1)
+        logging.info(f"{get_emoji('skipped')} {hostname}: Halting upgrade.")
+        sys.exit(0)
 
 
 def get_ha_status(
@@ -1134,18 +1134,36 @@ def perform_readiness_checks(
       class, will be applied.
     """
 
-    # Determine readiness checks to perform based on settings.yaml
-    if settings_file_path.exists() and settings_file.get(
-        "readiness_checks.customize", False
-    ):
-        # Extract checks where value is True
-        selected_checks = [
-            check
-            for check, enabled in settings_file.get(
-                "readiness_checks.checks", {}
-            ).items()
-            if enabled
-        ]
+    # Load settings if the file exists
+    if settings_file_path.exists():
+        with open(settings_file_path, "r") as file:
+            settings = yaml.safe_load(file)
+
+        # Check if readiness checks are disabled in the settings
+        if settings.get("readiness_checks", {}).get("disabled", False):
+            logging.info(
+                f"{get_emoji('skipped')} {hostname}: Readiness checks are disabled in the settings. Skipping readiness checks for {hostname}."
+            )
+            # Early return, no readiness checks performed
+            return
+
+        # Determine readiness checks to perform based on settings
+        if settings.get("readiness_checks", {}).get("customize", False):
+            # Extract checks where value is True
+            selected_checks = [
+                check
+                for check, enabled in settings.get("readiness_checks", {})
+                .get("checks", {})
+                .items()
+                if enabled
+            ]
+        else:
+            # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
+            selected_checks = [
+                check
+                for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
+                if attrs.get("enabled_by_default", False)
+            ]
     else:
         # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
         selected_checks = [
@@ -1154,7 +1172,7 @@ def perform_readiness_checks(
             if attrs.get("enabled_by_default", False)
         ]
 
-    logging.debug(
+    logging.info(
         f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall."
     )
 
@@ -1368,21 +1386,30 @@ def perform_snapshot(
       policies.
     """
 
-    attempt = 0
-    snapshot = None
-
-    # Initialize with default values
-    max_retries = 3
-    retry_interval = 60
-
-    # Override if settings.yaml exists and contains these settings
+    # Load settings if the file exists
     if settings_file_path.exists():
-        max_retries = settings_file.get("snapshots.max_tries", max_retries)
-        retry_interval = settings_file.get("snapshots.retry_interval", retry_interval)
+        with open(settings_file_path, "r") as file:
+            settings = yaml.safe_load(file)
+
+        # Check if snapshots are disabled in the settings
+        if settings.get("snapshots", {}).get("disabled", False):
+            logging.info(
+                f"{get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
+            )
+            return None  # Early return, no snapshot performed
+        # Override default values with settings if snapshots are not disabled
+        max_retries = settings.get("snapshots", {}).get("max_tries", 3)
+        retry_interval = settings.get("snapshots", {}).get("retry_interval", 60)
+    else:
+        # Default values if settings.yaml does not exist or does not contain snapshot settings
+        max_retries = 3
+        retry_interval = 60
 
     logging.info(
         f"{get_emoji('start')} {hostname}: Performing snapshot of network state information."
     )
+    attempt = 0
+    snapshot = None
 
     while attempt < max_retries and snapshot is None:
         try:
@@ -2330,51 +2357,68 @@ def upgrade_firewall(
     )
     time.sleep(120)
 
-    # Perform the post-upgrade snapshot
-    post_snapshot = perform_snapshot(
-        firewall,
-        hostname,
-        f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-        selected_actions,
-    )
+    # Load settings if the file exists
+    if settings_file_path.exists():
+        with open(settings_file_path, "r") as file:
+            settings = yaml.safe_load(file)
 
-    # initialize object storing both snapshots
-    snapshot_compare = SnapshotCompare(
-        left_snapshot=pre_snapshot.model_dump(),
-        right_snapshot=post_snapshot.model_dump(),
-    )
+        # Check if snapshots are disabled in the settings
+        if settings.get("snapshots", {}).get("disabled", False):
+            logging.info(
+                f"{get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
+            )
+            return None  # Early return, no snapshot performed
 
-    pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
+        else:
+            # Perform the post-upgrade snapshot
+            post_snapshot = perform_snapshot(
+                firewall,
+                hostname,
+                f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                selected_actions,
+            )
 
-    logging.debug(
-        f"{get_emoji('report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
-    )
+            # initialize object storing both snapshots
+            snapshot_compare = SnapshotCompare(
+                left_snapshot=pre_snapshot.model_dump(),
+                right_snapshot=post_snapshot.model_dump(),
+            )
 
-    folder_path = f"assurance/snapshots/{hostname}/diff"
-    pdf_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
-    ensure_directory_exists(pdf_report)
+            pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
 
-    # Generate the PDF report for the diff
-    generate_diff_report_pdf(
-        pre_post_diff,
-        pdf_report,
-        hostname,
-        target_version,
-    )
+            logging.debug(
+                f"{get_emoji('report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
+            )
 
-    logging.info(
-        f"{get_emoji('save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
-    )
+            folder_path = f"assurance/snapshots/{hostname}/diff"
+            pdf_report = (
+                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
+            )
+            ensure_directory_exists(pdf_report)
 
-    json_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
+            # Generate the PDF report for the diff
+            generate_diff_report_pdf(
+                pre_post_diff,
+                pdf_report,
+                hostname,
+                target_version,
+            )
 
-    # Write the file to the local filesystem as JSON
-    with open(json_report, "w") as file:
-        file.write(json.dumps(pre_post_diff))
+            logging.info(
+                f"{get_emoji('save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+            )
 
-    logging.debug(
-        f"{get_emoji('save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
-    )
+            json_report = (
+                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
+            )
+
+            # Write the file to the local filesystem as JSON
+            with open(json_report, "w") as file:
+                file.write(json.dumps(pre_post_diff))
+
+            logging.debug(
+                f"{get_emoji('save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
+            )
 
 
 def upgrade_panorama(
@@ -4240,6 +4284,14 @@ def settings():
 
     config_file_path = Path.cwd() / "settings.yaml"
 
+    # Add confirmation prompts for disabling features
+    disable_readiness_checks = typer.confirm(
+        "Would you like to disable all readiness checks?", default=False
+    )
+    disable_snapshots = typer.confirm(
+        "Would you like to disable all snapshots?", default=False
+    )
+
     config_data = {
         "concurrency": {
             "threads": typer.prompt(
@@ -4299,35 +4351,32 @@ def settings():
             ),
         },
         "readiness_checks": {
-            "customize": typer.confirm(
-                "Would you like to customize readiness checks?",
-                default=False,
+            "disabled": disable_readiness_checks,
+            "customize": (
+                False
+                if disable_readiness_checks
+                else typer.confirm(
+                    "Would you like to customize readiness checks?", default=False
+                )
             ),
             "checks": {},
-            "location": typer.prompt(
-                "Location to save readiness checks",
-                default="assurance/readiness_checks/",
+            "location": (
+                "assurance/readiness_checks/" if not disable_readiness_checks else None
             ),
         },
         "snapshots": {
-            "customize": typer.confirm(
-                "Would you like to customize snapshots?", default=False
+            "disabled": disable_snapshots,
+            "customize": (
+                False
+                if disable_snapshots
+                else typer.confirm(
+                    "Would you like to customize snapshots?", default=False
+                )
             ),
             "state": {},
-            "location": typer.prompt(
-                "Location to save snapshots",
-                default="assurance/snapshots/",
-            ),
-            "retry_interval": typer.prompt(
-                "Device snapshot retry interval (seconds)",
-                default=60,
-                type=int,
-            ),
-            "max_tries": typer.prompt(
-                "Device maximum snapshot tries",
-                default=30,
-                type=int,
-            ),
+            "location": "assurance/snapshots/" if not disable_snapshots else None,
+            "retry_interval": 60 if not disable_snapshots else None,
+            "max_tries": 30 if not disable_snapshots else None,
         },
         "timeout_settings": {
             "connection_timeout": typer.prompt(
@@ -4343,13 +4392,14 @@ def settings():
         },
     }
 
-    if config_data["readiness_checks"]["customize"]:
+    # Modify the conditional sections to check for the disabled state
+    if not disable_readiness_checks and config_data["readiness_checks"]["customize"]:
         for check, info in AssuranceOptions.READINESS_CHECKS.items():
             config_data["readiness_checks"]["checks"][check] = typer.confirm(
                 f"Enable {info['description']}?", default=info["enabled_by_default"]
             )
 
-    if config_data["snapshots"]["customize"]:
+    if not disable_snapshots and config_data["snapshots"]["customize"]:
         for snapshot_name, snapshot_info in AssuranceOptions.STATE_SNAPSHOTS.items():
             config_data["snapshots"]["state"][snapshot_name] = typer.confirm(
                 f"Enable {snapshot_info['description']}?",

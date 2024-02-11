@@ -17,12 +17,12 @@ test_cases = [
     ("houston.cdot.io", None),  # Standalone, expecting no HA peer and proceed
     (
         "woodlands-fw1.cdot.io",
-        "passive",
-    ),  # HA and is passive, expecting HA peer status and proceed
-    (
-        "woodlands-fw2.cdot.io",
         "active",
     ),  # HA and is active, might be added to revisit list, check proceed accordingly
+    (
+        "woodlands-fw2.cdot.io",
+        "passive",
+    ),  # HA and is passive, expecting HA peer status and proceed
 ]
 
 

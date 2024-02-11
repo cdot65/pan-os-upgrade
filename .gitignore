@@ -167,3 +167,4 @@ assurance
 logs
 pan_os_upgrade/settings.yaml
 .dev.env
+pan-os-upgrade.code-workspace

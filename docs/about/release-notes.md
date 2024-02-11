@@ -2,6 +2,35 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.1.6
+
+**Release Date:** *<20240211>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Added over 100 tests
+- Changed default behavior of ARP snapshots to False
+
+## Version 1.1.5
+
+**Release Date:** *<20240209>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Support for skipping all readiness checks and snapshots with `settings` subcommand
+
+## Version 1.1.4
+
+**Release Date:** *<20240209>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Documentation bug fixes
+- Support for `-c` in hotfix name
+
 ## Version 1.1.3
 
 **Release Date:** *<20240208>*
