@@ -521,11 +521,11 @@ def determine_upgrade(
             f"{get_emoji('success')} {hostname}: Upgrade required from {target_device.version} to {target_major}.{target_minor}.{target_maintenance}"
         )
     else:
-        logging.error(
-            f"{get_emoji('error')} {hostname}: No upgrade required or downgrade attempt detected."
+        logging.info(
+            f"{get_emoji('skipped')} {hostname}: No upgrade required or downgrade attempt detected."
         )
-        logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
-        sys.exit(1)
+        logging.info(f"{get_emoji('skipped')} {hostname}: Halting upgrade.")
+        sys.exit(0)
 
 
 def get_ha_status(
