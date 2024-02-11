@@ -3615,6 +3615,9 @@ def parse_version(version: str) -> Tuple[int, int, int, int]:
         if "-h" in maintenance_part:
             maintenance, hotfix = maintenance_part.split("-h")
             maintenance, hotfix = int(maintenance), int(hotfix)
+        elif "-c" in maintenance_part:
+            maintenance, hotfix = maintenance_part.split("-c")
+            maintenance, hotfix = int(maintenance), int(hotfix)
         else:
             maintenance = int(maintenance_part)
 
