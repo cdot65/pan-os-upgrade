@@ -280,27 +280,27 @@ class AssuranceOptions:
         },
         "content_version": {
             "enabled_by_default": True,
-            "description": "",
+            "description": "App Content Version",
         },
         "ip_sec_tunnels": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "IPsec VPN tunnels",
         },
         "license": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "License Information",
         },
         "nics": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": True,
-            "description": "ARP Table",
+            "enabled_by_default": False,
+            "description": "Route Table",
         },
         "session_stats": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "Session Stats",
         },
     }
 
@@ -326,7 +326,7 @@ class AssuranceOptions:
             "description": "Snapshot of the Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Snapshot of the Routing Table",
         },
         "session_stats": {
