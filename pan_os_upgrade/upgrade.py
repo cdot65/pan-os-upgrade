@@ -3081,65 +3081,6 @@ def ensure_directory_exists(file_path: str) -> None:
         os.makedirs(directory)
 
 
-def filter_string_to_dict(filter_string: str) -> dict:
-    """
-    Transforms a filter string containing comma-separated key-value pairs into a dictionary.
-
-    This function is tailored for processing strings formatted with key-value pairs separated by commas and equal signs, converting them into a dictionary format for easier access and manipulation in Python. It is particularly useful for parsing query parameters or configuration settings expressed in string format. The function ensures robustness by returning an empty dictionary in cases where the input string is empty, malformed, or does not adhere to the expected key-value pair format.
-
-    Parameters
-    ----------
-    filter_string : str
-        The input string containing key-value pairs, formatted as 'key1=value1,key2=value2'. Each pair is separated by a comma, and the key is separated from its value by an equal sign.
-
-    Returns
-    -------
-    dict
-        A dictionary representation of the input `filter_string`, with each key-value pair transformed into a dictionary entry. An empty dictionary is returned if the `filter_string` is empty, malformed, or otherwise does not contain valid key-value pairs.
-
-    Examples
-    --------
-    Converting a standard filter string:
-        >>> filter_string_to_dict('status=active,region=eu')
-        {'status': 'active', 'region': 'eu'}
-
-    Handling an empty input string:
-        >>> filter_string_to_dict('')
-        {}
-
-    Managing a malformed input string:
-        >>> filter_string_to_dict('status-active,region=eu')
-        ValueError: The filter string is malformed. Each key-value pair should be separated by '='.
-
-    Notes
-    -----
-    - This function assumes a correctly formatted input string. Incorrectly formatted key-value pairs, such as those lacking an '=' delimiter, will result in a ValueError.
-    - If duplicate keys are present, the dictionary will retain the value from the last occurrence of the key in the input string.
-
-    Raises
-    ------
-    ValueError
-        If the input string includes key-value pairs not properly separated by '=', indicating a malformed filter string, a ValueError is raised to signal the issue.
-    """
-
-    if not filter_string:
-        return {}
-
-    result = {}
-    pairs = filter_string.split(",")
-
-    for pair in pairs:
-        if "=" not in pair:
-            raise ValueError(
-                "The filter string is malformed. Each key-value pair should be separated by '='."
-            )
-
-        key, value = pair.split("=")
-        result[key] = value
-
-    return result
-
-
 def find_close_matches(
     available_versions: List[str],
     target_version: str,
