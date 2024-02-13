@@ -41,17 +41,17 @@ def sample_xml_response():
                 <devices>
                     <entry>
                         <hostname>Woodlands-fw1</hostname>
-                        <serial>007954000432461</serial>
+                        <serial>007954000123451</serial>
                         <connected>true</connected>
                     </entry>
                     <entry>
                         <hostname>houston</hostname>
-                        <serial>007054000242050</serial>
+                        <serial>007954000123453</serial>
                         <connected>true</connected>
                     </entry>
                     <entry>
                         <hostname>Woodlands-fw2</hostname>
-                        <serial>007954000432462</serial>
+                        <serial>007954000123452</serial>
                         <connected>true</connected>
                     </entry>
                 </devices>

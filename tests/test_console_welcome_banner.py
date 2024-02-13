@@ -6,6 +6,7 @@ from pathlib import Path
 @pytest.mark.parametrize(
     "mode, key_phrases",
     [
+        ("inventory", ["Welcome to the PAN-OS upgrade inventory menu"]),
         ("settings", ["Welcome to the PAN-OS upgrade settings menu"]),
         (
             "firewall",
@@ -47,4 +48,21 @@ def test_console_welcome_banner_with_config_path(capsys):
 def test_console_welcome_banner_without_config_path(capsys):
     console_welcome_banner("firewall")
     captured = capsys.readouterr().out
-    assert "No settings.yaml file was found. Default values will be used." in captured
+    expected_message = (
+        "No settings.yaml file was found, the script's default values will be used.\n"
+        "Create a settings.yaml file with 'pan-os-upgrade settings' command."
+    )
+    assert expected_message in captured
+
+
+def test_console_welcome_banner_inventory_mode(capsys):
+    console_welcome_banner("inventory")
+    captured = capsys.readouterr().out
+    expected_phrases = [
+        "Welcome to the PAN-OS upgrade inventory menu",
+        "Select which firewalls to upgrade based on a list of those connected to Panorama.",
+        "This will create an `inventory.yaml` file in your current working directory.",
+    ]
+
+    for phrase in expected_phrases:
+        assert phrase in captured, f"Phrase '{phrase}' not found in banner output"
