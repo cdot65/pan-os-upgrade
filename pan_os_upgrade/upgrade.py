@@ -3832,16 +3832,47 @@ def resolve_hostname(hostname: str) -> bool:
         return False
 
 
-def select_devices_from_table(firewall_mapping: dict) -> list:
+def select_devices_from_table(firewall_mapping: dict) -> List[str]:
     """
-    Presents a table of firewalls and captures user selections.
+    Displays a table of firewalls and prompts the user to select devices for further operations. This selection
+    process allows the user to specify one or more devices by their listing numbers, a range, or a combination
+    thereof. The function then returns a list of hostnames corresponding to the user's selections.
 
-    Parameters:
-    - firewall_mapping (dict): A dictionary mapping from hostname to firewall details.
+    This interactive step is crucial for operations that target multiple devices, enabling precise control over
+    which devices are included. The function ensures that selections are valid and within the range of displayed
+    devices, providing feedback for any invalid entries.
 
-    Returns:
-    - list: A list of selected firewall hostnames.
+    Parameters
+    ----------
+    firewall_mapping : dict
+        A mapping from device hostnames to their respective details (e.g., IP address, model, serial number),
+        used to generate the selection table.
+
+    Returns
+    -------
+    List[str]
+        A list of hostnames for the selected devices, based on user input.
+
+    Examples
+    --------
+    Presenting a selection table and capturing user choices:
+        >>> firewall_mapping = {
+        ...     'fw1': {'ip-address': '10.1.1.1', 'model': 'PA-850', 'serial': '0123456789', 'sw-version': '9.1.0', 'app-version': '9.1.0'},
+        ...     'fw2': {'ip-address': '10.1.1.2', 'model': 'PA-220', 'serial': '9876543210', 'sw-version': '9.1.2', 'app-version': '9.1.3'}
+        ... }
+        >>> selected_hostnames = select_devices_from_table(firewall_mapping)
+        # User is prompted to select from the table of devices. The function returns the hostnames of selected devices.
+
+    Notes
+    -----
+    - The function leverages the `tabulate` library to present a well-structured table, enhancing readability and
+      ease of selection.
+    - It accommodates various input formats for selecting devices, including individual numbers, ranges (e.g., 2-4),
+      or a comma-separated list, providing flexibility in selection methodology.
+    - Invalid selections (e.g., out-of-range numbers or incorrect formats) are handled gracefully, with prompts for
+      correction, ensuring a robust and user-friendly selection process.
     """
+
     # Sort firewalls by hostname for consistent display
     sorted_firewall_items = sorted(firewall_mapping.items(), key=lambda item: item[0])
 
@@ -4300,36 +4331,41 @@ def batch(
     ] = True,
 ):
     """
-    Executes a coordinated upgrade of multiple firewalls managed by a Panorama appliance using specified criteria.
+    Orchestrates a batch upgrade process for firewalls under Panorama's management. This command leverages Panorama
+    to coordinate upgrades across multiple devices, streamlining the process. The user has the option to perform a
+    dry run to validate the upgrade steps without applying changes, and to specify the target PAN-OS version for the
+    upgrade.
 
-    This command streamlines the process of upgrading a batch of firewalls by leveraging Panorama's centralized management capabilities. It supports filtering to target specific devices for the upgrade and offers a dry run option for validation without making changes. The function initiates by preparing the environment, validating connectivity to Panorama, and then sequentially or concurrently upgrading each managed firewall that meets the filter criteria.
+    The process begins by establishing a secure connection to Panorama using provided credentials. Firewalls managed
+    by Panorama are then enumerated, and a subset may be selected for upgrade based on criteria defined in an
+    'inventory.yaml' file or interactively during execution. The 'inventory.yaml' file, if present, pre-selects
+    devices for upgrade, bypassing manual selection.
 
     Parameters
     ----------
     hostname : str
-        The network address of the Panorama appliance, either as an IP address or a DNS-resolvable hostname.
+        The hostname or IP address of the Panorama appliance to connect to.
     username : str
-        The administrative username required for authentication on the Panorama appliance.
+        The username for authenticating with Panorama.
     password : str
-        The corresponding password for the specified administrative username.
+        The password for the provided username, used for authentication.
     target_version : str
-        The PAN-OS version to which the targeted firewalls will be upgraded.
+        The version of PAN-OS to which the firewalls should be upgraded.
     dry_run : bool, optional
-        A flag to indicate whether to simulate the upgrade process without making any actual changes, default is False.
+        If set, the command simulates the upgrade process without making any changes to the devices. Defaults to True, meaning dry run is enabled by default.
 
     Examples
     --------
-    Performing a batch upgrade of firewalls:
-        $ python upgrade.py batch --hostname panorama.example.com --username admin --password adminpassword --version 9.1.3"
-
-    Conducting a dry run of a batch upgrade:
-        $ python upgrade.py batch --hostname panorama.example.com --username admin --password adminpassword --version 9.1.3 --dry-run
+    Initiating a batch upgrade process with specified parameters:
+        $ python upgrade.py batch --hostname 192.168.1.1 --username admin --password secret --version 10.2.7-h3 --dry-run
 
     Notes
     -----
-    - Ensure connectivity to Panorama and validity of credentials before initiating the batch upgrade.
-    - The dry run option is highly recommended for assessing the upgrade's feasibility and identifying any preparatory actions required without impacting the operational state of the firewalls.
-    - Configuration settings, such as logging levels and paths, can be customized through a `settings.yaml` file if available. The presence of this file and its path may be indicated by the global variable `settings_file_path` if implemented in the script.
+    - The command streamlines firewall upgrades by automating repetitive tasks and consolidating operations through Panorama.
+    - The dry run feature is useful for validating the upgrade plan and ensuring readiness without impacting production systems.
+    - The presence of an 'inventory.yaml' file can automate device selection, facilitating integration into larger automated workflows.
+    - It's recommended to back up device configurations and have a rollback plan in place before proceeding with actual upgrades.
+    - Customization options, such as setting logging preferences, can be specified through a 'settings.yaml' file if the script supports reading from such a file, allowing for more granular control over the upgrade process.
     """
 
     # Display the custom banner for batch firewall upgrades
@@ -4535,6 +4571,136 @@ def batch(
         typer.echo("Upgrade cancelled.")
 
 
+# Subcommand for generating an inventory.yaml file
+@app.command()
+def inventory(
+    hostname: Annotated[
+        str,
+        typer.Option(
+            "--hostname",
+            "-h",
+            help="Hostname or IP address of Panorama appliance",
+            prompt="Panorama hostname or IP",
+            callback=ip_callback,
+        ),
+    ],
+    username: Annotated[
+        str,
+        typer.Option(
+            "--username",
+            "-u",
+            help="Username for authentication with the Panorama appliance",
+            prompt="Panorama username",
+        ),
+    ],
+    password: Annotated[
+        str,
+        typer.Option(
+            "--password",
+            "-p",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+            prompt="Panorama password",
+            hide_input=True,
+        ),
+    ],
+):
+    """
+    Interactively generates an inventory file listing devices managed by a Panorama appliance,
+    allowing the user to select which devices to include for potential upgrade. The inventory
+    process involves connecting to Panorama, retrieving a list of managed firewalls, and presenting
+    the user with a table of devices. The user can then select specific devices to include in the
+    inventory file. This file serves as input for subsequent upgrade operations, ensuring that
+    upgrades are targeted and organized.
+
+    Parameters
+    ----------
+    hostname : str
+        The hostname or IP address of the Panorama appliance. This is the address used to establish
+        a connection for querying managed devices.
+    username : str
+        The username for authentication with the Panorama appliance. It is required to have sufficient
+        permissions to retrieve device information.
+    password : str
+        The password associated with the username for authentication purposes. Input is hidden to protect
+        sensitive information.
+
+    Raises
+    ------
+    typer.Exit
+        Exits the script if the command is invoked for an individual firewall rather than a Panorama appliance,
+        as this functionality is specific to Panorama-managed environments.
+
+    Examples
+    --------
+    Generating an inventory file from the command line:
+        >>> typer run inventory --hostname 192.168.1.1 --username admin --password admin
+        # This command initiates the inventory process, connecting to the Panorama at 192.168.1.1, and
+        # interactively allows the user to select devices to include in the inventory file.
+
+    Notes
+    -----
+    - The inventory process is an interactive session that requires the user to select devices from a
+      presented table. The selections are then saved to 'inventory.yaml'.
+    - This function is part of a Typer application that includes multiple subcommands for managing device
+      upgrades. It is designed to be used in the context of a larger upgrade workflow.
+    - The inventory file generated by this function can be customized or extended by editing 'inventory.yaml'
+      directly, allowing for manual inclusion or exclusion of devices as needed.
+    """
+
+    console_welcome_banner(mode="inventory")
+
+    panorama = common_setup(hostname, username, password)
+
+    if type(panorama) is Firewall:
+        logging.error(
+            "Inventory command is only supported when connecting to Panorama."
+        )
+        raise typer.Exit()
+
+    # Report the successful connection to Panorama
+    logging.info(
+        f"{get_emoji('success')} {hostname}: Connection to Panorama established."
+    )
+
+    # Get firewalls connected to Panorama
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
+    )
+    all_firewalls = get_firewalls_from_panorama(panorama)
+
+    # Retrieve additional information about all of the firewalls
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
+    )
+    firewalls_info = get_firewall_info(all_firewalls)
+
+    # Initialize an empty dictionary to map Firewall objects to their details
+    firewall_mapping = {}
+
+    # Iterate over each Firewall object and its corresponding details
+    for fw, fw_info in zip(all_firewalls, firewalls_info):
+        # Create a dictionary entry for each firewall with its details
+        firewall_mapping[fw_info["hostname"]] = {
+            "object": fw,
+            **fw_info,  # Unpack all info details into the dictionary
+        }
+
+    user_selected_hostnames = select_devices_from_table(firewall_mapping)
+
+    with open("inventory.yaml", "w") as file:
+        yaml.dump(
+            {
+                "firewalls_to_upgrade": [
+                    hostname for hostname in user_selected_hostnames
+                ]
+            },
+            file,
+            default_flow_style=False,
+        )
+
+    typer.echo(Fore.GREEN + "Selected devices saved to inventory.yaml" + Fore.RESET)
+
+
 # Subcommand for creating a settings.yaml file to override default settings
 @app.command()
 def settings():
@@ -4695,94 +4861,6 @@ def settings():
         )
 
     typer.echo(f"Configuration saved to {config_file_path}")
-
-
-@app.command()
-def inventory(
-    hostname: Annotated[
-        str,
-        typer.Option(
-            "--hostname",
-            "-h",
-            help="Hostname or IP address of Panorama appliance",
-            prompt="Panorama hostname or IP",
-            callback=ip_callback,
-        ),
-    ],
-    username: Annotated[
-        str,
-        typer.Option(
-            "--username",
-            "-u",
-            help="Username for authentication with the Panorama appliance",
-            prompt="Panorama username",
-        ),
-    ],
-    password: Annotated[
-        str,
-        typer.Option(
-            "--password",
-            "-p",
-            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-            prompt="Panorama password",
-            hide_input=True,
-        ),
-    ],
-):
-    """Presents a table of devices for upgrade selection."""
-
-    console_welcome_banner(mode="inventory")
-
-    panorama = common_setup(hostname, username, password)
-
-    if type(panorama) is Firewall:
-        logging.error(
-            "Inventory command is only supported when connecting to Panorama."
-        )
-        raise typer.Exit()
-
-    # Report the successful connection to Panorama
-    logging.info(
-        f"{get_emoji('success')} {hostname}: Connection to Panorama established."
-    )
-
-    # Get firewalls connected to Panorama
-    logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
-    )
-    all_firewalls = get_firewalls_from_panorama(panorama)
-
-    # Retrieve additional information about all of the firewalls
-    logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
-    )
-    firewalls_info = get_firewall_info(all_firewalls)
-
-    # Initialize an empty dictionary to map Firewall objects to their details
-    firewall_mapping = {}
-
-    # Iterate over each Firewall object and its corresponding details
-    for fw, fw_info in zip(all_firewalls, firewalls_info):
-        # Create a dictionary entry for each firewall with its details
-        firewall_mapping[fw_info["hostname"]] = {
-            "object": fw,
-            **fw_info,  # Unpack all info details into the dictionary
-        }
-
-    user_selected_hostnames = select_devices_from_table(firewall_mapping)
-
-    with open("inventory.yaml", "w") as file:
-        yaml.dump(
-            {
-                "firewalls_to_upgrade": [
-                    hostname for hostname in user_selected_hostnames
-                ]
-            },
-            file,
-            default_flow_style=False,
-        )
-
-    typer.echo(Fore.GREEN + "Selected devices saved to inventory.yaml" + Fore.RESET)
 
 
 if __name__ == "__main__":
