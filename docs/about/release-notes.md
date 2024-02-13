@@ -2,6 +2,17 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.2.0
+
+**Release Date:** *<20240213>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Revamped ability to select multiple firewalls when using Panorama as a communication proxy
+- Removed support for `-f` and `--filter` flags, instead relying on interactive selection menu
+- Added new subcommand `inventory`, which will create an `inventory.yaml` file based on selected firewalls
+
 ## Version 1.1.6
 
 **Release Date:** *<20240211>*
