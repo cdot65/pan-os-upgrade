@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-os-upgrade"
-version = "1.1.6"
+version = "1.2.0"
 description = "Python script to automate the upgrade process of PAN-OS firewalls."
 authors = ["Calvin Remsburg <cremsburg.dev@gmail.com>"]
 documentation = "https://cdot65.github.io/pan-os-upgrade/"
@@ -17,7 +17,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Natural Language :: English",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.11",
   "Topic :: System :: Networking :: Firewalls",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: System :: Systems Administration",
@@ -27,7 +27,7 @@ include = ["pan_os_upgrade/assets/*.png"]
 exclude = [
   "pan_os_upgrade/assurance/*",
   "pan_os_upgrade/logs/*",
-  "pan_os_upgrade/settings.yaml",
+  "pan_os_upgrade/*.yaml",
 ]
 
 
@@ -42,6 +42,9 @@ dnspython = "^2.5.0"
 dynaconf = "^3.2.4"
 pyyaml = "^6.0.1"
 reportlab = "^4.0.9"
+prompt-toolkit = "^3.0.43"
+tabulate = "^0.9.0"
+colorama = "^0.4.6"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
@@ -52,6 +55,7 @@ mkdocstrings = "^0.24.0"
 pytest = "^7.4.4"
 python-dotenv = "^1.0.1"
 pytest-mock = "^3.12.0"
+prompt-toolkit = "^3.0.43"
 
 [tool.poetry.scripts]
 pan-os-upgrade = 'pan_os_upgrade.upgrade:app'

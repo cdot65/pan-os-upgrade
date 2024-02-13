@@ -165,6 +165,6 @@ cython_debug/
 # ignore local dev
 assurance
 logs
-pan_os_upgrade/settings.yaml
 .dev.env
 pan-os-upgrade.code-workspace
+pan_os_upgrade/*.yaml

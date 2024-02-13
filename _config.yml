@@ -20,6 +20,7 @@ exclude:
   - "*.sh"
   - "*.bat"
   - "*.yml"
+  - "*.yaml"
   - "*.toml"
   - "LICENSE"
   - "poetry.lock"

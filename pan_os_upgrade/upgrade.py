@@ -85,7 +85,7 @@ from http.client import RemoteDisconnected
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
 import xml.etree.ElementTree as ET
@@ -111,12 +111,14 @@ from panos_upgrade_assurance.snapshot_compare import SnapshotCompare
 # third party imports
 import dns.resolver
 import typer
+from colorama import init, Fore
 from dynaconf import Dynaconf
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
+from tabulate import tabulate
 
 # project imports
 from pan_os_upgrade.models import (
@@ -278,27 +280,27 @@ class AssuranceOptions:
         },
         "content_version": {
             "enabled_by_default": True,
-            "description": "",
+            "description": "App Content Version",
         },
         "ip_sec_tunnels": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "IPsec VPN tunnels",
         },
         "license": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "License Information",
         },
         "nics": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": True,
-            "description": "ARP Table",
+            "enabled_by_default": False,
+            "description": "Route Table",
         },
         "session_stats": {
             "enabled_by_default": True,
-            "description": "ARP Table",
+            "description": "Session Stats",
         },
     }
 
@@ -324,7 +326,7 @@ class AssuranceOptions:
             "description": "Snapshot of the Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Snapshot of the Routing Table",
         },
         "session_stats": {
@@ -2923,34 +2925,48 @@ def connect_to_host(
 def console_welcome_banner(
     mode: str,
     config_path: Optional[Path] = None,
+    inventory_path: Optional[Path] = None,
 ) -> None:
     """
-    Presents a welcome banner in the console, tailored to the selected operational mode and configuration settings.
-
-    This function generates a customized welcome banner that greets the user upon initiating the script in a specific mode, such as settings adjustment, firewall upgrade, panorama upgrade, or batch operations. It highlights the operational context and, if applicable, acknowledges the use of a custom configuration file (settings.yaml). The banner serves to clarify the script's current operational stance and to provide initial guidance or instructions relevant to the selected mode.
+    Displays a welcome banner in the console for the specified operational mode, providing contextual information
+    about the script's current function. The banner outlines the operation being performed, such as upgrading
+    firewalls, Panorama, or modifying settings, and indicates whether custom configuration or inventory files are
+    being utilized. This visual cue helps users understand the script's current state and actions, enhancing usability
+    and clarity.
 
     Parameters
     ----------
     mode : str
-        Specifies the operational mode for which the banner is displayed. Possible values include 'settings', 'firewall', 'panorama', and 'batch'.
+        The operational mode of the script, indicating the type of action being undertaken. Valid modes include
+        'settings', 'firewall', 'panorama', and 'batch', each corresponding to different functionalities of the script.
     config_path : Optional[Path], optional
-        The path to a custom configuration file if one is being used. If None, it indicates that the default configuration settings are in effect.
+        The filesystem path to a custom settings configuration file, if one is being used. If not provided, it is
+        assumed that default settings are applied. This parameter is relevant only in modes where configuration
+        customization is applicable.
+    inventory_path : Optional[Path], optional
+        The filesystem path to a custom inventory file, if one is being used. This is particularly relevant in batch
+        operations where an inventory of devices is specified. If not provided, default or dynamically determined
+        inventory information is used.
 
     Examples
     --------
-    Displaying a banner for the firewall upgrade mode with a specified configuration file:
-        >>> console_welcome_banner('firewall', Path('/custom/path/settings.yaml'))
-        # Outputs a banner detailing the firewall upgrade process and notes the custom configuration file in use.
+    Displaying a welcome banner for firewall upgrade mode, noting the use of a custom settings file:
+        >>> console_welcome_banner('firewall', Path('/path/to/settings.yaml'))
+        # Outputs a banner indicating the firewall upgrade mode and the custom settings file in use.
 
-    Displaying a banner for configuring settings without specifying a configuration file:
+    Displaying a welcome banner for settings configuration without a custom configuration file:
         >>> console_welcome_banner('settings')
-        # Outputs a banner specific to configuring settings, indicating that default settings will apply.
+        # Outputs a banner specific to settings configuration, indicating default settings will be used.
 
     Notes
     -----
-    - The banner aims to enhance user experience by providing clear, immediate context about the script's mode of operation and configuration status at the start of the session.
-    - Inclusion of configuration file details (if any) assists users in verifying that the script is operating with the intended settings, especially useful when default settings are overridden by a custom `settings.yaml`.
-    - The function uses ANSI color codes for visual emphasis on terminal displays, with considerations for compatibility across different terminal environments.
+    - The welcome banner is intended to provide immediate, clear context for the script's operation, aiding in
+      user orientation and reducing potential confusion about the script's current mode or configuration status.
+    - The banner also serves as a preliminary check, allowing users to confirm that the intended configuration or
+      inventory files are recognized by the script before proceeding with operations, especially useful in scenarios
+      where custom settings are essential for the task at hand.
+    - This function employs ANSI color codes for enhanced visual distinction in terminal environments, with fallback
+      considerations for environments where such styling may not be supported.
     """
 
     # Customize messages based on the mode
@@ -2960,8 +2976,16 @@ def console_welcome_banner(
             "You'll be presented with configuration items, press enter for default settings."
             "\n\nThis will create a `settings.yaml` file in your current working directory."
         )
-        # No config message for settings mode
         config_message = ""
+        inventory_message = ""
+    elif mode == "inventory":
+        welcome_message = "Welcome to the PAN-OS upgrade inventory menu"
+        banner_message = (
+            "Select which firewalls to upgrade based on a list of those connected to Panorama."
+            "\n\nThis will create an `inventory.yaml` file in your current working directory."
+        )
+        config_message = ""
+        inventory_message = ""
     else:
         if mode == "firewall":
             welcome_message = "Welcome to the PAN-OS upgrade tool"
@@ -2978,8 +3002,19 @@ def console_welcome_banner(
             config_message = f"Custom configuration loaded from:\n{config_path}"
         else:
             config_message = (
-                "No settings.yaml file was found. Default values will be used.\n"
+                "No settings.yaml file was found, the script's default values will be used.\n"
                 "Create a settings.yaml file with 'pan-os-upgrade settings' command."
+            )
+
+        # Inventory file message
+        if inventory_path and inventory_path.exists():
+            inventory_message = (
+                f"Inventory configuration loaded from:\n{inventory_path}"
+            )
+        else:
+            inventory_message = (
+                "No inventory.yaml file was found, getting firewalls connected to Panorama.\n"
+                "Create an inventory.yaml file with 'pan-os-upgrade inventory' command."
             )
 
     # Calculate border length based on the longer message
@@ -2987,6 +3022,11 @@ def console_welcome_banner(
         len(welcome_message),
         max(len(line) for line in banner_message.split("\n")),
         max(len(line) for line in config_message.split("\n")) if config_message else 0,
+        (
+            max(len(line) for line in inventory_message.split("\n"))
+            if inventory_message
+            else 0
+        ),
     )
     border = "=" * border_length
 
@@ -2996,8 +3036,14 @@ def console_welcome_banner(
 
     # Construct and print the banner
     banner = f"{color_start}{border}\n{welcome_message}\n\n{banner_message}"
-    if config_message:  # Only add config_message if it's not empty
+    # Only add config_message if it's not empty
+    if config_message:
         banner += f"\n\n{config_message}"
+
+    # Only add config_message if it's not empty
+    if config_message:
+        banner += f"\n\n{inventory_message}"
+
     banner += f"\n{border}{color_end}"
     typer.echo(banner)
 
@@ -3033,65 +3079,6 @@ def ensure_directory_exists(file_path: str) -> None:
     directory = os.path.dirname(file_path)
     if not os.path.exists(directory):
         os.makedirs(directory)
-
-
-def filter_string_to_dict(filter_string: str) -> dict:
-    """
-    Transforms a filter string containing comma-separated key-value pairs into a dictionary.
-
-    This function is tailored for processing strings formatted with key-value pairs separated by commas and equal signs, converting them into a dictionary format for easier access and manipulation in Python. It is particularly useful for parsing query parameters or configuration settings expressed in string format. The function ensures robustness by returning an empty dictionary in cases where the input string is empty, malformed, or does not adhere to the expected key-value pair format.
-
-    Parameters
-    ----------
-    filter_string : str
-        The input string containing key-value pairs, formatted as 'key1=value1,key2=value2'. Each pair is separated by a comma, and the key is separated from its value by an equal sign.
-
-    Returns
-    -------
-    dict
-        A dictionary representation of the input `filter_string`, with each key-value pair transformed into a dictionary entry. An empty dictionary is returned if the `filter_string` is empty, malformed, or otherwise does not contain valid key-value pairs.
-
-    Examples
-    --------
-    Converting a standard filter string:
-        >>> filter_string_to_dict('status=active,region=eu')
-        {'status': 'active', 'region': 'eu'}
-
-    Handling an empty input string:
-        >>> filter_string_to_dict('')
-        {}
-
-    Managing a malformed input string:
-        >>> filter_string_to_dict('status-active,region=eu')
-        ValueError: The filter string is malformed. Each key-value pair should be separated by '='.
-
-    Notes
-    -----
-    - This function assumes a correctly formatted input string. Incorrectly formatted key-value pairs, such as those lacking an '=' delimiter, will result in a ValueError.
-    - If duplicate keys are present, the dictionary will retain the value from the last occurrence of the key in the input string.
-
-    Raises
-    ------
-    ValueError
-        If the input string includes key-value pairs not properly separated by '=', indicating a malformed filter string, a ValueError is raised to signal the issue.
-    """
-
-    if not filter_string:
-        return {}
-
-    result = {}
-    pairs = filter_string.split(",")
-
-    for pair in pairs:
-        if "=" not in pair:
-            raise ValueError(
-                "The filter string is malformed. Each key-value pair should be separated by '='."
-            )
-
-        key, value = pair.split("=")
-        result[key] = value
-
-    return result
 
 
 def find_close_matches(
@@ -3429,10 +3416,56 @@ def get_emoji(action: str) -> str:
     return emoji_map.get(action, "")
 
 
-def get_firewalls_from_panorama(
-    panorama: Panorama,
-    **filters,
-) -> list[Firewall]:
+def get_firewall_info(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
+    """
+    Fetches system information for each firewall in the list and returns it as a list of dictionaries.
+
+    Parameters
+    ----------
+    firewalls : List[Firewall]
+        A list of Firewall objects for which to fetch system information.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of dictionaries containing system information for each firewall.
+    """
+    firewalls_info = []
+    for firewall in firewalls:
+        try:
+            info = firewall.show_system_info()
+            firewalls_info.append(
+                {
+                    "hostname": info["system"]["hostname"],
+                    "ip-address": info["system"]["ip-address"],
+                    "model": info["system"]["model"],
+                    "serial": info["system"]["serial"],
+                    "sw-version": info["system"]["sw-version"],
+                    "app-version": info["system"]["app-version"],
+                }
+            )
+        # Catching a broad exception to handle any kind of failure
+        except Exception as e:
+            print(
+                f"Error retrieving info for {firewall.serial}: {str(e)}"
+            )  # Logging the error
+            # Append a dictionary with placeholder values indicating the firewall is offline or unavailable
+            firewalls_info.append(
+                {
+                    "hostname": firewall.hostname or "Unknown",
+                    "ip-address": "N/A",
+                    "model": "N/A",
+                    "serial": firewall.serial,
+                    "sw-version": "N/A",
+                    "app-version": "N/A",
+                    "status": "Offline or Unavailable",
+                }
+            )
+
+    return firewalls_info
+
+
+def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
     """
     Fetches a list of firewalls managed by a specified Panorama appliance, with optional filtering based on firewall attributes.
 
@@ -3442,8 +3475,6 @@ def get_firewalls_from_panorama(
     ----------
     panorama : Panorama
         The Panorama instance from which to retrieve managed firewalls. This object must be initialized with proper authentication credentials.
-    **filters : dict, optional
-        Keyword arguments representing the filtering criteria for the firewalls, where each key is a firewall attribute (e.g., 'model', 'serial', 'version') and its value is the desired attribute value or a pattern to match.
 
     Returns
     -------
@@ -3454,9 +3485,6 @@ def get_firewalls_from_panorama(
     --------
     Retrieving all firewalls managed by Panorama:
         >>> firewalls = get_firewalls_from_panorama(panorama_instance)
-
-    Retrieving firewalls by model from Panorama:
-        >>> pa_220_firewalls = get_firewalls_from_panorama(panorama_instance, model='PA-220')
 
     Notes
     -----
@@ -3470,7 +3498,7 @@ def get_firewalls_from_panorama(
     """
 
     firewalls = []
-    for managed_device in get_managed_devices(panorama, **filters):
+    for managed_device in get_managed_devices(panorama):
         firewall = Firewall(serial=managed_device.serial)
         firewalls.append(firewall)
         panorama.add(firewall)
@@ -3480,7 +3508,6 @@ def get_firewalls_from_panorama(
 
 def get_managed_devices(
     panorama: Panorama,
-    **filters,
 ) -> list[ManagedDevice]:
     """
     Retrieves a list of devices managed by a specified Panorama appliance, with optional filtering based on device attributes.
@@ -3491,8 +3518,6 @@ def get_managed_devices(
     ----------
     panorama : Panorama
         The Panorama instance from which the list of managed devices will be fetched. This instance must be initialized and authenticated to ensure successful API communication.
-    **filters : dict, optional
-        Keyword arguments where each key represents a device attribute (e.g., 'model', 'serial', 'version') to filter by, and the associated value is a regular expression pattern used to match against the device attribute values.
 
     Returns
     -------
@@ -3510,8 +3535,6 @@ def get_managed_devices(
     Notes
     -----
     - This function is essential for scripts aimed at performing batch operations or selective actions on devices managed by Panorama, enabling precise targeting based on specified criteria.
-    - The use of regular expressions for filtering adds a powerful layer of flexibility, allowing for complex selection criteria to be easily specified.
-    - Default filtering settings can be overridden or supplemented by settings specified in a `settings.yaml` file, if `settings_file_path` is utilized within the script, offering a customizable approach to device selection.
 
     Exceptions
     ----------
@@ -3522,12 +3545,6 @@ def get_managed_devices(
         panorama.op("show devices all"), ManagedDevices
     )
     devices = managed_devices.devices
-    for filter_key, filter_value in filters.items():
-        devices = [
-            target_device
-            for target_device in devices
-            if re.match(filter_value, getattr(target_device, filter_key))
-        ]
 
     return devices
 
@@ -3756,6 +3773,148 @@ def resolve_hostname(hostname: str) -> bool:
         return False
 
 
+def select_devices_from_table(firewall_mapping: dict) -> List[str]:
+    """
+    Displays a table of firewalls and prompts the user to select devices for further operations. This selection
+    process allows the user to specify one or more devices by their listing numbers, a range, or a combination
+    thereof. The function then returns a list of hostnames corresponding to the user's selections.
+
+    This interactive step is crucial for operations that target multiple devices, enabling precise control over
+    which devices are included. The function ensures that selections are valid and within the range of displayed
+    devices, providing feedback for any invalid entries.
+
+    Parameters
+    ----------
+    firewall_mapping : dict
+        A mapping from device hostnames to their respective details (e.g., IP address, model, serial number),
+        used to generate the selection table.
+
+    Returns
+    -------
+    List[str]
+        A list of hostnames for the selected devices, based on user input.
+
+    Examples
+    --------
+    Presenting a selection table and capturing user choices:
+        >>> firewall_mapping = {
+        ...     'fw1': {'ip-address': '10.1.1.1', 'model': 'PA-850', 'serial': '0123456789', 'sw-version': '9.1.0', 'app-version': '9.1.0'},
+        ...     'fw2': {'ip-address': '10.1.1.2', 'model': 'PA-220', 'serial': '9876543210', 'sw-version': '9.1.2', 'app-version': '9.1.3'}
+        ... }
+        >>> selected_hostnames = select_devices_from_table(firewall_mapping)
+        # User is prompted to select from the table of devices. The function returns the hostnames of selected devices.
+
+    Notes
+    -----
+    - The function leverages the `tabulate` library to present a well-structured table, enhancing readability and
+      ease of selection.
+    - It accommodates various input formats for selecting devices, including individual numbers, ranges (e.g., 2-4),
+      or a comma-separated list, providing flexibility in selection methodology.
+    - Invalid selections (e.g., out-of-range numbers or incorrect formats) are handled gracefully, with prompts for
+      correction, ensuring a robust and user-friendly selection process.
+    """
+
+    # Sort firewalls by hostname for consistent display
+    sorted_firewall_items = sorted(firewall_mapping.items(), key=lambda item: item[0])
+
+    devices_table = [
+        [
+            Fore.CYAN + str(i + 1) + Fore.RESET,
+            details["hostname"],
+            details["ip-address"],
+            details["model"],
+            details["serial"],
+            details["sw-version"],
+            details["app-version"],
+        ]
+        for i, (hostname, details) in enumerate(sorted_firewall_items)
+    ]
+
+    typer.echo(
+        tabulate(
+            devices_table,
+            headers=[
+                Fore.GREEN + "#" + Fore.RESET,
+                Fore.GREEN + "Hostname" + Fore.RESET,
+                Fore.GREEN + "IP Address" + Fore.RESET,
+                Fore.GREEN + "Model" + Fore.RESET,
+                Fore.GREEN + "Serial" + Fore.RESET,
+                Fore.GREEN + "SW Version" + Fore.RESET,
+                Fore.GREEN + "App Version" + Fore.RESET,
+            ],
+            tablefmt="fancy_grid",
+        )
+    )
+
+    instruction_message = (
+        Fore.YELLOW
+        + "You can select devices by entering their numbers, ranges, or separated by commas.\n"
+        "Examples: '1', '2-4', '1,3,5-7'.\n"
+        "Type 'done' on a new line when finished.\n" + Fore.RESET
+    )
+    typer.echo(instruction_message)
+
+    user_selected_hostnames = []
+
+    while True:
+        choice = typer.prompt(Fore.YELLOW + "Enter your selection(s)" + Fore.RESET)
+
+        if choice.lower() == "done":
+            break
+
+        # Split input by commas for single-line input or just accumulate selections for multi-line input
+        parts = choice.split(",") if "," in choice else [choice]
+        indices = []
+        for part in parts:
+            part = part.strip()  # Remove any leading/trailing whitespace
+            if "-" in part:  # Check if part is a range
+                try:
+                    start, end = map(
+                        int, part.split("-")
+                    )  # Convert start and end to integers
+                    if start <= end:
+                        indices.extend(
+                            range(start - 1, end)
+                        )  # Add all indices in the range
+                    else:
+                        typer.echo(
+                            Fore.RED
+                            + f"Invalid range: '{part}'. Start should be less than or equal to end."
+                            + Fore.RESET
+                        )
+                except ValueError:
+                    typer.echo(
+                        Fore.RED
+                        + f"Invalid range format: '{part}'. Use 'start-end' format."
+                        + Fore.RESET
+                    )
+            else:
+                try:
+                    index = int(part) - 1  # Convert to index (0-based)
+                    indices.append(index)
+                except ValueError:
+                    typer.echo(Fore.RED + f"Invalid number: '{part}'." + Fore.RESET)
+
+        # Process selected indices
+        for index in indices:
+
+            if 0 <= index < len(sorted_firewall_items):
+                hostname, details = sorted_firewall_items[index]
+                if hostname not in user_selected_hostnames:
+                    user_selected_hostnames.append(hostname)
+                    typer.echo(Fore.GREEN + f"{hostname} selected." + Fore.RESET)
+                else:
+                    typer.echo(
+                        Fore.YELLOW + f"{hostname} is already selected." + Fore.RESET
+                    )
+            else:
+                typer.echo(
+                    Fore.RED + f"Selection '{index + 1}' is out of range." + Fore.RESET
+                )
+
+    return user_selected_hostnames
+
+
 # Define Typer command-line interface
 app = typer.Typer(help="PAN-OS Upgrade script")
 
@@ -3763,12 +3922,16 @@ app = typer.Typer(help="PAN-OS Upgrade script")
 
 # Define the path to the settings file
 settings_file_path = Path.cwd() / "settings.yaml"
+inventory_file_path = Path.cwd() / "inventory.yaml"
 
 # Initialize Dynaconf settings object conditionally based on the existence of settings.yaml
 if settings_file_path.exists():
     settings_file = Dynaconf(settings_files=[str(settings_file_path)])
 else:
     settings_file = Dynaconf()
+
+# Initialize colorama
+init()
 
 # Global list and lock for storing HA active firewalls and Panorama to revisit
 target_devices_to_revisit = []
@@ -4097,15 +4260,6 @@ def batch(
             prompt="Firewall target version (ex: 10.1.2)",
         ),
     ],
-    filter: Annotated[
-        str,
-        typer.Option(
-            "--filter",
-            "-f",
-            help="Filter string - when connecting to Panorama, defines which devices we are to upgrade.",
-            prompt="Filter string (ex: hostname=Woodlands*)",
-        ),
-    ] = "",
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -4113,47 +4267,68 @@ def batch(
             "-d",
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
             prompt="Dry Run?",
+            is_flag=True,
         ),
     ] = True,
 ):
     """
-    Executes a coordinated upgrade of multiple firewalls managed by a Panorama appliance using specified criteria.
+    Orchestrates a batch upgrade process for firewalls under Panorama's management. This command leverages Panorama
+    to coordinate upgrades across multiple devices, streamlining the process. The user has the option to perform a
+    dry run to validate the upgrade steps without applying changes, and to specify the target PAN-OS version for the
+    upgrade.
 
-    This command streamlines the process of upgrading a batch of firewalls by leveraging Panorama's centralized management capabilities. It supports filtering to target specific devices for the upgrade and offers a dry run option for validation without making changes. The function initiates by preparing the environment, validating connectivity to Panorama, and then sequentially or concurrently upgrading each managed firewall that meets the filter criteria.
+    The process begins by establishing a secure connection to Panorama using provided credentials. Firewalls managed
+    by Panorama are then enumerated, and a subset may be selected for upgrade based on criteria defined in an
+    'inventory.yaml' file or interactively during execution. The 'inventory.yaml' file, if present, pre-selects
+    devices for upgrade, bypassing manual selection.
 
     Parameters
     ----------
     hostname : str
-        The network address of the Panorama appliance, either as an IP address or a DNS-resolvable hostname.
+        The hostname or IP address of the Panorama appliance to connect to.
     username : str
-        The administrative username required for authentication on the Panorama appliance.
+        The username for authenticating with Panorama.
     password : str
-        The corresponding password for the specified administrative username.
+        The password for the provided username, used for authentication.
     target_version : str
-        The PAN-OS version to which the targeted firewalls will be upgraded.
-    filter : str, optional
-        A string used to define filtering criteria for selecting specific firewalls managed by Panorama, default is empty which implies no filtering.
+        The version of PAN-OS to which the firewalls should be upgraded.
     dry_run : bool, optional
-        A flag to indicate whether to simulate the upgrade process without making any actual changes, default is False.
+        If set, the command simulates the upgrade process without making any changes to the devices. Defaults to True, meaning dry run is enabled by default.
 
     Examples
     --------
-    Performing a batch upgrade of firewalls:
-        $ python upgrade.py batch --hostname panorama.example.com --username admin --password adminpassword --version 9.1.3 --filter "model=PA-220"
-
-    Conducting a dry run of a batch upgrade:
-        $ python upgrade.py batch --hostname panorama.example.com --username admin --password adminpassword --version 9.1.3 --filter "location=DataCenter" --dry-run
+    Initiating a batch upgrade process with specified parameters:
+        $ python upgrade.py batch --hostname 192.168.1.1 --username admin --password secret --version 10.2.7-h3 --dry-run
 
     Notes
     -----
-    - Ensure connectivity to Panorama and validity of credentials before initiating the batch upgrade.
-    - The dry run option is highly recommended for assessing the upgrade's feasibility and identifying any preparatory actions required without impacting the operational state of the firewalls.
-    - Configuration settings, such as logging levels and paths, can be customized through a `settings.yaml` file if available. The presence of this file and its path may be indicated by the global variable `settings_file_path` if implemented in the script.
+    - The command streamlines firewall upgrades by automating repetitive tasks and consolidating operations through Panorama.
+    - The dry run feature is useful for validating the upgrade plan and ensuring readiness without impacting production systems.
+    - The presence of an 'inventory.yaml' file can automate device selection, facilitating integration into larger automated workflows.
+    - It's recommended to back up device configurations and have a rollback plan in place before proceeding with actual upgrades.
+    - Customization options, such as setting logging preferences, can be specified through a 'settings.yaml' file if the script supports reading from such a file, allowing for more granular control over the upgrade process.
     """
 
     # Display the custom banner for batch firewall upgrades
     if settings_file_path.exists():
-        console_welcome_banner(mode="batch", config_path=settings_file_path)
+        if inventory_file_path.exists():
+            console_welcome_banner(
+                mode="batch",
+                config_path=settings_file_path,
+                inventory_path=inventory_file_path,
+            )
+        else:
+            console_welcome_banner(
+                mode="batch",
+                config_path=settings_file_path,
+            )
+
+    elif inventory_file_path.exists():
+        console_welcome_banner(
+            mode="batch",
+            inventory_path=inventory_file_path,
+        )
+
     else:
         console_welcome_banner(mode="batch")
 
@@ -4164,9 +4339,6 @@ def batch(
         password,
     )
 
-    # Perform batch upgrade
-    firewalls_to_upgrade = []
-
     # Exit script if device is Firewall (batch upgrade is only supported when connecting to Panorama)
     if type(device) is Firewall:
         logging.info(
@@ -4174,30 +4346,111 @@ def batch(
         )
         sys.exit(1)
 
-    # If device is Panorama, get firewalls to upgrade
-    elif type(device) is Panorama:
-        # Exit script if no filter string was provided
-        if not filter:
-            logging.error(
-                f"{get_emoji('error')} {hostname}: Specified device is Panorama, but no filter string was provided."
+    # Report the successful connection to Panorama
+    logging.info(
+        f"{get_emoji('success')} {hostname}: Connection to Panorama established. Firewall connections will be proxied!"
+    )
+
+    # Get firewalls connected to Panorama
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
+    )
+    all_firewalls = get_firewalls_from_panorama(device)
+
+    # Retrieve additional information about all of the firewalls
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
+    )
+    firewalls_info = get_firewall_info(all_firewalls)
+
+    # Initialize an empty dictionary to map Firewall objects to their details
+    firewall_mapping = {}
+
+    # Iterate over each Firewall object and its corresponding details
+    for fw, fw_info in zip(all_firewalls, firewalls_info):
+        # Create a dictionary entry for each firewall with its details
+        firewall_mapping[fw_info["hostname"]] = {
+            "object": fw,
+            **fw_info,  # Unpack all info details into the dictionary
+        }
+
+    # Check if inventory.yaml exists and if it does, read the selected devices
+    if inventory_file_path.exists():
+        with open(inventory_file_path, "r") as file:
+            inventory_data = yaml.safe_load(file)
+            user_selected_hostnames = inventory_data.get("firewalls_to_upgrade", [])
+
+        if user_selected_hostnames:
+            logging.info(
+                f"{get_emoji('working')} {hostname}: Selected {user_selected_hostnames} firewalls from inventory.yaml for upgrade."
             )
-            sys.exit(1)
 
-        logging.info(
-            f"{get_emoji('success')} {hostname}: Connection to Panorama established. Firewall connections will be proxied!"
-        )
+            # Extracting the Firewall objects from the filtered mapping
+            firewall_objects_for_upgrade = [
+                firewall_mapping[hostname]["object"]
+                for hostname in user_selected_hostnames
+                if hostname in firewall_mapping
+            ]
+            logging.info(
+                f"{get_emoji('working')} {hostname}: Selected {len(firewall_objects_for_upgrade)} firewalls from inventory.yaml for upgrade."
+            )
 
-        # Get firewalls to upgrade
-        firewalls_to_upgrade = get_firewalls_from_panorama(
-            device, **filter_string_to_dict(filter)
+    # If inventory.yaml does not exist or no devices are selected, prompt the user to select devices
+    else:
+        # Present a table of firewalls with detailed system information for selection
+        user_selected_hostnames = select_devices_from_table(firewall_mapping)
+
+        # Convert those hostnames into Firewall objects using the firewall_mapping
+        firewall_objects_for_upgrade = [
+            firewall_mapping[hostname]["object"]
+            for hostname in user_selected_hostnames
+            if hostname in firewall_mapping
+        ]
+
+    # Now, firewall_objects_for_upgrade should contain the actual Firewall objects
+    # Proceed with the upgrade for the selected devices
+    if not firewall_objects_for_upgrade:
+        typer.echo("No devices selected for upgrade.")
+        raise typer.Exit()
+
+    typer.echo(
+        f"{get_emoji('report')} {hostname}: Upgrading {len(firewall_objects_for_upgrade)} devices to version {target_version}..."
+    )
+
+    firewall_list = "\n".join(
+        [
+            f"  - {firewall_mapping[hostname]['hostname']} ({firewall_mapping[hostname]['ip-address']})"
+            for hostname in user_selected_hostnames
+        ]
+    )
+
+    typer.echo(
+        f"{get_emoji('report')} {hostname}: Please confirm the selected firewalls:\n{firewall_list}"
+    )
+
+    # Asking for user confirmation before proceeding
+    if dry_run:
+        typer.echo(
+            f"{get_emoji('warning')} {hostname}: Dry run mode is enabled, upgrade workflow will be skipped."
         )
-        logging.debug(
-            f"{get_emoji('report')} {hostname}: Firewalls to upgrade: {firewalls_to_upgrade}"
+        confirmation = typer.confirm(
+            "Do you want to proceed with the dry run?", abort=True
         )
+    else:
+        typer.echo(
+            f"{get_emoji('warning')} {hostname}: Dry run mode is disabled, upgrade workflow will be executed."
+        )
+        confirmation = typer.confirm(
+            "Do you want to proceed with the upgrade?", abort=True
+        )
+        typer.echo(f"{get_emoji('start')} Proceeding with the upgrade...")
+
+    if confirmation:
+        typer.echo(f"{get_emoji('start')} Proceeding with the upgrade...")
 
         # Using ThreadPoolExecutor to manage threads
         threads = settings_file.get("concurrency.threads", 10)
-        logging.debug(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
+        logging.info(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
         with ThreadPoolExecutor(max_workers=threads) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
@@ -4207,7 +4460,7 @@ def batch(
                     target_version,
                     dry_run,
                 ): target_device
-                for target_device in firewalls_to_upgrade
+                for target_device in firewall_objects_for_upgrade
             }
 
             # Process completed tasks
@@ -4220,39 +4473,173 @@ def batch(
                         f"{get_emoji('error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
                     )
 
-    # Revisit the firewalls that were skipped in the initial pass
-    if target_devices_to_revisit:
-        logging.info(
-            f"{get_emoji('start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
+        # Revisit the firewalls that were skipped in the initial pass
+        if target_devices_to_revisit:
+            logging.info(
+                f"{get_emoji('start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
+            )
+
+            # Using ThreadPoolExecutor to manage threads for revisiting firewalls
+            threads = settings_file.get("concurrency.threads", 10)
+            logging.debug(
+                f"{get_emoji('working')} {hostname}: Using {threads} threads."
+            )
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                future_to_firewall = {
+                    executor.submit(
+                        upgrade_firewall, target_device, target_version, dry_run
+                    ): target_device
+                    for target_device in target_devices_to_revisit
+                }
+
+                # Process completed tasks
+                for future in as_completed(future_to_firewall):
+                    firewall = future_to_firewall[future]
+                    try:
+                        future.result()
+                        logging.info(
+                            f"{get_emoji('success')} {hostname}: Completed revisiting firewalls"
+                        )
+                    except Exception as exc:
+                        logging.error(
+                            f"{get_emoji('error')} {hostname}: Exception while revisiting firewalls: {exc}"
+                        )
+
+            # Clear the list after revisiting
+            with target_devices_to_revisit_lock:
+                target_devices_to_revisit.clear()
+    else:
+        typer.echo("Upgrade cancelled.")
+
+
+# Subcommand for generating an inventory.yaml file
+@app.command()
+def inventory(
+    hostname: Annotated[
+        str,
+        typer.Option(
+            "--hostname",
+            "-h",
+            help="Hostname or IP address of Panorama appliance",
+            prompt="Panorama hostname or IP",
+            callback=ip_callback,
+        ),
+    ],
+    username: Annotated[
+        str,
+        typer.Option(
+            "--username",
+            "-u",
+            help="Username for authentication with the Panorama appliance",
+            prompt="Panorama username",
+        ),
+    ],
+    password: Annotated[
+        str,
+        typer.Option(
+            "--password",
+            "-p",
+            help="Perform a dry run of all tests and downloads without performing the actual upgrade",
+            prompt="Panorama password",
+            hide_input=True,
+        ),
+    ],
+):
+    """
+    Interactively generates an inventory file listing devices managed by a Panorama appliance,
+    allowing the user to select which devices to include for potential upgrade. The inventory
+    process involves connecting to Panorama, retrieving a list of managed firewalls, and presenting
+    the user with a table of devices. The user can then select specific devices to include in the
+    inventory file. This file serves as input for subsequent upgrade operations, ensuring that
+    upgrades are targeted and organized.
+
+    Parameters
+    ----------
+    hostname : str
+        The hostname or IP address of the Panorama appliance. This is the address used to establish
+        a connection for querying managed devices.
+    username : str
+        The username for authentication with the Panorama appliance. It is required to have sufficient
+        permissions to retrieve device information.
+    password : str
+        The password associated with the username for authentication purposes. Input is hidden to protect
+        sensitive information.
+
+    Raises
+    ------
+    typer.Exit
+        Exits the script if the command is invoked for an individual firewall rather than a Panorama appliance,
+        as this functionality is specific to Panorama-managed environments.
+
+    Examples
+    --------
+    Generating an inventory file from the command line:
+        >>> typer run inventory --hostname 192.168.1.1 --username admin --password admin
+        # This command initiates the inventory process, connecting to the Panorama at 192.168.1.1, and
+        # interactively allows the user to select devices to include in the inventory file.
+
+    Notes
+    -----
+    - The inventory process is an interactive session that requires the user to select devices from a
+      presented table. The selections are then saved to 'inventory.yaml'.
+    - This function is part of a Typer application that includes multiple subcommands for managing device
+      upgrades. It is designed to be used in the context of a larger upgrade workflow.
+    - The inventory file generated by this function can be customized or extended by editing 'inventory.yaml'
+      directly, allowing for manual inclusion or exclusion of devices as needed.
+    """
+
+    console_welcome_banner(mode="inventory")
+
+    panorama = common_setup(hostname, username, password)
+
+    if type(panorama) is Firewall:
+        logging.error(
+            "Inventory command is only supported when connecting to Panorama."
+        )
+        raise typer.Exit()
+
+    # Report the successful connection to Panorama
+    logging.info(
+        f"{get_emoji('success')} {hostname}: Connection to Panorama established."
+    )
+
+    # Get firewalls connected to Panorama
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
+    )
+    all_firewalls = get_firewalls_from_panorama(panorama)
+
+    # Retrieve additional information about all of the firewalls
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
+    )
+    firewalls_info = get_firewall_info(all_firewalls)
+
+    # Initialize an empty dictionary to map Firewall objects to their details
+    firewall_mapping = {}
+
+    # Iterate over each Firewall object and its corresponding details
+    for fw, fw_info in zip(all_firewalls, firewalls_info):
+        # Create a dictionary entry for each firewall with its details
+        firewall_mapping[fw_info["hostname"]] = {
+            "object": fw,
+            **fw_info,  # Unpack all info details into the dictionary
+        }
+
+    user_selected_hostnames = select_devices_from_table(firewall_mapping)
+
+    with open("inventory.yaml", "w") as file:
+        yaml.dump(
+            {
+                "firewalls_to_upgrade": [
+                    hostname for hostname in user_selected_hostnames
+                ]
+            },
+            file,
+            default_flow_style=False,
         )
 
-        # Using ThreadPoolExecutor to manage threads for revisiting firewalls
-        threads = settings_file.get("concurrency.threads", 10)
-        logging.debug(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            future_to_firewall = {
-                executor.submit(
-                    upgrade_firewall, target_device, target_version, dry_run
-                ): target_device
-                for target_device in target_devices_to_revisit
-            }
-
-            # Process completed tasks
-            for future in as_completed(future_to_firewall):
-                firewall = future_to_firewall[future]
-                try:
-                    future.result()
-                    logging.info(
-                        f"{get_emoji('success')} {hostname}: Completed revisiting firewalls"
-                    )
-                except Exception as exc:
-                    logging.error(
-                        f"{get_emoji('error')} {hostname}: Exception while revisiting firewalls: {exc}"
-                    )
-
-        # Clear the list after revisiting
-        with target_devices_to_revisit_lock:
-            target_devices_to_revisit.clear()
+    typer.echo(Fore.GREEN + "Selected devices saved to inventory.yaml" + Fore.RESET)
 
 
 # Subcommand for creating a settings.yaml file to override default settings
@@ -4376,7 +4763,7 @@ def settings():
             "state": {},
             "location": "assurance/snapshots/" if not disable_snapshots else None,
             "retry_interval": 60 if not disable_snapshots else None,
-            "max_tries": 30 if not disable_snapshots else None,
+            "max_tries": 3 if not disable_snapshots else None,
         },
         "timeout_settings": {
             "connection_timeout": typer.prompt(

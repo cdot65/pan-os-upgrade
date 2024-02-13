@@ -89,7 +89,7 @@ You have selected to upgrade a single Firewall appliance.
 No settings.yaml file was found. Default values will be used.
 Create a settings.yaml file with 'pan-os-upgrade settings' command.
 ===================================================================
-📝 houston: 007054000242050 192.168.255.211
+📝 houston: 007954000123453 192.168.255.211
 📝 houston: HA mode: disabled
 📝 houston: Current version: 10.1.3
 📝 houston: Target version: 11.1.1
@@ -99,7 +99,7 @@ Create a settings.yaml file with 'pan-os-upgrade settings' command.
 ❌ houston: Base image for 11.1.1 is not downloaded. Attempting download.
 🔍 houston: version 11.1.0 is not on the target device
 🚀 houston: version 11.1.0 is beginning download
-Device 007054000242050 downloading version: 11.1.0
+Device 007954000123453 downloading version: 11.1.0
 🔧 houston: Downloading version 11.1.0 - Elapsed time: 3 seconds
 🔧 houston: Downloading version 11.1.0 - Elapsed time: 37 seconds
 🔧 houston: Downloading version 11.1.0 - Elapsed time: 69 seconds
@@ -117,7 +117,7 @@ Device 007054000242050 downloading version: 11.1.0
 🚀 houston: Performing test to see if 11.1.1 is already downloaded.
 🔍 houston: version 11.1.1 is not on the target device
 🚀 houston: version 11.1.1 is beginning download
-Device 007054000242050 downloading version: 11.1.1
+Device 007954000123453 downloading version: 11.1.1
 🔧 houston: Downloading version 11.1.1 - Elapsed time: 6 seconds
 🔧 houston: Downloading version 11.1.1 - Elapsed time: 40 seconds
 🔧 houston: Downloading version 11.1.1 - Elapsed time: 74 seconds
@@ -149,11 +149,11 @@ Device 007054000242050 downloading version: 11.1.1
 🚀 houston: Performing upgrade to version 11.1.1.
 📝 houston: The install will take several minutes, check for status details within the GUI.
 🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 1 of 3).
-Device 007054000242050 installing version: 11.1.1
-❌ houston: Upgrade error: Device 007054000242050 attempt to install version 11.1.1 failed: ['Failed to install 11.1.1 with the following errors.\nSW version is 11.1.1\nThe software manager is currently in use. Please try again later.\nFailed to install   version  11.1.1  type  panos\n\n']
+Device 007954000123453 installing version: 11.1.1
+❌ houston: Upgrade error: Device 007954000123453 attempt to install version 11.1.1 failed: ['Failed to install 11.1.1 with the following errors.\nSW version is 11.1.1\nThe software manager is currently in use. Please try again later.\nFailed to install   version  11.1.1  type  panos\n\n']
 🟧 houston: Software manager is busy. Retrying in 60 seconds.
 🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 2 of 3).
-Device 007054000242050 installing version: 11.1.1
+Device 007954000123453 installing version: 11.1.1
 ✅ houston: Upgrade completed successfully
 🚀 houston: Rebooting the target device.
 📝 houston: Command succeeded with no output
@@ -433,6 +433,124 @@ Device 007954000987652 installing version: 10.2.7-h3
 
 </div>
 
+## `inventory` Subcommand
+
+The `inventory` subcommand introduces the capability to generate an `inventory.yaml` file, which lists the devices selected for upgrade. This file is generated based on the selections made through the interactive menu when targeting devices via a Panorama appliance.
+
+Create the empty `inventory.yaml` file within your current working directory
+
+<div class="termy">
+
+```console
+touch inventory.yaml
+```
+
+</div>
+
+> Note: Make sure that you created an empty `inventory.yaml` file *before* you run the `inventory` CLI argument, or else Docker will create `inventory.yaml` as a folder instead of a file.
+
+<div class="termy">
+
+```console
+❯ docker run \
+-v $(pwd)/inventory.yaml:/app/inventory.yaml \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest inventory
+
+Panorama hostname or IP: panorama1.cdot.io
+Panorama username: officehours
+Panorama password:
+=================================================================================
+Welcome to the PAN-OS upgrade inventory menu
+
+Select which firewalls to upgrade based on a list of those connected to Panorama.
+
+This will create an `inventory.yaml` file in your current working directory.
+=================================================================================
+✅ panorama1.cdot.io: Connection to Panorama established.
+🔧 panorama1.cdot.io: Retrieving a list of all firewalls connected to Panorama...
+🔧 panorama1.cdot.io: Retrieving detailed information of each firewall...
+╒═════╤════════════╤════════════════╤═════════╤═════════════════╤══════════════╤═══════════════╕
+│   # │ Hostname   │ IP Address     │ Model   │          Serial │ SW Version   │ App Version   │
+╞═════╪════════════╪════════════════╪═════════╪═════════════════╪══════════════╪═══════════════╡
+│   1 │ katy-fw1   │ 192.168.255.41 │ PA-VM   │ 007954000123454 │ 10.1.3-h2    │ 8799-8509     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   2 │ katy-fw2   │ 192.168.255.42 │ PA-VM   │ 007954000123455 │ 10.1.3-h2    │ 8799-8509     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   3 │ lab-fw1    │ 192.168.255.11 │ PA-VM   │ 007954000123456 │ 10.1.3-h3    │ 8729-8157     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   4 │ lab-fw2    │ 192.168.255.12 │ PA-VM   │ 007954000123457 │ 10.1.3-h3    │ 8729-8157     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   5 │ lab-fw3    │ 192.168.255.13 │ PA-VM   │ 007954000123458 │ 10.1.3-h3    │ 8729-8157     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   6 │ lab-fw4    │ 192.168.255.14 │ PA-VM   │ 007954000123459 │ 10.1.3-h3    │ 8729-8157     │
+├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
+│   7 │ lab-fw5    │ 192.168.255.15 │ PA-VM   │ 007954000123460 │ 10.1.3-h3    │ 8729-8157     │
+╘═════╧════════════╧════════════════╧═════════╧═════════════════╧══════════════╧═══════════════╛
+You can select devices by entering their numbers, ranges, or separated by commas.
+Examples: '1', '2-4', '1,3,5-7'.
+Type 'done' on a new line when finished.
+
+Enter your selection(s): 1, 3-5, 7
+katy-fw1 selected.
+lab-fw1 selected.
+lab-fw2 selected.
+lab-fw3 selected.
+lab-fw5 selected.
+Enter your selection(s): done
+Selected devices saved to inventory.yaml
+```
+
+</div>
+
+This `inventory.yaml` file can then be used in subsequent upgrade commands to pre-define the target devices, streamlining the upgrade process. You can also directly edit this file with other firewall hostnames for future executions.
+
+Once you have a `inventory.yaml` file in your current working directory, and you have reviewed its contents to make sure all of the devices match your expectations, then we must add it to the list of volume mounts in order to make the file accessible by the script within the container.
+
+Example `inventory.yaml` file
+
+```yaml
+firewalls_to_upgrade:
+- katy-fw1
+- lab-fw1
+- lab-fw2
+- lab-fw3
+- lab-fw5
+```
+
+When the subcommand of `batch` is executed, it will look in the current working directory for a file named `inventory.yaml`, and if its found it will use the file's contents as a source of inventory, bypassing the firewall selection menu.
+
+<div class="termy">
+
+```console
+$ docker run \
+-v $(pwd)/assurance:/app/assurance \
+-v $(pwd)/logs:/app/logs \
+-v $(pwd)/inventory.yaml:/app/inventory.yaml \
+-it \
+ghcr.io/cdot65/pan-os-upgrade:latest batch
+python upgrade.py batch -h panorama1.cdot.io -u officehours -p paloalto123 -v 10.1.3-h3
+Dry Run? [Y/n]: n
+===========================================================================
+Welcome to the PAN-OS upgrade tool
+
+You have selected to perform a batch upgrade of firewalls through Panorama.
+
+No settings.yaml file was found, the script's default values will be used.
+Create a settings.yaml file with 'pan-os-upgrade settings' command.
+
+Inventory configuration loaded from:
+/Users/cdot/development/public/pan-os-upgrade/pan_os_upgrade/inventory.yaml
+===========================================================================
+✅ panorama1.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
+🔧 panorama1.cdot.io: Retrieving a list of all firewalls connected to Panorama...
+🔧 panorama1.cdot.io: Retrieving detailed information of each firewall...
+🔧 panorama1.cdot.io: Selected ['katy-fw1', 'lab-fw1', 'lab-fw2', 'lab-fw3', 'lab-fw5'] firewalls from inventory.yaml for upgrade.
+🔧 panorama1.cdot.io: Selected 5 firewalls from inventory.yaml for upgrade.
+```
+
+</div>
+
 ## Advanced Settings
 
 If you would like to change the default settings of `pan-os-upgrade` tool, you can create a `settings.yaml` file and run the `settings` CLI argument. This will walk you through a series of options to change.
@@ -484,10 +602,6 @@ To override the default settings:
 1. Run the `pan-os-upgrade settings` command.
 2. Follow the prompts to enable or disable specific readiness checks and snapshots.
 3. The resulting configurations are saved to a `settings.yaml` file in the current working directory.
-
-    ```bash
-    pan-os-upgrade settings
-    ```
 
 #### Note
 
@@ -572,7 +686,7 @@ timeout_settings:
 
 You will be able to confirm that the file was discovered by the message within the banner `Custom configuration loaded from: /app/settings.yaml`. If you do *not* see this message in the banner, then you can assume that your `settings.yaml` file was not properly mounted to the container.
 
-<div class="termy">
+**<div class="termy">
 
 ```console
 $ docker run \
@@ -591,7 +705,7 @@ You have selected to upgrade a single Firewall appliance.
 Custom configuration loaded from:
 /app/settings.yaml
 =========================================================
-📝 houston: 007054000242050 192.168.255.211
+📝 houston: 007954000123453 192.168.255.211
 📝 houston: HA mode: disabled
 📝 houston: Current version: 10.2.4-h4
 📝 houston: Target version: 10.2.5
@@ -601,7 +715,7 @@ Custom configuration loaded from:
 ```
 
 </div>
-
+**
 ## Troubleshooting Panorama Proxy Connections
 
 When using Panorama as a connection proxy:
