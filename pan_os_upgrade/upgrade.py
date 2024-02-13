@@ -2928,32 +2928,45 @@ def console_welcome_banner(
     inventory_path: Optional[Path] = None,
 ) -> None:
     """
-    Presents a welcome banner in the console, tailored to the selected operational mode and configuration settings.
-
-    This function generates a customized welcome banner that greets the user upon initiating the script in a specific mode, such as settings adjustment, firewall upgrade, panorama upgrade, or batch operations. It highlights the operational context and, if applicable, acknowledges the use of a custom configuration file (settings.yaml). The banner serves to clarify the script's current operational stance and to provide initial guidance or instructions relevant to the selected mode.
+    Displays a welcome banner in the console for the specified operational mode, providing contextual information
+    about the script's current function. The banner outlines the operation being performed, such as upgrading
+    firewalls, Panorama, or modifying settings, and indicates whether custom configuration or inventory files are
+    being utilized. This visual cue helps users understand the script's current state and actions, enhancing usability
+    and clarity.
 
     Parameters
     ----------
     mode : str
-        Specifies the operational mode for which the banner is displayed. Possible values include 'settings', 'firewall', 'panorama', and 'batch'.
+        The operational mode of the script, indicating the type of action being undertaken. Valid modes include
+        'settings', 'firewall', 'panorama', and 'batch', each corresponding to different functionalities of the script.
     config_path : Optional[Path], optional
-        The path to a custom configuration file if one is being used. If None, it indicates that the default configuration settings are in effect.
+        The filesystem path to a custom settings configuration file, if one is being used. If not provided, it is
+        assumed that default settings are applied. This parameter is relevant only in modes where configuration
+        customization is applicable.
+    inventory_path : Optional[Path], optional
+        The filesystem path to a custom inventory file, if one is being used. This is particularly relevant in batch
+        operations where an inventory of devices is specified. If not provided, default or dynamically determined
+        inventory information is used.
 
     Examples
     --------
-    Displaying a banner for the firewall upgrade mode with a specified configuration file:
-        >>> console_welcome_banner('firewall', Path('/custom/path/settings.yaml'))
-        # Outputs a banner detailing the firewall upgrade process and notes the custom configuration file in use.
+    Displaying a welcome banner for firewall upgrade mode, noting the use of a custom settings file:
+        >>> console_welcome_banner('firewall', Path('/path/to/settings.yaml'))
+        # Outputs a banner indicating the firewall upgrade mode and the custom settings file in use.
 
-    Displaying a banner for configuring settings without specifying a configuration file:
+    Displaying a welcome banner for settings configuration without a custom configuration file:
         >>> console_welcome_banner('settings')
-        # Outputs a banner specific to configuring settings, indicating that default settings will apply.
+        # Outputs a banner specific to settings configuration, indicating default settings will be used.
 
     Notes
     -----
-    - The banner aims to enhance user experience by providing clear, immediate context about the script's mode of operation and configuration status at the start of the session.
-    - Inclusion of configuration file details (if any) assists users in verifying that the script is operating with the intended settings, especially useful when default settings are overridden by a custom `settings.yaml`.
-    - The function uses ANSI color codes for visual emphasis on terminal displays, with considerations for compatibility across different terminal environments.
+    - The welcome banner is intended to provide immediate, clear context for the script's operation, aiding in
+      user orientation and reducing potential confusion about the script's current mode or configuration status.
+    - The banner also serves as a preliminary check, allowing users to confirm that the intended configuration or
+      inventory files are recognized by the script before proceeding with operations, especially useful in scenarios
+      where custom settings are essential for the task at hand.
+    - This function employs ANSI color codes for enhanced visual distinction in terminal environments, with fallback
+      considerations for environments where such styling may not be supported.
     """
 
     # Customize messages based on the mode
@@ -2963,9 +2976,7 @@ def console_welcome_banner(
             "You'll be presented with configuration items, press enter for default settings."
             "\n\nThis will create a `settings.yaml` file in your current working directory."
         )
-        # No config message for settings mode
         config_message = ""
-        # No inventory message for settings mode
         inventory_message = ""
     elif mode == "inventory":
         welcome_message = "Welcome to the PAN-OS upgrade inventory menu"
@@ -2973,9 +2984,7 @@ def console_welcome_banner(
             "Select which firewalls to upgrade based on a list of those connected to Panorama."
             "\n\nThis will create an `inventory.yaml` file in your current working directory."
         )
-        # No config message for settings mode
         config_message = ""
-        # No inventory message for settings mode
         inventory_message = ""
     else:
         if mode == "firewall":
@@ -4388,24 +4397,21 @@ def batch(
             **fw_info,  # Unpack all info details into the dictionary
         }
 
-    # Perform batch upgrade
-    inventory_file_hostnames = []
-
     # Check if inventory.yaml exists and if it does, read the selected devices
     if inventory_file_path.exists():
         with open(inventory_file_path, "r") as file:
             inventory_data = yaml.safe_load(file)
-            inventory_file_hostnames = inventory_data.get("firewalls_to_upgrade", [])
+            user_selected_hostnames = inventory_data.get("firewalls_to_upgrade", [])
 
-        if inventory_file_hostnames:
+        if user_selected_hostnames:
             logging.info(
-                f"{get_emoji('working')} {hostname}: Selected {inventory_file_hostnames} firewalls from inventory.yaml for upgrade."
+                f"{get_emoji('working')} {hostname}: Selected {user_selected_hostnames} firewalls from inventory.yaml for upgrade."
             )
 
             # Extracting the Firewall objects from the filtered mapping
             firewall_objects_for_upgrade = [
                 firewall_mapping[hostname]["object"]
-                for hostname in inventory_file_hostnames
+                for hostname in user_selected_hostnames
                 if hostname in firewall_mapping
             ]
             logging.info(
@@ -4436,23 +4442,26 @@ def batch(
 
     firewall_list = "\n".join(
         [
-            f"{firewall_mapping[hostname]['hostname']} ({firewall_mapping[hostname]['ip-address']})"
+            f"  - {firewall_mapping[hostname]['hostname']} ({firewall_mapping[hostname]['ip-address']})"
             for hostname in user_selected_hostnames
         ]
     )
-    typer.echo(f"Firewalls to be upgraded:\n{firewall_list}")
+
+    typer.echo(
+        f"{get_emoji('report')} {hostname}: Please confirm the selected firewalls:\n{firewall_list}"
+    )
 
     # Asking for user confirmation before proceeding
     if dry_run:
         typer.echo(
-            f"{get_emoji('warning')} {hostname}: Dry run mode is enabled. No changes will be made."
+            f"{get_emoji('warning')} {hostname}: Dry run mode is enabled, upgrade workflow will be skipped."
         )
         confirmation = typer.confirm(
             "Do you want to proceed with the dry run?", abort=True
         )
     else:
         typer.echo(
-            f"{get_emoji('warning')} {hostname}: Dry run mode is not enabled, this will perform the upgrade workflow."
+            f"{get_emoji('warning')} {hostname}: Dry run mode is disabled, upgrade workflow will be executed."
         )
         confirmation = typer.confirm(
             "Do you want to proceed with the upgrade?", abort=True
