@@ -17,7 +17,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Natural Language :: English",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.11",
   "Topic :: System :: Networking :: Firewalls",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: System :: Systems Administration",
@@ -27,7 +27,7 @@ include = ["pan_os_upgrade/assets/*.png"]
 exclude = [
   "pan_os_upgrade/assurance/*",
   "pan_os_upgrade/logs/*",
-  "pan_os_upgrade/settings.yaml",
+  "pan_os_upgrade/*.yaml",
 ]
 
 
