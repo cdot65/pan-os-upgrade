@@ -3416,53 +3416,41 @@ def get_emoji(action: str) -> str:
     return emoji_map.get(action, "")
 
 
-def get_firewall_info(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
+def fetch_firewall_info(firewall: Firewall) -> Dict[str, Any]:
     """
-    Fetches system information for each firewall in the list and returns it as a list of dictionaries.
+    Fetches system information for a single firewall and returns it as a dictionary.
 
     Parameters
     ----------
-    firewalls : List[Firewall]
-        A list of Firewall objects for which to fetch system information.
+    firewall : Firewall
+        A Firewall object for which to fetch system information.
 
     Returns
     -------
-    List[Dict[str, Any]]
-        A list of dictionaries containing system information for each firewall.
+    Dict[str, Any]
+        A dictionary containing system information for the firewall.
     """
-    firewalls_info = []
-    for firewall in firewalls:
-        try:
-            info = firewall.show_system_info()
-            firewalls_info.append(
-                {
-                    "hostname": info["system"]["hostname"],
-                    "ip-address": info["system"]["ip-address"],
-                    "model": info["system"]["model"],
-                    "serial": info["system"]["serial"],
-                    "sw-version": info["system"]["sw-version"],
-                    "app-version": info["system"]["app-version"],
-                }
-            )
-        # Catching a broad exception to handle any kind of failure
-        except Exception as e:
-            print(
-                f"Error retrieving info for {firewall.serial}: {str(e)}"
-            )  # Logging the error
-            # Append a dictionary with placeholder values indicating the firewall is offline or unavailable
-            firewalls_info.append(
-                {
-                    "hostname": firewall.hostname or "Unknown",
-                    "ip-address": "N/A",
-                    "model": "N/A",
-                    "serial": firewall.serial,
-                    "sw-version": "N/A",
-                    "app-version": "N/A",
-                    "status": "Offline or Unavailable",
-                }
-            )
-
-    return firewalls_info
+    try:
+        info = firewall.show_system_info()
+        return {
+            "hostname": info["system"]["hostname"],
+            "ip-address": info["system"]["ip-address"],
+            "model": info["system"]["model"],
+            "serial": info["system"]["serial"],
+            "sw-version": info["system"]["sw-version"],
+            "app-version": info["system"]["app-version"],
+        }
+    except Exception as e:
+        print(f"Error retrieving info for {firewall.serial}: {str(e)}")
+        return {
+            "hostname": firewall.hostname or "Unknown",
+            "ip-address": "N/A",
+            "model": "N/A",
+            "serial": firewall.serial,
+            "sw-version": "N/A",
+            "app-version": "N/A",
+            "status": "Offline or Unavailable",
+        }
 
 
 def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
@@ -3504,6 +3492,35 @@ def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
         panorama.add(firewall)
 
     return firewalls
+
+
+def get_firewalls_info(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
+    """
+    Fetches system information for each firewall in the list concurrently and returns it as a list of dictionaries.
+
+    Parameters
+    ----------
+    firewalls : List[Firewall]
+        A list of Firewall objects for which to fetch system information.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of dictionaries containing system information for each firewall.
+    """
+    firewalls_info = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Mapping the fetch_firewall_info function to each firewall object
+        future_to_firewall = {
+            executor.submit(fetch_firewall_info, fw): fw for fw in firewalls
+        }
+
+        # Collecting results as they are completed
+        for future in as_completed(future_to_firewall):
+            firewall_info = future.result()
+            firewalls_info.append(firewall_info)
+
+    return firewalls_info
 
 
 def get_managed_devices(
@@ -4361,7 +4378,7 @@ def batch(
     logging.info(
         f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
-    firewalls_info = get_firewall_info(all_firewalls)
+    firewalls_info = get_firewalls_info(all_firewalls)
 
     # Initialize an empty dictionary to map Firewall objects to their details
     firewall_mapping = {}
@@ -4613,7 +4630,7 @@ def inventory(
     logging.info(
         f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
-    firewalls_info = get_firewall_info(all_firewalls)
+    firewalls_info = get_firewalls_info(all_firewalls)
 
     # Initialize an empty dictionary to map Firewall objects to their details
     firewall_mapping = {}
