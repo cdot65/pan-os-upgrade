@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.2.1
+
+**Release Date:** *<20240214>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Added multi-threaded execution of "show system info" command to grab firewall details
+
 ## Version 1.2.0
 
 **Release Date:** *<20240213>*
