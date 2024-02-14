@@ -38,7 +38,6 @@ class SessionStats(BaseModel):
     pps: Optional[str]
     tcp_cong_ctrl: Optional[str] = Field(None, alias="tcp-cong-ctrl")
     tcp_reject_siw_thresh: Optional[str] = Field(..., alias="tcp-reject-siw-thresh")
-    tmo_5gcdelete: Optional[str] = Field(..., alias="tmo-5gcdelete")
     tmo_cp: Optional[str] = Field(..., alias="tmo-cp")
     tmo_def: Optional[str] = Field(..., alias="tmo-def")
     tmo_icmp: Optional[str] = Field(..., alias="tmo-icmp")
@@ -55,3 +54,5 @@ class SessionStats(BaseModel):
     tmo_tcptimewait: Optional[str] = Field(..., alias="tmo-tcptimewait")
     tmo_udp: Optional[str] = Field(..., alias="tmo-udp")
     vardata_rate: Optional[str] = Field(..., alias="vardata-rate")
+    # below are only found on later releases of PAN-OS and will be ignored for now
+    # tmo_5gcdelete: Optional[str] = Field(..., alias="tmo-5gcdelete")
