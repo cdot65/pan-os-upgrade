@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.2.3
+
+**Release Date:** *<20240214>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Introduce `create_firewall_mapping` Function to Fix Firewall Object Mapping.
+
 ## Version 1.2.2
 
 **Release Date:** *<20240214>*
