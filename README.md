@@ -44,6 +44,10 @@ This project is a comprehensive Python-based solution for automating PAN-OS upgr
 Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot65/pan-os-upgrade)
 Documentation: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.io/pan-os-upgrade/)
 
+## Support
+
+For details on the support provided by Palo Alto Networks for this project, please consult the [SUPPORT.md](https://github.com/cdot65/pan-os-upgrade/blob/main/SUPPORT.md) file in the repository.
+
 ### Key Features
 
 - **Three Unique Upgrade Workflows Supported**:
