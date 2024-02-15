@@ -938,7 +938,7 @@ def handle_panorama_ha(
 def ha_sync_check_firewall(
     hostname: str,
     ha_details: dict,
-    strict_sync_check: bool = True,
+    strict_sync_check: bool = False,
 ) -> bool:
     """
     Checks the synchronization status between High Availability (HA) peers of a Palo Alto Networks device.
@@ -2294,16 +2294,11 @@ def upgrade_firewall(
         f'assurance/readiness_checks/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
     )
 
-    # Determine strictness of HA sync check
-    with target_devices_to_revisit_lock:
-        is_device_to_revisit = firewall in target_devices_to_revisit
-
     # Perform HA sync check, skipping standalone firewalls
     if ha_details:
         ha_sync_check_firewall(
             hostname,
             ha_details,
-            strict_sync_check=not is_device_to_revisit,
         )
 
     # Back up configuration to local filesystem
