@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.2.4
+
+**Release Date:** *<20240215>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Remove HA sync strict check before upgrade process to account for scenarios where a passive firewall is upgrades within a thread of the first phase before the active is targeted within the same phase.
+
 ## Version 1.2.3
 
 **Release Date:** *<20240214>*
