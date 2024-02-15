@@ -2974,57 +2974,48 @@ def console_welcome_banner(
       considerations for environments where such styling may not be supported.
     """
 
+    support_message = "This script software is provided on an 'as-is' basis with no warranties, and no support provided."
+
+    # Longest line defines border, and that will always be the support message
+    border_length = len(support_message)
+
     # Customize messages based on the mode
     if mode == "settings":
         welcome_message = "Welcome to the PAN-OS upgrade settings menu"
-        banner_message = (
-            "You'll be presented with configuration items, press enter for default settings."
-            "\n\nThis will create a `settings.yaml` file in your current working directory."
-        )
-        config_message = ""
-        inventory_message = ""
+        banner_message = "The selected 'settings' subcommand will create `settings.yaml` in your current directory.\nThis `settings.yaml` file will contain your custom settings and will be loaded at runtime."
+        config_message = inventory_message = ""
     elif mode == "inventory":
         welcome_message = "Welcome to the PAN-OS upgrade inventory menu"
-        banner_message = (
-            "Select which firewalls to upgrade based on a list of those connected to Panorama."
-            "\n\nThis will create an `inventory.yaml` file in your current working directory."
-        )
-        config_message = ""
-        inventory_message = ""
+        banner_message = "The selected 'inventory' subcommand will create `inventory.yaml` in your current directory.\nThis `inventory.yaml` file will contain firewalls to upgrade and will be loaded at runtime."
+        config_message = inventory_message = ""
     else:
-        if mode == "firewall":
-            welcome_message = "Welcome to the PAN-OS upgrade tool"
-            banner_message = "You have selected to upgrade a single Firewall appliance."
-        elif mode == "panorama":
-            welcome_message = "Welcome to the PAN-OS upgrade tool"
-            banner_message = "You have selected to upgrade a single Panorama appliance."
-        elif mode == "batch":
-            welcome_message = "Welcome to the PAN-OS upgrade tool"
-            banner_message = "You have selected to perform a batch upgrade of firewalls through Panorama."
+        welcome_message = "Welcome to the PAN-OS upgrade tool"
+        banner_message = {
+            "firewall": "The selected `firewall` subcommand will upgrade a single Firewall appliance.",
+            "panorama": "The selected `panorama` subcommand will upgrade a single Panorama appliance.",
+            "batch": "The selected `batch` subcommand will upgrade one or more firewalls.",
+        }.get(mode, "")
 
-        # Configuration file message
-        if config_path:
-            config_message = f"Custom configuration loaded from:\n{config_path}"
-        else:
-            config_message = (
-                "No settings.yaml file was found, the script's default values will be used.\n"
-                "Create a settings.yaml file with 'pan-os-upgrade settings' command."
+        if mode == "batch":
+            inventory_message = (
+                f"Inventory: Custom inventory loaded file detected and loaded at:\n{inventory_path}"
+                if inventory_path and inventory_path.exists()
+                else "Inventory: No inventory.yaml file was found, firewalls will need be selected through the menu.\nYou can create an inventory.yaml file with 'pan-os-upgrade inventory' command."
             )
 
-        # Inventory file message
-        if inventory_path and inventory_path.exists():
-            inventory_message = (
-                f"Inventory configuration loaded from:\n{inventory_path}"
-            )
         else:
-            inventory_message = (
-                "No inventory.yaml file was found, getting firewalls connected to Panorama.\n"
-                "Create an inventory.yaml file with 'pan-os-upgrade inventory' command."
-            )
+            inventory_message = ""
+
+        config_message = (
+            f"Settings: Custom configuration loaded file detected and loaded at:\n{config_path}"
+            if config_path and config_path.exists()
+            else "Settings: No settings.yaml file was found, default values will be used.\nYou can create a settings.yaml file with 'pan-os-upgrade settings' command."
+        )
 
     # Calculate border length based on the longer message
     border_length = max(
         len(welcome_message),
+        len(support_message),
         max(len(line) for line in banner_message.split("\n")),
         max(len(line) for line in config_message.split("\n")) if config_message else 0,
         (
@@ -3040,13 +3031,13 @@ def console_welcome_banner(
     color_end = "\033[0m"  # Reset
 
     # Construct and print the banner
-    banner = f"{color_start}{border}\n{welcome_message}\n\n{banner_message}"
+    banner = f"{color_start}{border}\n{welcome_message}\n\n{support_message}\n\n{banner_message}"
     # Only add config_message if it's not empty
     if config_message:
         banner += f"\n\n{config_message}"
 
     # Only add config_message if it's not empty
-    if config_message:
+    if inventory_message:
         banner += f"\n\n{inventory_message}"
 
     banner += f"\n{border}{color_end}"
@@ -4504,32 +4495,20 @@ def batch(
             inventory_data = yaml.safe_load(file)
             user_selected_hostnames = inventory_data.get("firewalls_to_upgrade", [])
 
-        if user_selected_hostnames:
-            logging.info(
-                f"{get_emoji('working')} {hostname}: Selected {user_selected_hostnames} firewalls from inventory.yaml for upgrade."
-            )
-
-            # Extracting the Firewall objects from the filtered mapping
-            firewall_objects_for_upgrade = [
-                firewall_mapping[hostname]["object"]
-                for hostname in user_selected_hostnames
-                if hostname in firewall_mapping
-            ]
-            logging.info(
-                f"{get_emoji('working')} {hostname}: Selected {len(firewall_objects_for_upgrade)} firewalls from inventory.yaml for upgrade."
-            )
-
-    # If inventory.yaml does not exist or no devices are selected, prompt the user to select devices
+    # If inventory.yaml does not exist, then prompt the user to select devices
     else:
         # Present a table of firewalls with detailed system information for selection
         user_selected_hostnames = select_devices_from_table(firewall_mapping)
 
-        # Convert those hostnames into Firewall objects using the firewall_mapping
-        firewall_objects_for_upgrade = [
-            firewall_mapping[hostname]["object"]
-            for hostname in user_selected_hostnames
-            if hostname in firewall_mapping
-        ]
+    # Extracting the Firewall objects from the filtered mapping
+    firewall_objects_for_upgrade = [
+        firewall_mapping[hostname]["object"]
+        for hostname in user_selected_hostnames
+        if hostname in firewall_mapping
+    ]
+    logging.info(
+        f"{get_emoji('working')} {hostname}: Selected {len(firewall_objects_for_upgrade)} firewalls from inventory.yaml for upgrade."
+    )
 
     # Now, firewall_objects_for_upgrade should contain the actual Firewall objects
     # Proceed with the upgrade for the selected devices
@@ -4611,7 +4590,10 @@ def batch(
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 future_to_firewall = {
                     executor.submit(
-                        upgrade_firewall, target_device, target_version, dry_run
+                        upgrade_firewall,
+                        target_device,
+                        target_version,
+                        dry_run,
                     ): target_device
                     for target_device in target_devices_to_revisit
                 }
