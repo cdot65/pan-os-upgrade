@@ -3578,7 +3578,7 @@ def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
     return firewalls
 
 
-def get_firewalls_info(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
+def threaded_get_firewall_details(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
     """
     Retrieves detailed system information for a list of firewalls using concurrent executions to improve efficiency.
 
@@ -3604,7 +3604,7 @@ def get_firewalls_info(firewalls: List[Firewall]) -> List[Dict[str, Any]]:
     -------
     Fetching information for a list of firewall objects:
         >>> firewalls = [Firewall('192.168.1.1', api_key='apikey1'), Firewall('192.168.1.2', api_key='apikey2')]
-        >>> info = get_firewalls_info(firewalls)
+        >>> info = threaded_get_firewall_details(firewalls)
         # This returns a list of dictionaries, each containing information about a firewall.
 
     Notes
@@ -4484,7 +4484,7 @@ def batch(
     logging.info(
         f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
-    firewalls_info = get_firewalls_info(all_firewalls)
+    firewalls_info = threaded_get_firewall_details(all_firewalls)
 
     # Create a mapping of firewalls for selection
     firewall_mapping = create_firewall_mapping(all_firewalls, firewalls_info)
@@ -4719,7 +4719,7 @@ def inventory(
     logging.info(
         f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
-    firewalls_info = get_firewalls_info(all_firewalls)
+    firewalls_info = threaded_get_firewall_details(all_firewalls)
 
     # Create a mapping of firewalls for selection
     firewall_mapping = create_firewall_mapping(all_firewalls, firewalls_info)

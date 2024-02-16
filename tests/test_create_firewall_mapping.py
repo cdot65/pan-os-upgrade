@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pan_os_upgrade.upgrade import (
     connect_to_host,
     get_firewalls_from_panorama,
-    get_firewalls_info,
+    threaded_get_firewall_details,
     create_firewall_mapping,
 )
 from panos.firewall import Firewall
@@ -79,7 +79,7 @@ def test_create_firewall_mapping_integration():
     assert all_firewalls, "No firewalls retrieved from Panorama"
 
     # Fetch detailed information for each firewall
-    firewalls_info = get_firewalls_info(all_firewalls)
+    firewalls_info = threaded_get_firewall_details(all_firewalls)
 
     # Ensure that information is retrieved for each firewall
     assert firewalls_info, "Failed to retrieve firewall information"
