@@ -3475,38 +3475,33 @@ def get_emoji(action: str) -> str:
 
 def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
     """
-    Retrieves detailed system information from a specified firewall device and organizes it into a dictionary.
+    Retrieves detailed system and High Availability (HA) status information from a specified firewall device and organizes it into a dictionary.
 
-    This function communicates with the firewall to gather essential system details such as hostname, IP address,
-    model, serial number, software version, and application version. It's designed to support diagnostics, inventory
-    management, and operational monitoring by providing a snapshot of the firewall's current state and configuration.
+    This function establishes communication with the firewall to collect critical system details and HA status, such as hostname, IP address, model, serial number, software version, application version, and HA configuration. It is designed to assist in diagnostics, inventory management, operational monitoring, and checking the HA status by providing a comprehensive overview of the firewall's current operational state, configuration, and HA status.
 
     Parameters
     ----------
     firewall : Firewall
-        The Firewall instance from which system information will be fetched. This object should be initialized with
-        the necessary authentication credentials and network details to facilitate API communication with the firewall.
+        The Firewall instance from which to fetch system information and HA status. This object must be initialized with the necessary authentication credentials and network details to enable API communication with the firewall.
 
     Returns
     -------
     Dict[str, Any]
-        A dictionary containing key system information elements of the firewall, such as hostname, IP address, model,
-        serial number, software version, and application version. If the function encounters an error during information
-        retrieval, it returns a dictionary with the available data and marks the status as "Offline or Unavailable".
+        A dictionary containing key elements of the firewall's system information, such as hostname, IP address, model, serial number, software version, application version, and HA status. If an error occurs during information retrieval, the function returns a dictionary with the data available up to the point of failure and marks the status as "Offline or Unavailable".
 
     Example
     -------
-    Fetching system information for a firewall:
+    Fetching system and HA status information for a firewall:
         >>> firewall_instance = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
         >>> firewall_info = get_firewall_details(firewall_instance)
         >>> print(firewall_info)
-        {'hostname': 'fw-hostname', 'ip-address': '192.168.1.1', 'model': 'PA-850', 'serial': '0123456789', 'sw-version': '10.0.0', 'app-version': '8200-1234'}
+        {'hostname': 'fw-hostname', 'ip-address': '192.168.1.1', 'model': 'PA-850', 'serial': '0123456789',
+         'sw-version': '10.0.0', 'app-version': '8200-1234', 'ha-mode': 'active/passive', 'ha-details': {...}}
 
     Notes
     -----
-    - This function is intended for use in environments where firewall configuration and status monitoring is necessary.
-    - Error handling is implemented to ensure that partial or default information is returned if the firewall is unreachable
-      or if any issues arise during the data retrieval process, allowing for graceful degradation of functionality.
+    - The function is aimed at scenarios requiring firewall configuration, status monitoring, and HA status checks.
+    - Error handling is in place to ensure that, in the event the firewall is unreachable or if any issues occur during data retrieval, partial or default information is returned. This allows for graceful degradation of functionality and ensures operational continuity.
     """
     # Ensure a safe operation by working with a copy of the firewall object
     fw_copy = copy.deepcopy(firewall)
@@ -3514,8 +3509,7 @@ def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
     try:
         # Attempt to retrieve system information from the firewall
         info = fw_copy.show_system_info()
-        # Organize and return the fetched information as a dictionary
-        return {
+        system_info = {
             "hostname": info["system"]["hostname"],
             "ip-address": info["system"]["ip-address"],
             "model": info["system"]["model"],
@@ -3524,9 +3518,9 @@ def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
             "app-version": info["system"]["app-version"],
         }
     except Exception as e:
-        # Log and return default values in case of an error
-        logging.error(f"Error retrieving info for {fw_copy.serial}: {str(e)}")
-        return {
+        # Log and return default values in case of an error for system info
+        logging.error(f"Error retrieving system info for {fw_copy.serial}: {str(e)}")
+        system_info = {
             "hostname": fw_copy.hostname or "Unknown",
             "ip-address": "N/A",
             "model": "N/A",
@@ -3535,6 +3529,27 @@ def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
             "app-version": "N/A",
             "status": "Offline or Unavailable",
         }
+
+    try:
+        # Retrieve HA status and details
+        deploy_info, ha_details = get_ha_status(
+            firewall, system_info.get("hostname", "")
+        )
+        ha_info = {
+            "ha-mode": deploy_info,
+            "ha-details": ha_details,
+        }
+    except Exception as e:
+        # Log and return default values in case of an error for HA info
+        logging.error(f"Error retrieving HA info for {fw_copy.serial}: {str(e)}")
+        ha_info = {
+            "ha-mode": "N/A",
+            "ha-details": None,
+        }
+
+    # Merge system info and HA info into a single dictionary
+    firewall_info = {**system_info, **ha_info}
+    return firewall_info
 
 
 def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
@@ -3898,19 +3913,14 @@ def resolve_hostname(hostname: str) -> bool:
 
 def select_devices_from_table(firewall_mapping: dict) -> List[str]:
     """
-    Displays a table of firewalls and prompts the user to select devices for further operations. This selection
-    process allows the user to specify one or more devices by their listing numbers, a range, or a combination
-    thereof. The function then returns a list of hostnames corresponding to the user's selections.
+    Presents a table of firewalls, including details such as hostname, IP address, model, serial number, software version, and HA mode, and prompts the user to select devices for further operations. Users can select devices by their listing numbers, a range, or a combination thereof. The function returns a list of hostnames corresponding to the user's selections.
 
-    This interactive step is crucial for operations that target multiple devices, enabling precise control over
-    which devices are included. The function ensures that selections are valid and within the range of displayed
-    devices, providing feedback for any invalid entries.
+    This interactive step is crucial for operations targeting multiple devices, as it provides users with precise control over which devices are included. The function ensures that selections are valid and within the range of displayed devices, providing feedback on any invalid entries.
 
     Parameters
     ----------
     firewall_mapping : dict
-        A mapping from device hostnames to their respective details (e.g., IP address, model, serial number),
-        used to generate the selection table.
+        A dictionary mapping device hostnames to their respective details, which includes the firewall object, IP address, model, serial number, software version, application version, HA mode, and HA details. This information is used to generate the selection table.
 
     Returns
     -------
@@ -3919,39 +3929,70 @@ def select_devices_from_table(firewall_mapping: dict) -> List[str]:
 
     Examples
     --------
-    Presenting a selection table and capturing user choices:
+    Displaying a selection table and capturing user choices:
         >>> firewall_mapping = {
-        ...     'fw1': {'ip-address': '10.1.1.1', 'model': 'PA-850', 'serial': '0123456789', 'sw-version': '9.1.0', 'app-version': '9.1.0'},
-        ...     'fw2': {'ip-address': '10.1.1.2', 'model': 'PA-220', 'serial': '9876543210', 'sw-version': '9.1.2', 'app-version': '9.1.3'}
+        ...     'fw1': {
+        ...         'object': <Firewall '0123456789' None at 0x1234abcd>,
+        ...         'hostname': 'fw1',
+        ...         'ip-address': '10.1.1.1',
+        ...         'model': 'PA-850',
+        ...         'serial': '0123456789',
+        ...         'sw-version': '9.1.0',
+        ...         'app-version': '9.1.0',
+        ...         'ha-mode': 'active/passive',
+        ...         'ha-details': None,
+        ...     },
+        ...     'fw2': {
+        ...         'object': <Firewall '9876543210' None at 0xabcd1234>,
+        ...         'hostname': 'fw2',
+        ...         'ip-address': '10.1.1.2',
+        ...         'model': 'PA-220',
+        ...         'serial': '9876543210',
+        ...         'sw-version': '9.1.2',
+        ...         'app-version': '9.1.3',
+        ...         'ha-mode': 'active/active',
+        ...         'ha-details': {...},
+        ...     },
         ... }
         >>> selected_hostnames = select_devices_from_table(firewall_mapping)
-        # User is prompted to select from the table of devices. The function returns the hostnames of selected devices.
+        # The user is prompted to select from the table. The function returns the hostnames of the selected devices.
 
     Notes
     -----
-    - The function leverages the `tabulate` library to present a well-structured table, enhancing readability and
-      ease of selection.
-    - It accommodates various input formats for selecting devices, including individual numbers, ranges (e.g., 2-4),
-      or a comma-separated list, providing flexibility in selection methodology.
-    - Invalid selections (e.g., out-of-range numbers or incorrect formats) are handled gracefully, with prompts for
-      correction, ensuring a robust and user-friendly selection process.
+    - Utilizes the `tabulate` library to display a structured and readable table for device selection.
+    - Supports various input formats for device selection, such as individual numbers, ranges (e.g., '2-4'), or a comma-separated list, offering flexibility in selection methodology.
+    - Gracefully handles invalid selections with prompts for correction, ensuring a user-friendly selection process.
     """
 
     # Sort firewalls by hostname for consistent display
     sorted_firewall_items = sorted(firewall_mapping.items(), key=lambda item: item[0])
 
-    devices_table = [
-        [
-            Fore.CYAN + str(i + 1) + Fore.RESET,
-            details["hostname"],
-            details["ip-address"],
-            details["model"],
-            details["serial"],
-            details["sw-version"],
-            details["app-version"],
-        ]
-        for i, (hostname, details) in enumerate(sorted_firewall_items)
-    ]
+    devices_table = []
+    for i, (hostname, details) in enumerate(sorted_firewall_items):
+        preemptive_status = "N/A"
+        if details["ha-details"] is not None:
+            preemptive_status = (
+                details["ha-details"]
+                .get("result", {})
+                .get("group", {})
+                .get("local-info", {})
+                .get("preemptive", "N/A")
+            )
+
+        # Using 'hostname' to add an entry to the 'devices_table'
+        devices_table.append(
+            [
+                Fore.CYAN + str(i + 1) + Fore.RESET,
+                hostname,  # 'hostname' is used here
+                details["ip-address"],
+                details["model"],
+                details["serial"],
+                details["sw-version"],
+                details["app-version"],
+                details["ha-mode"],
+                preemptive_status,
+            ]
+        )
 
     typer.echo(
         tabulate(
@@ -3964,6 +4005,8 @@ def select_devices_from_table(firewall_mapping: dict) -> List[str]:
                 Fore.GREEN + "Serial" + Fore.RESET,
                 Fore.GREEN + "SW Version" + Fore.RESET,
                 Fore.GREEN + "App Version" + Fore.RESET,
+                Fore.GREEN + "HA Mode" + Fore.RESET,
+                Fore.GREEN + "Preemptive" + Fore.RESET,
             ],
             tablefmt="fancy_grid",
         )
