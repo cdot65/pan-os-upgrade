@@ -3473,7 +3473,7 @@ def get_emoji(action: str) -> str:
     return emoji_map.get(action, "")
 
 
-def fetch_firewall_info(firewall: Firewall) -> Dict[str, Any]:
+def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
     """
     Retrieves detailed system information from a specified firewall device and organizes it into a dictionary.
 
@@ -3498,7 +3498,7 @@ def fetch_firewall_info(firewall: Firewall) -> Dict[str, Any]:
     -------
     Fetching system information for a firewall:
         >>> firewall_instance = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> firewall_info = fetch_firewall_info(firewall_instance)
+        >>> firewall_info = get_firewall_details(firewall_instance)
         >>> print(firewall_info)
         {'hostname': 'fw-hostname', 'ip-address': '192.168.1.1', 'model': 'PA-850', 'serial': '0123456789', 'sw-version': '10.0.0', 'app-version': '8200-1234'}
 
@@ -3597,7 +3597,7 @@ def threaded_get_firewall_details(firewalls: List[Firewall]) -> List[Dict[str, A
     -------
     List[Dict[str, Any]]
         A list of dictionaries, with each dictionary containing system information for a respective firewall. The
-        structure and content of these dictionaries depend on the implementation of the `fetch_firewall_info` function
+        structure and content of these dictionaries depend on the implementation of the `get_firewall_details` function
         but typically include keys such as 'hostname', 'version', 'serial number', etc.
 
     Example
@@ -3611,14 +3611,14 @@ def threaded_get_firewall_details(firewalls: List[Firewall]) -> List[Dict[str, A
     -----
     - This function leverages concurrent threads to fetch data, significantly reducing the total time required to
       obtain information from multiple devices.
-    - The actual data fetched and the structure of the returned dictionaries are determined by the `fetch_firewall_info`
+    - The actual data fetched and the structure of the returned dictionaries are determined by the `get_firewall_details`
       function, which this function depends on.
     """
     firewalls_info = []
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Creating a future for each firewall info fetch task
         future_to_firewall_info = {
-            executor.submit(fetch_firewall_info, fw): fw for fw in firewalls
+            executor.submit(get_firewall_details, fw): fw for fw in firewalls
         }
 
         # Iterating over completed fetch tasks and collecting their results
