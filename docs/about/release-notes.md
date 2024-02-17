@@ -2,6 +2,16 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.2.6
+
+**Release Date:** *<20240217>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Move HA status collection within the `get_firewall_details` function for batch upgrades.
+- Update interactive inventory menu to include HA role of the firewall and if it has `preempt` enabled.
+
 ## Version 1.2.5
 
 **Release Date:** *<20240215>*

@@ -11,9 +11,9 @@ test_cases = [
     ("panorama.cdot.io", "disabled", None),
     ("panorama1.cdot.io", "primary-active", None),
     ("panorama2.cdot.io", "secondary-passive", None),
-    ("houston.cdot.io", "disabled", None),
-    ("woodlands-fw1.cdot.io", "active", None),
-    ("woodlands-fw2.cdot.io", "passive", None),
+    ("lab-fw1.cdot.io", "disabled", None),
+    ("lab-fw6.cdot.io", "active", None),
+    ("lab-fw7.cdot.io", "passive", None),
 ]
 
 

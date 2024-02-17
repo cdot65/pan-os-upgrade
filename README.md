@@ -11,7 +11,7 @@
 <br />
 <div align="center">
     <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/logo.svg?raw=true" alt="Logo">
-    <h3 align="center">PAN-OS Automation Project</h3>
+    <h3 align="center">PAN-OS and Panorama Upgrade Automation</h3>
     <p align="center">
         Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
         <br />
