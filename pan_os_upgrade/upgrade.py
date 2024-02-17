@@ -3680,7 +3680,7 @@ def get_managed_devices(
     """
 
     managed_devices = model_from_api_response(
-        panorama.op("show devices all"), ManagedDevices
+        panorama.op("show devices connected"), ManagedDevices
     )
     devices = managed_devices.devices
 
@@ -3983,10 +3983,10 @@ def select_devices_from_table(firewall_mapping: dict) -> List[str]:
         devices_table.append(
             [
                 Fore.CYAN + str(i + 1) + Fore.RESET,
-                hostname,  # 'hostname' is used here
+                hostname,
                 details["ip-address"],
                 details["model"],
-                details["serial"],
+                # details["serial"],
                 details["sw-version"],
                 details["app-version"],
                 details["ha-mode"],
@@ -4002,11 +4002,11 @@ def select_devices_from_table(firewall_mapping: dict) -> List[str]:
                 Fore.GREEN + "Hostname" + Fore.RESET,
                 Fore.GREEN + "IP Address" + Fore.RESET,
                 Fore.GREEN + "Model" + Fore.RESET,
-                Fore.GREEN + "Serial" + Fore.RESET,
-                Fore.GREEN + "SW Version" + Fore.RESET,
-                Fore.GREEN + "App Version" + Fore.RESET,
+                # Fore.GREEN + "Serial" + Fore.RESET,
+                Fore.GREEN + "PAN-OS" + Fore.RESET,
+                Fore.GREEN + "Content" + Fore.RESET,
                 Fore.GREEN + "HA Mode" + Fore.RESET,
-                Fore.GREEN + "Preemptive" + Fore.RESET,
+                Fore.GREEN + "Preempt" + Fore.RESET,
             ],
             tablefmt="fancy_grid",
         )
@@ -4068,15 +4068,55 @@ def select_devices_from_table(firewall_mapping: dict) -> List[str]:
                 hostname, details = sorted_firewall_items[index]
                 if hostname not in user_selected_hostnames:
                     user_selected_hostnames.append(hostname)
-                    typer.echo(Fore.GREEN + f"{hostname} selected." + Fore.RESET)
+                    typer.echo(Fore.GREEN + f"  - {hostname} selected." + Fore.RESET)
                 else:
                     typer.echo(
-                        Fore.YELLOW + f"{hostname} is already selected." + Fore.RESET
+                        Fore.YELLOW
+                        + f"  - {hostname} is already selected."
+                        + Fore.RESET
                     )
             else:
                 typer.echo(
                     Fore.RED + f"Selection '{index + 1}' is out of range." + Fore.RESET
                 )
+
+    # New code to check for preemptive="yes" and prompt user
+    preemptive_firewalls = []
+    for hostname in user_selected_hostnames:
+        details = firewall_mapping.get(hostname, {})
+        ha_details = details.get("ha-details", {})
+        if ha_details:
+            preemptive_status = (
+                ha_details.get("result", {})
+                .get("group", {})
+                .get("local-info", {})
+                .get("preemptive", "no")
+            )
+            if preemptive_status.lower() == "yes":
+                preemptive_firewalls.append(hostname)
+
+    if preemptive_firewalls:
+        typer.echo(
+            Fore.RED
+            + f"Warning: Firewalls {', '.join(preemptive_firewalls)} have 'preempt' enabled, this can cause an interruption."
+            + Fore.RESET
+        )
+        confirmation = typer.prompt(
+            Fore.YELLOW
+            + "Are you sure that you want to add these firewalls to the upgrade list? (y/n)"
+            + Fore.RESET
+        )
+        if confirmation.lower() != "y":
+            user_selected_hostnames = [
+                hostname
+                for hostname in user_selected_hostnames
+                if hostname not in preemptive_firewalls
+            ]
+            typer.echo(
+                Fore.GREEN
+                + "Firewalls with 'preempt' set to 'yes' have been excluded."
+                + Fore.RESET
+            )
 
     return user_selected_hostnames
 
@@ -4587,7 +4627,8 @@ def batch(
             f"{get_emoji('warning')} {hostname}: Dry run mode is disabled, upgrade workflow will be executed."
         )
         confirmation = typer.confirm(
-            "Do you want to proceed with the upgrade?", abort=True
+            f"{get_emoji('report')} {hostname}: Do you want to proceed with the upgrade?",
+            abort=True,
         )
         typer.echo(f"{get_emoji('start')} Proceeding with the upgrade...")
 
