@@ -1,6 +1,6 @@
-# Contributing to PAN-OS Automation Project
+# Contributing to `pan-os-upgrade`
 
-We're thrilled that you're interested in contributing to the PAN-OS Automation Project! Your contributions are essential for making this project better and more effective. Whether you're fixing a bug, adding a new feature, improving the documentation, or just giving suggestions, every contribution is valuable.
+We're thrilled that you're interested in contributing to the `pan-os-upgrade` project! Your contributions are essential for making this project better and more effective. Whether you're fixing a bug, adding a new feature, improving the documentation, or just giving suggestions, every contribution is valuable.
 
 ---
 
@@ -10,7 +10,7 @@ Before you begin, make sure you have a GitHub account and are familiar with Git 
 
 ### Setting Up Your Environment
 
-1. **Fork the Repository:** Start by forking the [PAN-OS Automation Project repository](https://github.com/cdot65/pan-os-upgrade) on GitHub.
+1. **Fork the Repository:** Start by forking the [pan-os-upgrade repository](https://github.com/cdot65/pan-os-upgrade) on GitHub.
 
 2. **Clone Your Fork:** Clone your fork to your local machine:
 
@@ -51,7 +51,7 @@ Before you begin, make sure you have a GitHub account and are familiar with Git 
     git push origin feature/YourFeatureName
     ```
 
-2. **Create a Pull Request:** Go to the original PAN-OS Automation Project repository on GitHub and create a new pull request. Provide a clear description of your changes and any relevant issue numbers.
+2. **Create a Pull Request:** Go to the original `pan-os-upgrade` repository on GitHub and create a new pull request. Provide a clear description of your changes and any relevant issue numbers.
 
 3. **Code Review:** Wait for a review from the project maintainers. Be open to feedback and make any requested changes.
 
