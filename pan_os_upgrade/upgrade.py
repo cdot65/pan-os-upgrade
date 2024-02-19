@@ -129,6 +129,7 @@ from pan_os_upgrade.models import (
     ManagedDevices,
     FromAPIResponseMixin,
 )
+from pan_os_upgrade.components.utility import Utilities
 
 
 # Define panos-upgrade-assurance options
@@ -423,7 +424,7 @@ def backup_configuration(
         config_str = ET.tostring(config_data, encoding="unicode")
 
         # Ensure the directory exists
-        ensure_directory_exists(file_path)
+        Utilities.ensure_directory_exists(file_path)
 
         # Write the file to the local filesystem
         with open(file_path, "w") as file:
@@ -1195,7 +1196,7 @@ def perform_readiness_checks(
             f"{get_emoji('save')} {hostname}: Readiness Check Report: {readiness_check_report_json}"
         )
 
-        ensure_directory_exists(file_path)
+        Utilities.ensure_directory_exists(file_path)
 
         with open(file_path, "w") as file:
             file.write(readiness_check_report_json)
@@ -1435,7 +1436,7 @@ def perform_snapshot(
                 )
 
                 # Save the snapshot to the specified file path as JSON
-                ensure_directory_exists(file_path)
+                Utilities.ensure_directory_exists(file_path)
                 with open(file_path, "w") as file:
                     file.write(snapshot.model_dump_json(indent=4))
 
@@ -2392,7 +2393,7 @@ def upgrade_firewall(
             pdf_report = (
                 f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
             )
-            ensure_directory_exists(pdf_report)
+            Utilities.ensure_directory_exists(pdf_report)
 
             # Generate the PDF report for the diff
             generate_diff_report_pdf(
@@ -3103,39 +3104,6 @@ def create_firewall_mapping(
             }
 
     return firewall_mapping
-
-
-def ensure_directory_exists(file_path: str) -> None:
-    """
-    Ensures the existence of the directory path for a given file path, creating it if necessary.
-
-    This function is crucial for file operations, particularly when writing to files, as it guarantees that the directory path exists prior to file creation or modification. It parses the provided file path to isolate the directory path and, if this directory does not exist, it creates it along with any required intermediate directories. This proactive approach prevents errors related to non-existent directories during file operations.
-
-    Parameters
-    ----------
-    file_path : str
-        The complete file path for which the existence of the directory structure is to be ensured. The function identifies the directory path component of this file path and focuses on verifying and potentially creating it.
-
-    Raises
-    ------
-    OSError
-        In the event of a failure to create the directory due to insufficient permissions or other filesystem-related errors, an OSError is raised detailing the issue encountered.
-
-    Examples
-    --------
-    Creating a directory structure for a log file:
-        >>> ensure_directory_exists('/var/log/my_application/error.log')
-        # This will check and create '/var/log/my_application/' if it does not already exist, ensuring a valid path for 'error.log'.
-
-    Notes
-    -----
-    - Employs `os.makedirs` with `exist_ok=True`, which allows the directory to be created without raising an exception if it already exists, ensuring idempotency.
-    - Designed to be platform-independent, thereby functioning consistently across various operating systems and Python environments, enhancing the function's utility across diverse application scenarios.
-    """
-
-    directory = os.path.dirname(file_path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
 
 def find_close_matches(
@@ -4205,7 +4173,7 @@ def common_setup(
         "assurance/snapshots",
     ]
     for dir in directories:
-        ensure_directory_exists(os.path.join(dir, "dummy_file"))
+        Utilities.ensure_directory_exists(os.path.join(dir, "dummy_file"))
 
     # Configure logging right after directory setup
     configure_logging(log_level)
