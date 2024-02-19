@@ -46,6 +46,7 @@ Project-specific imports:
 Subcommands
 -----------
 - `firewall`: Triggers the upgrade process for an individual firewall device.
+- `inventory`: Creates an `inventory.yaml` file based on selected firewalls.
 - `panorama`: Initiates the upgrade for a Panorama appliance.
 - `batch`: Executes batch upgrades for firewalls managed by a Panorama appliance.
 - `settings`: Creates a `settings.yaml` file for script settings customization.
@@ -73,7 +74,6 @@ Notes
 # standard library imports
 import copy
 import importlib.resources as pkg_resources
-import ipaddress
 import json
 import logging
 import os
@@ -116,7 +116,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
-from tabulate import tabulate
+
 
 # project imports
 from pan_os_upgrade.models import (
@@ -2436,137 +2436,6 @@ def check_readiness_and_log(
             )
 
 
-def connect_to_host(
-    hostname: str,
-    api_username: str,
-    api_password: str,
-) -> PanDevice:
-    """
-    Establishes a secure API connection to a Palo Alto Networks device, such as a Firewall or Panorama.
-
-    This function attempts to connect to the specified hostname using API credentials, differentiating between Firewall and Panorama based on the response. Successful connection results in the creation of a PanDevice object, which serves as the foundation for subsequent API interactions with the device. Comprehensive error handling is included to address common connection issues, providing actionable feedback for resolution.
-
-    Parameters
-    ----------
-    hostname : str
-        The hostname or IP address of the target Palo Alto Networks device.
-    api_username : str
-        The API username for authentication.
-    api_password : str
-        The password corresponding to the API username.
-
-    Returns
-    -------
-    PanDevice
-        A PanDevice object representing the connected device, which may be a Firewall or Panorama instance.
-
-    Raises
-    ------
-    SystemExit
-        Exits the script with an error message if connection attempts fail, which may occur due to incorrect credentials, network connectivity issues, or an unreachable device.
-
-    Examples
-    --------
-    Establishing a connection to a Firewall:
-        >>> firewall = connect_to_host('firewall.example.com', 'admin', 'password')
-        # Returns a Firewall object if connection is successful.
-
-    Establishing a connection to Panorama:
-        >>> panorama = connect_to_host('panorama.example.com', 'admin', 'password')
-        # Returns a Panorama object if connection is successful.
-
-    Notes
-    -----
-    - Initiating a connection to a device is a prerequisite for performing any operational or configuration tasks via the API.
-    - The function's error handling provides clear diagnostics, aiding in troubleshooting connection issues.
-    - Configuration settings for the connection, such as timeout periods and retry attempts, can be customized through the `settings.yaml` file, if `SETTINGS_FILE_PATH` is utilized within the function.
-    """
-
-    try:
-        target_device = PanDevice.create_from_device(
-            hostname,
-            api_username,
-            api_password,
-        )
-
-        return target_device
-
-    except PanConnectionTimeout:
-        logging.error(
-            f"{Utilities.get_emoji('error')} {hostname}: Connection to the appliance timed out. Please check the DNS hostname or IP address and network connectivity."
-        )
-
-        sys.exit(1)
-
-    except Exception as e:
-        logging.error(
-            f"{Utilities.get_emoji('error')} {hostname}: An error occurred while connecting to the appliance: {e}"
-        )
-
-        sys.exit(1)
-
-
-def create_firewall_mapping(
-    all_firewalls: List[Firewall], firewalls_info: List[Dict[str, Any]]
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Constructs a mapping between firewall hostnames and their associated data, including the corresponding Firewall
-    object and additional firewall details. This mapping facilitates easy access to both the Firewall object and its
-    attributes like serial number, management IP, and any other relevant information provided in the firewalls_info list.
-
-    This function iterates through each provided firewall's information, matches it with the corresponding Firewall
-    object based on the serial number, and then combines these into a single dictionary. This combined dictionary is
-    indexed by the hostname of each firewall, allowing for quick lookup of firewall details and the associated Firewall
-    object.
-
-    Parameters
-    ----------
-    all_firewalls : List[Firewall]
-        A list of instantiated Firewall objects, each representing a specific firewall device with connectivity
-        and operational capabilities.
-    firewalls_info : List[Dict[str, Any]]
-        A list of dictionaries, with each dictionary containing detailed information about a firewall, such as
-        its hostname, serial number, management IP, and potentially other metadata.
-
-    Returns
-    -------
-    Dict[str, Dict[str, Any]]
-        A dictionary where each key is a firewall's hostname and each value is a dictionary containing the
-        corresponding Firewall object under the 'object' key and merged with the firewall's detailed information
-        from the firewalls_info list.
-
-    Example
-    -------
-    Creating a mapping of firewalls to their details and objects:
-        >>> all_firewalls = [Firewall('fw1'), Firewall('fw2')]
-        >>> firewalls_info = [{'hostname': 'fw1', 'serial': '12345', 'ip': '10.0.0.1'},
-                              {'hostname': 'fw2', 'serial': '67890', 'ip': '10.0.0.2'}]
-        >>> mapping = create_firewall_mapping(all_firewalls, firewalls_info)
-        >>> mapping['fw1']
-        {'object': <Firewall object>, 'hostname': 'fw1', 'serial': '12345', 'ip': '10.0.0.1'}
-
-    Notes
-    -----
-    - This function assumes that each firewall's serial number is unique and uses it as the key to match
-      Firewall objects with their corresponding details.
-    - The function does not validate the presence of keys within the firewalls_info dictionaries; it is
-      assumed that each dictionary contains at least the 'serial' and 'hostname' keys.
-    """
-    firewall_mapping = {}
-    firewall_object_mapping = {fw.serial: fw for fw in all_firewalls}
-
-    for fw_info in firewalls_info:
-        serial = fw_info["serial"]
-        firewall_object = firewall_object_mapping.get(serial)
-        if firewall_object:
-            firewall_mapping[fw_info["hostname"]] = {
-                "object": firewall_object,
-                **fw_info,
-            }
-
-    return firewall_mapping
-
-
 def generate_diff_report_pdf(
     pre_post_diff: dict,
     file_path: str,
@@ -2928,57 +2797,6 @@ def get_managed_devices(
     return devices
 
 
-def ip_callback(value: str) -> str:
-    """
-    Validates the input as either a resolvable hostname or a valid IP address, intended for CLI input validation.
-
-    This callback function is designed to validate user input, ensuring that it represents a valid IP address (IPv4 or IPv6) or a resolvable hostname. It employs the 'ipaddress' module to validate IP addresses and attempts DNS resolution for hostname validation. If the input fails both validations, the function raises a Typer error, prompting the user to provide a valid input. This validation step is crucial for operations requiring network communication, ensuring that only valid endpoints are processed.
-
-    Parameters
-    ----------
-    value : str
-        The input string provided by the user, expected to be either a valid IP address or a resolvable hostname.
-
-    Returns
-    -------
-    str
-        Returns the validated input string if it is either a resolvable hostname or a valid IP address.
-
-    Raises
-    ------
-    typer.BadParameter
-        Raised if the input string fails to validate as either a resolvable hostname or a valid IP address, indicating to the user that the provided value is invalid and prompting for a correct one.
-
-    Example
-    -------
-    Validating a command-line option for an IP address or hostname:
-        >>> @app.command()
-        >>> def query_endpoint(host: str = typer.Option(..., callback=ip_callback)):
-        >>>     print(f"Querying endpoint: {host}")
-
-    Notes
-    -----
-    - This function is integral to CLI tools that require precise and validated network endpoints to function correctly.
-    - Leveraging both 'ipaddress' for IP validation and DNS resolution ensures a robust check against a wide range of inputs.
-    - The function's utility extends beyond mere validation, contributing to the tool's overall resilience and user-friendliness by preventing erroneous network operations.
-    - Default settings can be overridden by configurations specified in a `settings.yaml` file if `SETTINGS_FILE_PATH` is used within the script, allowing for customized validation logic based on the application's needs.
-    """
-
-    # First, try to resolve as a hostname
-    if Utilities.resolve_hostname(value):
-        return value
-
-    # If hostname resolution fails, try as an IP address
-    try:
-        ipaddress.ip_address(value)
-        return value
-
-    except ValueError as err:
-        raise typer.BadParameter(
-            "The value you passed for --hostname is neither a valid DNS hostname nor IP address, please check your inputs again."
-        ) from err
-
-
 def model_from_api_response(
     element: Union[ET.Element, ET.ElementTree],
     model: type[FromAPIResponseMixin],
@@ -3022,216 +2840,6 @@ def model_from_api_response(
 
     result_dict = Utilities.flatten_xml_to_dict(element)
     return model.from_api_response(result_dict)
-
-
-def select_devices_from_table(firewall_mapping: dict) -> List[str]:
-    """
-    Presents a table of firewalls, including details such as hostname, IP address, model, serial number, software version, and HA mode, and prompts the user to select devices for further operations. Users can select devices by their listing numbers, a range, or a combination thereof. The function returns a list of hostnames corresponding to the user's selections.
-
-    This interactive step is crucial for operations targeting multiple devices, as it provides users with precise control over which devices are included. The function ensures that selections are valid and within the range of displayed devices, providing feedback on any invalid entries.
-
-    Parameters
-    ----------
-    firewall_mapping : dict
-        A dictionary mapping device hostnames to their respective details, which includes the firewall object, IP address, model, serial number, software version, application version, HA mode, and HA details. This information is used to generate the selection table.
-
-    Returns
-    -------
-    List[str]
-        A list of hostnames for the selected devices, based on user input.
-
-    Examples
-    --------
-    Displaying a selection table and capturing user choices:
-        >>> firewall_mapping = {
-        ...     'fw1': {
-        ...         'object': <Firewall '0123456789' None at 0x1234abcd>,
-        ...         'hostname': 'fw1',
-        ...         'ip-address': '10.1.1.1',
-        ...         'model': 'PA-850',
-        ...         'serial': '0123456789',
-        ...         'sw-version': '9.1.0',
-        ...         'app-version': '9.1.0',
-        ...         'ha-mode': 'active/passive',
-        ...         'ha-details': None,
-        ...     },
-        ...     'fw2': {
-        ...         'object': <Firewall '9876543210' None at 0xabcd1234>,
-        ...         'hostname': 'fw2',
-        ...         'ip-address': '10.1.1.2',
-        ...         'model': 'PA-220',
-        ...         'serial': '9876543210',
-        ...         'sw-version': '9.1.2',
-        ...         'app-version': '9.1.3',
-        ...         'ha-mode': 'active/active',
-        ...         'ha-details': {...},
-        ...     },
-        ... }
-        >>> selected_hostnames = select_devices_from_table(firewall_mapping)
-        # The user is prompted to select from the table. The function returns the hostnames of the selected devices.
-
-    Notes
-    -----
-    - Utilizes the `tabulate` library to display a structured and readable table for device selection.
-    - Supports various input formats for device selection, such as individual numbers, ranges (e.g., '2-4'), or a comma-separated list, offering flexibility in selection methodology.
-    - Gracefully handles invalid selections with prompts for correction, ensuring a user-friendly selection process.
-    """
-
-    # Sort firewalls by hostname for consistent display
-    sorted_firewall_items = sorted(firewall_mapping.items(), key=lambda item: item[0])
-
-    devices_table = []
-    for i, (hostname, details) in enumerate(sorted_firewall_items):
-        preemptive_status = "N/A"
-        if details["ha-details"] is not None:
-            preemptive_status = (
-                details["ha-details"]
-                .get("result", {})
-                .get("group", {})
-                .get("local-info", {})
-                .get("preemptive", "N/A")
-            )
-
-        # Using 'hostname' to add an entry to the 'devices_table'
-        devices_table.append(
-            [
-                Fore.CYAN + str(i + 1) + Fore.RESET,
-                hostname,
-                details["ip-address"],
-                details["model"],
-                # details["serial"],
-                details["sw-version"],
-                details["app-version"],
-                details["ha-mode"],
-                preemptive_status,
-            ]
-        )
-
-    typer.echo(
-        tabulate(
-            devices_table,
-            headers=[
-                Fore.GREEN + "#" + Fore.RESET,
-                Fore.GREEN + "Hostname" + Fore.RESET,
-                Fore.GREEN + "IP Address" + Fore.RESET,
-                Fore.GREEN + "Model" + Fore.RESET,
-                # Fore.GREEN + "Serial" + Fore.RESET,
-                Fore.GREEN + "PAN-OS" + Fore.RESET,
-                Fore.GREEN + "Content" + Fore.RESET,
-                Fore.GREEN + "HA Mode" + Fore.RESET,
-                Fore.GREEN + "Preempt" + Fore.RESET,
-            ],
-            tablefmt="fancy_grid",
-        )
-    )
-
-    instruction_message = (
-        Fore.YELLOW
-        + "You can select devices by entering their numbers, ranges, or separated by commas.\n"
-        "Examples: '1', '2-4', '1,3,5-7'.\n"
-        "Type 'done' on a new line when finished.\n" + Fore.RESET
-    )
-    typer.echo(instruction_message)
-
-    user_selected_hostnames = []
-
-    while True:
-        choice = typer.prompt(Fore.YELLOW + "Enter your selection(s)" + Fore.RESET)
-
-        if choice.lower() == "done":
-            break
-
-        # Split input by commas for single-line input or just accumulate selections for multi-line input
-        parts = choice.split(",") if "," in choice else [choice]
-        indices = []
-        for part in parts:
-            part = part.strip()  # Remove any leading/trailing whitespace
-            if "-" in part:  # Check if part is a range
-                try:
-                    start, end = map(
-                        int, part.split("-")
-                    )  # Convert start and end to integers
-                    if start <= end:
-                        indices.extend(
-                            range(start - 1, end)
-                        )  # Add all indices in the range
-                    else:
-                        typer.echo(
-                            Fore.RED
-                            + f"Invalid range: '{part}'. Start should be less than or equal to end."
-                            + Fore.RESET
-                        )
-                except ValueError:
-                    typer.echo(
-                        Fore.RED
-                        + f"Invalid range format: '{part}'. Use 'start-end' format."
-                        + Fore.RESET
-                    )
-            else:
-                try:
-                    index = int(part) - 1  # Convert to index (0-based)
-                    indices.append(index)
-                except ValueError:
-                    typer.echo(Fore.RED + f"Invalid number: '{part}'." + Fore.RESET)
-
-        # Process selected indices
-        for index in indices:
-
-            if 0 <= index < len(sorted_firewall_items):
-                hostname, details = sorted_firewall_items[index]
-                if hostname not in user_selected_hostnames:
-                    user_selected_hostnames.append(hostname)
-                    typer.echo(Fore.GREEN + f"  - {hostname} selected." + Fore.RESET)
-                else:
-                    typer.echo(
-                        Fore.YELLOW
-                        + f"  - {hostname} is already selected."
-                        + Fore.RESET
-                    )
-            else:
-                typer.echo(
-                    Fore.RED + f"Selection '{index + 1}' is out of range." + Fore.RESET
-                )
-
-    # New code to check for preemptive="yes" and prompt user
-    preemptive_firewalls = []
-    for hostname in user_selected_hostnames:
-        details = firewall_mapping.get(hostname, {})
-        ha_details = details.get("ha-details", {})
-        if ha_details:
-            preemptive_status = (
-                ha_details.get("result", {})
-                .get("group", {})
-                .get("local-info", {})
-                .get("preemptive", "no")
-            )
-            if preemptive_status.lower() == "yes":
-                preemptive_firewalls.append(hostname)
-
-    if preemptive_firewalls:
-        typer.echo(
-            Fore.RED
-            + f"Warning: Firewalls {', '.join(preemptive_firewalls)} have 'preempt' enabled, this can cause an interruption."
-            + Fore.RESET
-        )
-        confirmation = typer.prompt(
-            Fore.YELLOW
-            + "Are you sure that you want to add these firewalls to the upgrade list? (y/n)"
-            + Fore.RESET
-        )
-        if confirmation.lower() != "y":
-            user_selected_hostnames = [
-                hostname
-                for hostname in user_selected_hostnames
-                if hostname not in preemptive_firewalls
-            ]
-            typer.echo(
-                Fore.GREEN
-                + "Firewalls with 'preempt' set to 'yes' have been excluded."
-                + Fore.RESET
-            )
-
-    return user_selected_hostnames
 
 
 # Define Typer command-line interface
@@ -3325,7 +2933,7 @@ def common_setup(
     )
 
     # Connect to the device
-    device = connect_to_host(hostname, username, password)
+    device = Utilities.connect_to_host(hostname, username, password)
     return device
 
 
@@ -3339,7 +2947,7 @@ def firewall(
             "-h",
             help="Hostname or IP address of either Panorama or firewall appliance",
             prompt="Firewall hostname or IP",
-            callback=ip_callback,
+            callback=Utilities.ip_callback,
         ),
     ],
     username: Annotated[
@@ -3447,7 +3055,7 @@ def panorama(
             "-h",
             help="Hostname or IP address of Panorama appliance",
             prompt="Panorama hostname or IP",
-            callback=ip_callback,
+            callback=Utilities.ip_callback,
         ),
     ],
     username: Annotated[
@@ -3555,7 +3163,7 @@ def batch(
             "-h",
             help="Hostname or IP address of Panorama appliance",
             prompt="Panorama hostname or IP",
-            callback=ip_callback,
+            callback=Utilities.ip_callback,
         ),
     ],
     username: Annotated[
@@ -3693,7 +3301,7 @@ def batch(
     firewalls_info = threaded_get_firewall_details(all_firewalls)
 
     # Create a mapping of firewalls for selection
-    firewall_mapping = create_firewall_mapping(all_firewalls, firewalls_info)
+    firewall_mapping = Utilities.create_firewall_mapping(all_firewalls, firewalls_info)
 
     # Check if inventory.yaml exists and if it does, read the selected devices
     if inventory_file_path.exists():
@@ -3704,7 +3312,7 @@ def batch(
     # If inventory.yaml does not exist, then prompt the user to select devices
     else:
         # Present a table of firewalls with detailed system information for selection
-        user_selected_hostnames = select_devices_from_table(firewall_mapping)
+        user_selected_hostnames = Utilities.select_devices_from_table(firewall_mapping)
 
     # Extracting the Firewall objects from the filtered mapping
     firewall_objects_for_upgrade = [
@@ -3837,7 +3445,7 @@ def inventory(
             "-h",
             help="Hostname or IP address of Panorama appliance",
             prompt="Panorama hostname or IP",
-            callback=ip_callback,
+            callback=Utilities.ip_callback,
         ),
     ],
     username: Annotated[
@@ -3933,9 +3541,9 @@ def inventory(
     firewalls_info = threaded_get_firewall_details(all_firewalls)
 
     # Create a mapping of firewalls for selection
-    firewall_mapping = create_firewall_mapping(all_firewalls, firewalls_info)
+    firewall_mapping = Utilities.create_firewall_mapping(all_firewalls, firewalls_info)
 
-    user_selected_hostnames = select_devices_from_table(firewall_mapping)
+    user_selected_hostnames = Utilities.select_devices_from_table(firewall_mapping)
 
     with open("inventory.yaml", "w") as file:
         yaml.dump(
