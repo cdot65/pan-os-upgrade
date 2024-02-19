@@ -108,7 +108,6 @@ from panos_upgrade_assurance.firewall_proxy import FirewallProxy
 from panos_upgrade_assurance.snapshot_compare import SnapshotCompare
 
 # third party imports
-import dns.resolver
 import typer
 from colorama import init, Fore
 from dynaconf import Dynaconf
@@ -127,213 +126,10 @@ from pan_os_upgrade.models import (
     ManagedDevices,
     FromAPIResponseMixin,
 )
+from pan_os_upgrade.components.assurance import AssuranceOptions
+
+# from pan_os_upgrade.components.configuration import ConfigurationManager
 from pan_os_upgrade.components.utility import Utilities
-
-
-# Define panos-upgrade-assurance options
-class AssuranceOptions:
-    """
-    Centralizes configuration options for readiness checks, reports, and state snapshots in the upgrade assurance process.
-
-    This class provides a structured approach to define and access various configuration options related to the upgrade
-    assurance process for Palo Alto Networks devices. It outlines available readiness checks, types of reports, and
-    categories of state snapshots that can be utilized during the device upgrade process. These configurations are
-    designed to be flexible, allowing customization through an external `settings.yaml` file to cater to specific
-    operational needs and preferences.
-
-    Attributes
-    ----------
-    READINESS_CHECKS : dict
-        A dictionary mapping the names of readiness checks to their attributes, which include descriptions, associated
-        log levels, and flags to indicate whether to exit the process upon check failure. These checks are designed to
-        ensure a device's readiness for an upgrade by validating its operational and configuration status.
-    REPORTS : dict
-        A dictionary enumerating the types of reports that can be generated to offer insights into the device's state
-        before and after an upgrade. These reports encompass aspects like ARP tables, content versions, IPsec tunnels,
-        licenses, network interfaces, routing tables, and session statistics.
-    STATE_SNAPSHOTS : dict
-        A dictionary listing the categories of state snapshots that can be captured to document essential data about
-        the device's current state. These snapshots are crucial for diagnostics and verifying the device's operational
-        status before proceeding with the upgrade.
-
-    Examples
-    --------
-    Accessing the log level for the 'active_support' readiness check:
-        >>> log_level = AssuranceOptions.READINESS_CHECKS['active_support']['log_level']
-        >>> print(log_level)
-        'warning'
-
-    Iterating through all available report types:
-        >>> for report_type in AssuranceOptions.REPORTS:
-        ...     print(report_type)
-        'arp_table'
-        'content_version'
-        ...
-
-    Notes
-    -----
-    - The configurations for readiness checks, report types, and state snapshots provided in this class can be selectively
-      enabled or customized through the `settings.yaml` file. This allows users to adapt the upgrade assurance process
-      to their specific requirements and scenarios.
-    - Default settings are predefined within this class; however, they can be overridden by specifying custom configurations
-      in the `settings.yaml` file, thus enhancing the script's flexibility and adaptability to different upgrade contexts.
-    """
-
-    READINESS_CHECKS = {
-        "active_support": {
-            "description": "Check if active support is available",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "arp_entry_exist": {
-            "description": "Check if a given ARP entry is available in the ARP table",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
-        },
-        "candidate_config": {
-            "description": "Check if there are pending changes on device",
-            "log_level": "error",
-            "exit_on_failure": True,
-            "enabled_by_default": True,
-        },
-        "certificates_requirements": {
-            "description": "Check if the certificates' keys meet minimum size requirements",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
-        },
-        "content_version": {
-            "description": "Running Latest Content Version",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "dynamic_updates": {
-            "description": "Check if any Dynamic Update job is scheduled to run within the specified time window",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "expired_licenses": {
-            "description": "No Expired Licenses",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "free_disk_space": {
-            "description": "Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "ha": {
-            "description": "Checks HA pair status from the perspective of the current device",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "ip_sec_tunnel_status": {
-            "description": "Check if a given IPsec tunnel is in active state",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "jobs": {
-            "description": "Check for any job with status different than FIN",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
-        },
-        "ntp_sync": {
-            "description": "Check if NTP is synchronized",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
-        },
-        "planes_clock_sync": {
-            "description": "Check if the clock is synchronized between dataplane and management plane",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "panorama": {
-            "description": "Check connectivity with the Panorama appliance",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "session_exist": {
-            "description": "Check if a critical session is present in the sessions table",
-            "log_level": "warning",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
-        },
-    }
-
-    # This is a placeholder for the report types, currently no reports are executed
-    REPORTS = {
-        "arp_table": {
-            "enabled_by_default": True,
-            "description": "ARP Table",
-        },
-        "content_version": {
-            "enabled_by_default": True,
-            "description": "App Content Version",
-        },
-        "ip_sec_tunnels": {
-            "enabled_by_default": True,
-            "description": "IPsec VPN tunnels",
-        },
-        "license": {
-            "enabled_by_default": True,
-            "description": "License Information",
-        },
-        "nics": {
-            "enabled_by_default": True,
-            "description": "Network Interfaces",
-        },
-        "routes": {
-            "enabled_by_default": False,
-            "description": "Route Table",
-        },
-        "session_stats": {
-            "enabled_by_default": True,
-            "description": "Session Stats",
-        },
-    }
-
-    STATE_SNAPSHOTS = {
-        "arp_table": {
-            "enabled_by_default": False,
-            "description": "Snapshot of the ARP Table",
-        },
-        "content_version": {
-            "enabled_by_default": True,
-            "description": "Snapshot of the Content Version",
-        },
-        "ip_sec_tunnels": {
-            "enabled_by_default": False,
-            "description": "Snapshot of the IPsec Tunnels",
-        },
-        "license": {
-            "enabled_by_default": True,
-            "description": "Snapshot of the License Information",
-        },
-        "nics": {
-            "enabled_by_default": True,
-            "description": "Snapshot of the Network Interfaces",
-        },
-        "routes": {
-            "enabled_by_default": False,
-            "description": "Snapshot of the Routing Table",
-        },
-        "session_stats": {
-            "enabled_by_default": False,
-            "description": "Snapshot of the Session Statistics",
-        },
-    }
 
 
 # Core Functions
@@ -493,7 +289,7 @@ def get_ha_status(
     )
 
     if deployment_type[1]:
-        ha_details = flatten_xml_to_dict(deployment_type[1])
+        ha_details = Utilities.flatten_xml_to_dict(deployment_type[1])
         logging.debug(
             f"{Utilities.get_emoji('report')} {hostname}: Target device deployment details: {ha_details}"
         )
@@ -1205,7 +1001,7 @@ def perform_reboot(
         "<request><restart><system/></restart></request>",
         cmd_xml=False,
     )
-    reboot_job_result = flatten_xml_to_dict(reboot_job)
+    reboot_job_result = Utilities.flatten_xml_to_dict(reboot_job)
     logging.info(
         f"{Utilities.get_emoji('report')} {hostname}: {reboot_job_result['result']}"
     )
@@ -1928,7 +1724,9 @@ def software_update_check(
 
     else:
         # If the version is not available, find and log close matches
-        close_matches = find_close_matches(list(available_versions.keys()), version)
+        close_matches = Utilities.find_close_matches(
+            list(available_versions.keys()), version
+        )
         close_matches_str = ", ".join(close_matches)
         logging.error(
             f"{Utilities.get_emoji('error')} {hostname}: Version {version} is not available for download. Closest matches: {close_matches_str}"
@@ -2708,123 +2506,6 @@ def connect_to_host(
         sys.exit(1)
 
 
-def console_welcome_banner(
-    mode: str,
-    config_path: Optional[Path] = None,
-    inventory_path: Optional[Path] = None,
-) -> None:
-    """
-    Displays a welcome banner in the console for the specified operational mode, providing contextual information
-    about the script's current function. The banner outlines the operation being performed, such as upgrading
-    firewalls, Panorama, or modifying settings, and indicates whether custom configuration or inventory files are
-    being utilized. This visual cue helps users understand the script's current state and actions, enhancing usability
-    and clarity.
-
-    Parameters
-    ----------
-    mode : str
-        The operational mode of the script, indicating the type of action being undertaken. Valid modes include
-        'settings', 'firewall', 'panorama', and 'batch', each corresponding to different functionalities of the script.
-    config_path : Optional[Path], optional
-        The filesystem path to a custom settings configuration file, if one is being used. If not provided, it is
-        assumed that default settings are applied. This parameter is relevant only in modes where configuration
-        customization is applicable.
-    inventory_path : Optional[Path], optional
-        The filesystem path to a custom inventory file, if one is being used. This is particularly relevant in batch
-        operations where an inventory of devices is specified. If not provided, default or dynamically determined
-        inventory information is used.
-
-    Examples
-    --------
-    Displaying a welcome banner for firewall upgrade mode, noting the use of a custom settings file:
-        >>> console_welcome_banner('firewall', Path('/path/to/settings.yaml'))
-        # Outputs a banner indicating the firewall upgrade mode and the custom settings file in use.
-
-    Displaying a welcome banner for settings configuration without a custom configuration file:
-        >>> console_welcome_banner('settings')
-        # Outputs a banner specific to settings configuration, indicating default settings will be used.
-
-    Notes
-    -----
-    - The welcome banner is intended to provide immediate, clear context for the script's operation, aiding in
-      user orientation and reducing potential confusion about the script's current mode or configuration status.
-    - The banner also serves as a preliminary check, allowing users to confirm that the intended configuration or
-      inventory files are recognized by the script before proceeding with operations, especially useful in scenarios
-      where custom settings are essential for the task at hand.
-    - This function employs ANSI color codes for enhanced visual distinction in terminal environments, with fallback
-      considerations for environments where such styling may not be supported.
-    """
-
-    support_message = "This script software is provided on an 'as-is' basis with no warranties, and no support provided."
-
-    # Longest line defines border, and that will always be the support message
-    border_length = len(support_message)
-
-    # Customize messages based on the mode
-    if mode == "settings":
-        welcome_message = "Welcome to the PAN-OS upgrade settings menu"
-        banner_message = "The selected 'settings' subcommand will create `settings.yaml` in your current directory.\nThis `settings.yaml` file will contain your custom settings and will be loaded at runtime."
-        config_message = inventory_message = ""
-    elif mode == "inventory":
-        welcome_message = "Welcome to the PAN-OS upgrade inventory menu"
-        banner_message = "The selected 'inventory' subcommand will create `inventory.yaml` in your current directory.\nThis `inventory.yaml` file will contain firewalls to upgrade and will be loaded at runtime."
-        config_message = inventory_message = ""
-    else:
-        welcome_message = "Welcome to the PAN-OS upgrade tool"
-        banner_message = {
-            "firewall": "The selected `firewall` subcommand will upgrade a single Firewall appliance.",
-            "panorama": "The selected `panorama` subcommand will upgrade a single Panorama appliance.",
-            "batch": "The selected `batch` subcommand will upgrade one or more firewalls.",
-        }.get(mode, "")
-
-        if mode == "batch":
-            inventory_message = (
-                f"Inventory: Custom inventory loaded file detected and loaded at:\n{inventory_path}"
-                if inventory_path and inventory_path.exists()
-                else "Inventory: No inventory.yaml file was found, firewalls will need be selected through the menu.\nYou can create an inventory.yaml file with 'pan-os-upgrade inventory' command."
-            )
-
-        else:
-            inventory_message = ""
-
-        config_message = (
-            f"Settings: Custom configuration loaded file detected and loaded at:\n{config_path}"
-            if config_path and config_path.exists()
-            else "Settings: No settings.yaml file was found, default values will be used.\nYou can create a settings.yaml file with 'pan-os-upgrade settings' command."
-        )
-
-    # Calculate border length based on the longer message
-    border_length = max(
-        len(welcome_message),
-        len(support_message),
-        max(len(line) for line in banner_message.split("\n")),
-        max(len(line) for line in config_message.split("\n")) if config_message else 0,
-        (
-            max(len(line) for line in inventory_message.split("\n"))
-            if inventory_message
-            else 0
-        ),
-    )
-    border = "=" * border_length
-
-    # ANSI escape codes for styling
-    color_start = "\033[1;33m"  # Bold Orange
-    color_end = "\033[0m"  # Reset
-
-    # Construct and print the banner
-    banner = f"{color_start}{border}\n{welcome_message}\n\n{support_message}\n\n{banner_message}"
-    # Only add config_message if it's not empty
-    if config_message:
-        banner += f"\n\n{config_message}"
-
-    # Only add config_message if it's not empty
-    if inventory_message:
-        banner += f"\n\n{inventory_message}"
-
-    banner += f"\n{border}{color_end}"
-    typer.echo(banner)
-
-
 def create_firewall_mapping(
     all_firewalls: List[Firewall], firewalls_info: List[Dict[str, Any]]
 ) -> Dict[str, Dict[str, Any]]:
@@ -2884,144 +2565,6 @@ def create_firewall_mapping(
             }
 
     return firewall_mapping
-
-
-def find_close_matches(
-    available_versions: List[str],
-    target_version: str,
-    max_results: int = 5,
-) -> List[str]:
-    """
-    Identifies and returns a list of versions from the available options that are most similar to a target version.
-
-    This function assesses the similarity between a target version and a list of available versions based on their numerical and structural proximity. It employs a heuristic to quantify the difference between versions, taking into account major, minor, and maintenance version numbers, as well as any hotfix identifiers. The function is useful in scenarios where an exact version match is not found, and the closest alternatives need to be considered, such as software upgrades or compatibility checks.
-
-    Parameters
-    ----------
-    available_versions : List[str]
-        A list of version strings available for comparison, each in the format 'major.minor.maintenance' or 'major.minor.maintenance-hotfix'.
-    target_version : str
-        The version string that serves as the benchmark for finding close matches, following the same format as the available versions.
-    max_results : int, optional
-        The maximum number of close match results to return. Defaults to 5.
-
-    Returns
-    -------
-    List[str]
-        A list of the closest version strings to the target version, limited by max_results. The versions are sorted by their similarity to the target version, with the most similar version first.
-
-    Examples
-    --------
-    Finding close matches to a specific version:
-        >>> available_versions = ['10.0.0', '10.1.0', '10.1.1', '9.1.0', '10.1.1-hotfix']
-        >>> target_version = '10.1.0'
-        >>> find_close_matches(available_versions, target_version)
-        ['10.1.0', '10.1.1', '10.1.1-hotfix', '10.0.0', '9.1.0']
-
-    Notes
-    -----
-    - The function does not guarantee an exact match but provides the best alternatives based on the available options.
-    - The similarity heuristic is primarily based on numerical closeness, with structural elements like hotfix identifiers considered as secondary criteria.
-    - This function can be particularly useful in automated processes where decision-making relies on selecting the most appropriate version from a set of available options.
-    """
-
-    # Parse the target version
-    target_major, target_minor, target_maintenance, target_hotfix = (
-        Utilities.parse_version(target_version)
-    )
-
-    version_distances = []
-
-    for version in available_versions:
-        # Parse each available version
-        major, minor, maintenance, hotfix = Utilities.parse_version(version)
-
-        # Calculate a simple "distance" between versions, considering major, minor, maintenance, and hotfix components
-        distance = (
-            abs(target_major - major) * 1000
-            + abs(target_minor - minor) * 100
-            + abs(target_maintenance - maintenance) * 10
-            + abs(target_hotfix - hotfix)
-        )
-
-        version_distances.append((distance, version))
-
-    # Sort by distance, then by version number to get the closest matches
-    version_distances.sort(key=lambda x: (x[0], x[1]))
-
-    # Return up to max_results closest versions
-    return [version for _, version in version_distances[:max_results]]
-
-
-def flatten_xml_to_dict(element: ET.Element) -> dict:
-    """
-    Converts an XML ElementTree element into a nested dictionary, maintaining its hierarchical structure.
-
-    This function iterates over the provided XML ElementTree element, converting each element and its children into a nested dictionary format. Element tags serve as dictionary keys, and the element text content, if present, is assigned as the value. For elements with child elements, a new nested dictionary is created to represent the hierarchy. When an element tag is repeated within the same level, these elements are aggregated into a list under a single dictionary key, preserving the structure and multiplicity of the XML data.
-
-    Parameters
-    ----------
-    element : ET.Element
-        The root or any sub-element of an XML tree that is to be converted into a dictionary.
-
-    Returns
-    -------
-    dict
-        A dictionary representation of the input XML element, where each key corresponds to an element tag, and each value is either the text content of the element, a nested dictionary (for child elements), or a list of dictionaries (for repeated child elements).
-
-    Examples
-    --------
-    Converting a simple XML element:
-        >>> xml_string = '<status>active</status>'
-        >>> element = ET.fromstring(xml_string)
-        >>> flatten_xml_to_dict(element)
-        {'status': 'active'}
-
-    Converting an XML element with nested children:
-        >>> xml_string = '<configuration><item key="1">Value1</item><item key="2">Value2</item></configuration>'
-        >>> element = ET.fromstring(xml_string)
-        >>> flatten_xml_to_dict(element)
-        {'configuration': {'item': [{'key': '1', '_text': 'Value1'}, {'key': '2', '_text': 'Value2'}]}}
-
-    Notes
-    -----
-    - This function is designed to work with XML structures that are naturally representable as a nested dictionary. It may not be suitable for XML with complex attributes or mixed content.
-    - Attributes of XML elements are converted into dictionary keys with a leading underscore ('_') to differentiate them from child elements.
-    - If the XML structure includes elements with repeated tags at the same level, these are stored in a list under the same key to preserve the structure within the dictionary format.
-    - The function simplifies XML data handling by converting it into a more accessible and manipulable Python dictionary format.
-
-    Raises
-    ------
-    ValueError
-        If the XML structure includes elements that cannot be directly mapped to a dictionary format without ambiguity or loss of information, a ValueError is raised to indicate potential data integrity issues.
-    """
-
-    # Dictionary to hold the XML structure
-    result = {}
-
-    # Iterate through each child in the XML element
-    for child_element in element:
-        child_tag = child_element.tag
-
-        if child_element.text and len(child_element) == 0:
-            result[child_tag] = child_element.text
-        else:
-            if child_tag in result:
-                if not isinstance(result.get(child_tag), list):
-                    result[child_tag] = [
-                        result.get(child_tag),
-                        flatten_xml_to_dict(child_element),
-                    ]
-                else:
-                    result[child_tag].append(flatten_xml_to_dict(child_element))
-            else:
-                if child_tag == "entry":
-                    # Always assume entries are a list.
-                    result[child_tag] = [flatten_xml_to_dict(child_element)]
-                else:
-                    result[child_tag] = flatten_xml_to_dict(child_element)
-
-    return result
 
 
 def generate_diff_report_pdf(
@@ -3422,7 +2965,7 @@ def ip_callback(value: str) -> str:
     """
 
     # First, try to resolve as a hostname
-    if resolve_hostname(value):
+    if Utilities.resolve_hostname(value):
         return value
 
     # If hostname resolution fails, try as an IP address
@@ -3477,50 +3020,8 @@ def model_from_api_response(
         In cases where the XML data does not match the structure expected by the Pydantic model, indicating a possible mismatch between the API response format and the model's schema.
     """
 
-    result_dict = flatten_xml_to_dict(element)
+    result_dict = Utilities.flatten_xml_to_dict(element)
     return model.from_api_response(result_dict)
-
-
-def resolve_hostname(hostname: str) -> bool:
-    """
-    Verifies if a given hostname can be resolved to an IP address using DNS lookup.
-
-    This function is crucial for network-related operations, as it checks the resolvability of a hostname. It performs a DNS query to determine if the hostname can be translated into an IP address, thereby validating its presence on the network. A successful DNS resolution implies the hostname is active and reachable, while a failure might indicate an issue with the hostname itself, DNS configuration, or broader network problems.
-
-    Parameters
-    ----------
-    hostname : str
-        The hostname to be resolved, such as 'example.com', to verify network reachability and DNS configuration.
-
-    Returns
-    -------
-    bool
-        Returns True if the DNS resolution is successful, indicating the hostname is valid and reachable. Returns False if the resolution fails, suggesting potential issues with the hostname, DNS setup, or network connectivity.
-
-    Example
-    -------
-    Validating hostname resolution:
-        >>> resolve_hostname('google.com')
-        True  # This would indicate that 'google.com' is successfully resolved, suggesting it is reachable.
-
-        >>> resolve_hostname('invalid.hostname')
-        False  # This would indicate a failure in resolving 'invalid.hostname', pointing to potential DNS or network issues.
-
-    Notes
-    -----
-    - This function is intended as a preliminary network connectivity check before attempting further network operations.
-    - It encapsulates exception handling for DNS resolution errors, logging them for diagnostic purposes while providing a simple boolean outcome to the caller.
-
-    The function's behavior and return values are not affected by external configurations or settings, hence no mention of `settings.yaml` file override capability is included.
-    """
-
-    try:
-        dns.resolver.resolve(hostname)
-        return True
-    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.Timeout) as err:
-        # Optionally log or handle err here if needed
-        logging.debug(f"Hostname resolution failed: {err}")
-        return False
 
 
 def select_devices_from_table(firewall_mapping: dict) -> List[str]:
@@ -3914,9 +3415,12 @@ def firewall(
 
     # Display the custom banner for firewall upgrade
     if SETTINGS_FILE_PATH.exists():
-        console_welcome_banner(mode="firewall", config_path=SETTINGS_FILE_PATH)
+        banner = Utilities.console_welcome_banner(
+            mode="firewall", config_path=SETTINGS_FILE_PATH
+        )
     else:
-        console_welcome_banner(mode="firewall")
+        banner = Utilities.console_welcome_banner(mode="firewall")
+    typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
     device = common_setup(
@@ -4019,9 +3523,12 @@ def panorama(
 
     # Display the custom banner for panorama upgrade
     if SETTINGS_FILE_PATH.exists():
-        console_welcome_banner(mode="panorama", config_path=SETTINGS_FILE_PATH)
+        banner = Utilities.console_welcome_banner(
+            mode="panorama", config_path=SETTINGS_FILE_PATH
+        )
     else:
-        console_welcome_banner(mode="panorama")
+        banner = Utilities.console_welcome_banner(mode="panorama")
+    typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
     device = common_setup(
@@ -4128,28 +3635,31 @@ def batch(
     - Customization options, such as setting logging preferences, can be specified through a 'settings.yaml' file if the script supports reading from such a file, allowing for more granular control over the upgrade process.
     """
 
-    # Display the custom banner for batch firewall upgrades
+    # Create the custom banner for batch firewall upgrades
     if SETTINGS_FILE_PATH.exists():
         if inventory_file_path.exists():
-            console_welcome_banner(
+            banner = Utilities.console_welcome_banner(
                 mode="batch",
                 config_path=SETTINGS_FILE_PATH,
                 inventory_path=inventory_file_path,
             )
         else:
-            console_welcome_banner(
+            banner = Utilities.console_welcome_banner(
                 mode="batch",
                 config_path=SETTINGS_FILE_PATH,
             )
 
     elif inventory_file_path.exists():
-        console_welcome_banner(
+        banner = Utilities.console_welcome_banner(
             mode="batch",
             inventory_path=inventory_file_path,
         )
 
     else:
-        console_welcome_banner(mode="batch")
+        banner = Utilities.console_welcome_banner(mode="batch")
+
+    # Display the custom banner for batch firewall upgrades
+    typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
     device = common_setup(
@@ -4393,7 +3903,9 @@ def inventory(
       directly, allowing for manual inclusion or exclusion of devices as needed.
     """
 
-    console_welcome_banner(mode="inventory")
+    # Display the custom banner for inventory
+    banner = Utilities.console_welcome_banner(mode="inventory")
+    typer.echo(banner)
 
     panorama = common_setup(hostname, username, password)
 
@@ -4464,7 +3976,8 @@ def settings():
     """
 
     # Display the custom banner for settings
-    console_welcome_banner(mode="settings")
+    banner = Utilities.console_welcome_banner(mode="settings")
+    typer.echo(banner)
 
     config_file_path = Path.cwd() / "settings.yaml"
 

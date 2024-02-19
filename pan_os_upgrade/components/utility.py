@@ -2,12 +2,18 @@ import logging
 import os
 import re
 import sys
+import xml.etree.ElementTree as ET
+
 from logging.handlers import RotatingFileHandler
-from pathlib import PosixPath
-from typing import Tuple, Union
+from pathlib import Path, PosixPath
+from typing import List, Optional, Tuple, Union
+
+# third party imports
+import dns.resolver
+from dynaconf.base import LazySettings
+
 from panos.firewall import Firewall
 from panos.panorama import Panorama
-from dynaconf.base import LazySettings
 
 
 class Utilities:
@@ -61,6 +67,128 @@ class Utilities:
             return "newer"
         else:
             return "equal"
+
+    @staticmethod
+    def console_welcome_banner(
+        mode: str,
+        config_path: Optional[Path] = None,
+        inventory_path: Optional[Path] = None,
+    ) -> str:
+        """
+        Displays a welcome banner in the console for the specified operational mode, providing contextual information
+        about the script's current function. The banner outlines the operation being performed, such as upgrading
+        firewalls, Panorama, or modifying settings, and indicates whether custom configuration or inventory files are
+        being utilized. This visual cue helps users understand the script's current state and actions, enhancing usability
+        and clarity.
+
+        Parameters
+        ----------
+        mode : str
+            The operational mode of the script, indicating the type of action being undertaken. Valid modes include
+            'settings', 'firewall', 'panorama', and 'batch', each corresponding to different functionalities of the script.
+        config_path : Optional[Path], optional
+            The filesystem path to a custom settings configuration file, if one is being used. If not provided, it is
+            assumed that default settings are applied. This parameter is relevant only in modes where configuration
+            customization is applicable.
+        inventory_path : Optional[Path], optional
+            The filesystem path to a custom inventory file, if one is being used. This is particularly relevant in batch
+            operations where an inventory of devices is specified. If not provided, default or dynamically determined
+            inventory information is used.
+
+        Examples
+        --------
+        Displaying a welcome banner for firewall upgrade mode, noting the use of a custom settings file:
+            >>> console_welcome_banner('firewall', Path('/path/to/settings.yaml'))
+            # Outputs a banner indicating the firewall upgrade mode and the custom settings file in use.
+
+        Displaying a welcome banner for settings configuration without a custom configuration file:
+            >>> console_welcome_banner('settings')
+            # Outputs a banner specific to settings configuration, indicating default settings will be used.
+
+        Notes
+        -----
+        - The welcome banner is intended to provide immediate, clear context for the script's operation, aiding in
+        user orientation and reducing potential confusion about the script's current mode or configuration status.
+        - The banner also serves as a preliminary check, allowing users to confirm that the intended configuration or
+        inventory files are recognized by the script before proceeding with operations, especially useful in scenarios
+        where custom settings are essential for the task at hand.
+        - This function employs ANSI color codes for enhanced visual distinction in terminal environments, with fallback
+        considerations for environments where such styling may not be supported.
+        """
+
+        support_message = "This script software is provided on an 'as-is' basis with no warranties, and no support provided."
+
+        # Longest line defines border, and that will always be the support message
+        border_length = len(support_message)
+
+        # Customize messages based on the mode
+        if mode == "settings":
+            welcome_message = "Welcome to the PAN-OS upgrade settings menu"
+            banner_message = "The selected 'settings' subcommand will create `settings.yaml` in your current directory.\nThis `settings.yaml` file will contain your custom settings and will be loaded at runtime."
+            config_message = inventory_message = ""
+        elif mode == "inventory":
+            welcome_message = "Welcome to the PAN-OS upgrade inventory menu"
+            banner_message = "The selected 'inventory' subcommand will create `inventory.yaml` in your current directory.\nThis `inventory.yaml` file will contain firewalls to upgrade and will be loaded at runtime."
+            config_message = inventory_message = ""
+        else:
+            welcome_message = "Welcome to the PAN-OS upgrade tool"
+            banner_message = {
+                "firewall": "The selected `firewall` subcommand will upgrade a single Firewall appliance.",
+                "panorama": "The selected `panorama` subcommand will upgrade a single Panorama appliance.",
+                "batch": "The selected `batch` subcommand will upgrade one or more firewalls.",
+            }.get(mode, "")
+
+            if mode == "batch":
+                inventory_message = (
+                    f"Inventory: Custom inventory loaded file detected and loaded at:\n{inventory_path}"
+                    if inventory_path and inventory_path.exists()
+                    else "Inventory: No inventory.yaml file was found, firewalls will need be selected through the menu.\nYou can create an inventory.yaml file with 'pan-os-upgrade inventory' command."
+                )
+
+            else:
+                inventory_message = ""
+
+            config_message = (
+                f"Settings: Custom configuration loaded file detected and loaded at:\n{config_path}"
+                if config_path and config_path.exists()
+                else "Settings: No settings.yaml file was found, default values will be used.\nYou can create a settings.yaml file with 'pan-os-upgrade settings' command."
+            )
+
+        # Calculate border length based on the longer message
+        border_length = max(
+            len(welcome_message),
+            len(support_message),
+            max(len(line) for line in banner_message.split("\n")),
+            (
+                max(len(line) for line in config_message.split("\n"))
+                if config_message
+                else 0
+            ),
+            (
+                max(len(line) for line in inventory_message.split("\n"))
+                if inventory_message
+                else 0
+            ),
+        )
+        border = "=" * border_length
+
+        # ANSI escape codes for styling
+        color_start = "\033[1;33m"  # Bold Orange
+        color_end = "\033[0m"  # Reset
+
+        # Construct and print the banner
+        banner = f"{color_start}{border}\n{welcome_message}\n\n{support_message}\n\n{banner_message}"
+        # Only add config_message if it's not empty
+        if config_message:
+            banner += f"\n\n{config_message}"
+
+        # Only add config_message if it's not empty
+        if inventory_message:
+            banner += f"\n\n{inventory_message}"
+
+        banner += f"\n{border}{color_end}"
+
+        return banner
 
     @staticmethod
     def configure_logging(
@@ -273,6 +401,181 @@ class Utilities:
             sys.exit(0)
 
     @staticmethod
+    def ensure_directory_exists(file_path: str) -> None:
+        """
+        Ensures the existence of the directory path for a given file path, creating it if necessary.
+
+        This function is crucial for file operations, particularly when writing to files, as it guarantees that the directory path exists prior to file creation or modification. It parses the provided file path to isolate the directory path and, if this directory does not exist, it creates it along with any required intermediate directories. This proactive approach prevents errors related to non-existent directories during file operations.
+
+        Parameters
+        ----------
+        file_path : str
+            The complete file path for which the existence of the directory structure is to be ensured. The function identifies the directory path component of this file path and focuses on verifying and potentially creating it.
+
+        Raises
+        ------
+        OSError
+            In the event of a failure to create the directory due to insufficient permissions or other filesystem-related errors, an OSError is raised detailing the issue encountered.
+
+        Examples
+        --------
+        Creating a directory structure for a log file:
+            >>> ensure_directory_exists('/var/log/my_application/error.log')
+            # This will check and create '/var/log/my_application/' if it does not already exist, ensuring a valid path for 'error.log'.
+
+        Notes
+        -----
+        - Employs `os.makedirs` with `exist_ok=True`, which allows the directory to be created without raising an exception if it already exists, ensuring idempotency.
+        - Designed to be platform-independent, thereby functioning consistently across various operating systems and Python environments, enhancing the function's utility across diverse application scenarios.
+        """
+
+        directory = os.path.dirname(file_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+    @staticmethod
+    def find_close_matches(
+        available_versions: List[str],
+        target_version: str,
+        max_results: int = 5,
+    ) -> List[str]:
+        """
+        Identifies and returns a list of versions from the available options that are most similar to a target version.
+
+        This function assesses the similarity between a target version and a list of available versions based on their numerical and structural proximity. It employs a heuristic to quantify the difference between versions, taking into account major, minor, and maintenance version numbers, as well as any hotfix identifiers. The function is useful in scenarios where an exact version match is not found, and the closest alternatives need to be considered, such as software upgrades or compatibility checks.
+
+        Parameters
+        ----------
+        available_versions : List[str]
+            A list of version strings available for comparison, each in the format 'major.minor.maintenance' or 'major.minor.maintenance-hotfix'.
+        target_version : str
+            The version string that serves as the benchmark for finding close matches, following the same format as the available versions.
+        max_results : int, optional
+            The maximum number of close match results to return. Defaults to 5.
+
+        Returns
+        -------
+        List[str]
+            A list of the closest version strings to the target version, limited by max_results. The versions are sorted by their similarity to the target version, with the most similar version first.
+
+        Examples
+        --------
+        Finding close matches to a specific version:
+            >>> available_versions = ['10.0.0', '10.1.0', '10.1.1', '9.1.0', '10.1.1-hotfix']
+            >>> target_version = '10.1.0'
+            >>> find_close_matches(available_versions, target_version)
+            ['10.1.0', '10.1.1', '10.1.1-hotfix', '10.0.0', '9.1.0']
+
+        Notes
+        -----
+        - The function does not guarantee an exact match but provides the best alternatives based on the available options.
+        - The similarity heuristic is primarily based on numerical closeness, with structural elements like hotfix identifiers considered as secondary criteria.
+        - This function can be particularly useful in automated processes where decision-making relies on selecting the most appropriate version from a set of available options.
+        """
+
+        # Parse the target version
+        target_major, target_minor, target_maintenance, target_hotfix = (
+            Utilities.parse_version(target_version)
+        )
+
+        version_distances = []
+
+        for version in available_versions:
+            # Parse each available version
+            major, minor, maintenance, hotfix = Utilities.parse_version(version)
+
+            # Calculate a simple "distance" between versions, considering major, minor, maintenance, and hotfix components
+            distance = (
+                abs(target_major - major) * 1000
+                + abs(target_minor - minor) * 100
+                + abs(target_maintenance - maintenance) * 10
+                + abs(target_hotfix - hotfix)
+            )
+
+            version_distances.append((distance, version))
+
+        # Sort by distance, then by version number to get the closest matches
+        version_distances.sort(key=lambda x: (x[0], x[1]))
+
+        # Return up to max_results closest versions
+        return [version for _, version in version_distances[:max_results]]
+
+    @staticmethod
+    def flatten_xml_to_dict(element: ET.Element) -> dict:
+        """
+        Converts an XML ElementTree element into a nested dictionary, maintaining its hierarchical structure.
+
+        This function iterates over the provided XML ElementTree element, converting each element and its children into a nested dictionary format. Element tags serve as dictionary keys, and the element text content, if present, is assigned as the value. For elements with child elements, a new nested dictionary is created to represent the hierarchy. When an element tag is repeated within the same level, these elements are aggregated into a list under a single dictionary key, preserving the structure and multiplicity of the XML data.
+
+        Parameters
+        ----------
+        element : ET.Element
+            The root or any sub-element of an XML tree that is to be converted into a dictionary.
+
+        Returns
+        -------
+        dict
+            A dictionary representation of the input XML element, where each key corresponds to an element tag, and each value is either the text content of the element, a nested dictionary (for child elements), or a list of dictionaries (for repeated child elements).
+
+        Examples
+        --------
+        Converting a simple XML element:
+            >>> xml_string = '<status>active</status>'
+            >>> element = ET.fromstring(xml_string)
+            >>> flatten_xml_to_dict(element)
+            {'status': 'active'}
+
+        Converting an XML element with nested children:
+            >>> xml_string = '<configuration><item key="1">Value1</item><item key="2">Value2</item></configuration>'
+            >>> element = ET.fromstring(xml_string)
+            >>> flatten_xml_to_dict(element)
+            {'configuration': {'item': [{'key': '1', '_text': 'Value1'}, {'key': '2', '_text': 'Value2'}]}}
+
+        Notes
+        -----
+        - This function is designed to work with XML structures that are naturally representable as a nested dictionary. It may not be suitable for XML with complex attributes or mixed content.
+        - Attributes of XML elements are converted into dictionary keys with a leading underscore ('_') to differentiate them from child elements.
+        - If the XML structure includes elements with repeated tags at the same level, these are stored in a list under the same key to preserve the structure within the dictionary format.
+        - The function simplifies XML data handling by converting it into a more accessible and manipulable Python dictionary format.
+
+        Raises
+        ------
+        ValueError
+            If the XML structure includes elements that cannot be directly mapped to a dictionary format without ambiguity or loss of information, a ValueError is raised to indicate potential data integrity issues.
+        """
+
+        # Dictionary to hold the XML structure
+        result = {}
+
+        # Iterate through each child in the XML element
+        for child_element in element:
+            child_tag = child_element.tag
+
+            if child_element.text and len(child_element) == 0:
+                result[child_tag] = child_element.text
+            else:
+                if child_tag in result:
+                    if not isinstance(result.get(child_tag), list):
+                        result[child_tag] = [
+                            result.get(child_tag),
+                            Utilities.flatten_xml_to_dict(child_element),
+                        ]
+                    else:
+                        result[child_tag].append(
+                            Utilities.flatten_xml_to_dict(child_element)
+                        )
+                else:
+                    if child_tag == "entry":
+                        # Always assume entries are a list.
+                        result[child_tag] = [
+                            Utilities.flatten_xml_to_dict(child_element)
+                        ]
+                    else:
+                        result[child_tag] = Utilities.flatten_xml_to_dict(child_element)
+
+        return result
+
+    @staticmethod
     def get_emoji(action: str) -> str:
         """
         Maps specific action keywords to their corresponding emoji symbols for enhanced log and user interface messages.
@@ -321,47 +624,6 @@ class Utilities:
             "start": "🚀",
         }
         return emoji_map.get(action, "")
-
-    # @staticmethod
-    # def flatten_xml_to_dict(element: ET.Element) -> dict:
-    #     # Function implementation here
-
-    @staticmethod
-    def ensure_directory_exists(file_path: str) -> None:
-        """
-        Ensures the existence of the directory path for a given file path, creating it if necessary.
-
-        This function is crucial for file operations, particularly when writing to files, as it guarantees that the directory path exists prior to file creation or modification. It parses the provided file path to isolate the directory path and, if this directory does not exist, it creates it along with any required intermediate directories. This proactive approach prevents errors related to non-existent directories during file operations.
-
-        Parameters
-        ----------
-        file_path : str
-            The complete file path for which the existence of the directory structure is to be ensured. The function identifies the directory path component of this file path and focuses on verifying and potentially creating it.
-
-        Raises
-        ------
-        OSError
-            In the event of a failure to create the directory due to insufficient permissions or other filesystem-related errors, an OSError is raised detailing the issue encountered.
-
-        Examples
-        --------
-        Creating a directory structure for a log file:
-            >>> ensure_directory_exists('/var/log/my_application/error.log')
-            # This will check and create '/var/log/my_application/' if it does not already exist, ensuring a valid path for 'error.log'.
-
-        Notes
-        -----
-        - Employs `os.makedirs` with `exist_ok=True`, which allows the directory to be created without raising an exception if it already exists, ensuring idempotency.
-        - Designed to be platform-independent, thereby functioning consistently across various operating systems and Python environments, enhancing the function's utility across diverse application scenarios.
-        """
-
-        directory = os.path.dirname(file_path)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-    # @staticmethod
-    # def find_close_matches(available_versions: List[str], target_version: str, max_results: int = 5) -> List[str]:
-    #     # Function implementation here
 
     @staticmethod
     def parse_version(version: str) -> Tuple[int, int, int, int]:
@@ -449,6 +711,48 @@ class Utilities:
 
         return major, minor, maintenance, hotfix
 
-    # @staticmethod
-    # def resolve_hostname(hostname: str) -> bool:
-    #     # Function implementation here
+    @staticmethod
+    def resolve_hostname(hostname: str) -> bool:
+        """
+        Verifies if a given hostname can be resolved to an IP address using DNS lookup.
+
+        This function is crucial for network-related operations, as it checks the resolvability of a hostname. It performs a DNS query to determine if the hostname can be translated into an IP address, thereby validating its presence on the network. A successful DNS resolution implies the hostname is active and reachable, while a failure might indicate an issue with the hostname itself, DNS configuration, or broader network problems.
+
+        Parameters
+        ----------
+        hostname : str
+            The hostname to be resolved, such as 'example.com', to verify network reachability and DNS configuration.
+
+        Returns
+        -------
+        bool
+            Returns True if the DNS resolution is successful, indicating the hostname is valid and reachable. Returns False if the resolution fails, suggesting potential issues with the hostname, DNS setup, or network connectivity.
+
+        Example
+        -------
+        Validating hostname resolution:
+            >>> resolve_hostname('google.com')
+            True  # This would indicate that 'google.com' is successfully resolved, suggesting it is reachable.
+
+            >>> resolve_hostname('invalid.hostname')
+            False  # This would indicate a failure in resolving 'invalid.hostname', pointing to potential DNS or network issues.
+
+        Notes
+        -----
+        - This function is intended as a preliminary network connectivity check before attempting further network operations.
+        - It encapsulates exception handling for DNS resolution errors, logging them for diagnostic purposes while providing a simple boolean outcome to the caller.
+
+        The function's behavior and return values are not affected by external configurations or settings, hence no mention of `settings.yaml` file override capability is included.
+        """
+
+        try:
+            dns.resolver.resolve(hostname)
+            return True
+        except (
+            dns.resolver.NoAnswer,
+            dns.resolver.NXDOMAIN,
+            dns.exception.Timeout,
+        ) as err:
+            # Optionally log or handle err here if needed
+            logging.debug(f"Hostname resolution failed: {err}")
+            return False
