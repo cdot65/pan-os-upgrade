@@ -79,11 +79,9 @@ import logging
 import os
 import sys
 import time
-import re
 import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.client import RemoteDisconnected
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -402,7 +400,7 @@ def backup_configuration(
         config_xml = target_device.op("show config running")
         if config_xml is None:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Failed to retrieve running configuration."
+                f"{Utilities.get_emoji('error')} {hostname}: Failed to retrieve running configuration."
             )
             return False
 
@@ -413,7 +411,7 @@ def backup_configuration(
             or config_xml[0].tag != "result"
         ):
             logging.error(
-                f"{get_emoji('error')} {hostname}: Unexpected XML structure in configuration data."
+                f"{Utilities.get_emoji('error')} {hostname}: Unexpected XML structure in configuration data."
             )
             return False
 
@@ -431,105 +429,15 @@ def backup_configuration(
             file.write(config_str)
 
         logging.debug(
-            f"{get_emoji('save')} {hostname}: Configuration backed up successfully to {file_path}"
+            f"{Utilities.get_emoji('save')} {hostname}: Configuration backed up successfully to {file_path}"
         )
         return True
 
     except Exception as e:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Error backing up configuration: {e}"
+            f"{Utilities.get_emoji('error')} {hostname}: Error backing up configuration: {e}"
         )
         return False
-
-
-def determine_upgrade(
-    target_device: Union[Firewall, Panorama],
-    hostname: str,
-    target_major: int,
-    target_minor: int,
-    target_maintenance: Union[int, str],
-) -> None:
-    """
-    Evaluates if an upgrade is necessary for the specified device to reach the desired PAN-OS version.
-
-    This function assesses the current PAN-OS version of the target device against the specified target version. If the
-    current version is older than the target version, it indicates that an upgrade is required. Conversely, if the current
-    version is the same as or more recent than the target version, the function logs that no upgrade is needed, and it
-    terminates the script to prevent unnecessary operations. This evaluation helps in maintaining the device's firmware
-    up-to-date or avoiding inadvertent downgrades.
-
-    Parameters
-    ----------
-    target_device : Union[Firewall, Panorama]
-        The device (Firewall or Panorama) to be evaluated for an upgrade. This must be an initialized instance with
-        connectivity to the device.
-    hostname : str
-        The hostname or IP address of the target device. It is used for logging purposes to clearly identify the device
-        in log messages.
-    target_major : int
-        The major version component of the desired PAN-OS version (e.g., '10' in PAN-OS 10.0.0).
-    target_minor : int
-        The minor version component of the desired PAN-OS version (e.g., '0' in PAN-OS 10.0.0).
-    target_maintenance : Union[int, str]
-        The maintenance or hotfix version component of the desired PAN-OS version. It can be an integer for standard
-        maintenance releases or a string for hotfixes (e.g., '1-h1' in PAN-OS 10.0.1-h1).
-
-    Raises
-    ------
-    SystemExit
-        If the function determines that an upgrade is not required or if a downgrade is attempted, it will log the
-        appropriate message and terminate the script to prevent further execution.
-
-    Examples
-    --------
-    Checking if a firewall requires an upgrade to PAN-OS 9.1.0:
-        >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='adminpassword')
-        >>> determine_upgrade(firewall, '192.168.1.1', 9, 1, 0)
-        # Logs the current version and whether an upgrade to 9.1.0 is necessary.
-
-    Checking if a Panorama appliance requires an upgrade to PAN-OS 10.0.1-h1:
-        >>> panorama = Panorama(hostname='panorama.example.com', api_username='admin', api_password='adminpassword')
-        >>> determine_upgrade(panorama, 'panorama.example.com', 10, 0, '1-h1')
-        # Logs the current version and whether an upgrade to 10.0.1-h1 is necessary.
-
-    Notes
-    -----
-    - The current and target versions are parsed and compared in a structured manner to accurately determine the need for
-      an upgrade.
-    - This function is crucial for maintaining device firmware integrity by ensuring that only necessary upgrades are
-      performed and that downgrades are avoided.
-    - The decision to halt the script upon determining that no upgrade is required or a downgrade is attempted is a
-      safeguard against unintended firmware changes that could affect device stability and security.
-    """
-
-    current_version = parse_version(target_device.version)
-
-    if isinstance(target_maintenance, int):
-        # Handling integer maintenance version separately
-        target_version = (target_major, target_minor, target_maintenance, 0)
-    else:
-        # Handling string maintenance version with hotfix
-        target_version = parse_version(
-            f"{target_major}.{target_minor}.{target_maintenance}"
-        )
-
-    logging.info(
-        f"{get_emoji('report')} {hostname}: Current version: {target_device.version}"
-    )
-    logging.info(
-        f"{get_emoji('report')} {hostname}: Target version: {target_major}.{target_minor}.{target_maintenance}"
-    )
-
-    if current_version < target_version:
-        logging.info(
-            f"{get_emoji('success')} {hostname}: Upgrade required from {target_device.version} to {target_major}.{target_minor}.{target_maintenance}"
-        )
-    else:
-        logging.info(
-            f"{get_emoji('skipped')} {hostname}: No upgrade required or downgrade attempt detected."
-        )
-        logging.info(f"{get_emoji('skipped')} {hostname}: Halting upgrade.")
-        sys.exit(0)
 
 
 def get_ha_status(
@@ -577,17 +485,17 @@ def get_ha_status(
     """
 
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Getting {target_device.serial} deployment information."
+        f"{Utilities.get_emoji('start')} {hostname}: Getting {target_device.serial} deployment information."
     )
     deployment_type = target_device.show_highavailability_state()
     logging.debug(
-        f"{get_emoji('report')} {hostname}: Target device deployment: {deployment_type[0]}"
+        f"{Utilities.get_emoji('report')} {hostname}: Target device deployment: {deployment_type[0]}"
     )
 
     if deployment_type[1]:
         ha_details = flatten_xml_to_dict(deployment_type[1])
         logging.debug(
-            f"{get_emoji('report')} {hostname}: Target device deployment details: {ha_details}"
+            f"{Utilities.get_emoji('report')} {hostname}: Target device deployment details: {ha_details}"
         )
         return deployment_type[0], ha_details
     else:
@@ -653,15 +561,19 @@ def handle_firewall_ha(
     if not ha_details:
         return True, None
 
-    logging.debug(f"{get_emoji('report')} {hostname}: Deployment info: {deploy_info}")
-    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: Deployment info: {deploy_info}"
+    )
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: HA details: {ha_details}"
+    )
 
     local_state = ha_details["result"]["group"]["local-info"]["state"]
     local_version = ha_details["result"]["group"]["local-info"]["build-rel"]
     peer_version = ha_details["result"]["group"]["peer-info"]["build-rel"]
 
     logging.info(
-        f"{get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
+        f"{Utilities.get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
     )
 
     # Check if the firewall is in the revisit list
@@ -674,9 +586,9 @@ def handle_firewall_ha(
         retry_interval = 60
 
         # Override if settings.yaml exists and contains these settings
-        if settings_file_path.exists():
-            max_retries = settings_file.get("ha_sync.max_tries", max_retries)
-            retry_interval = settings_file.get("ha_sync.retry_interval", retry_interval)
+        if SETTINGS_FILE_PATH.exists():
+            max_retries = SETTINGS_FILE.get("ha_sync.max_tries", max_retries)
+            retry_interval = SETTINGS_FILE.get("ha_sync.retry_interval", retry_interval)
 
         for attempt in range(max_retries):
             logging.info(
@@ -700,9 +612,9 @@ def handle_firewall_ha(
                     f"HA synchronization still in progress on {hostname}. Rechecking after wait period."
                 )
 
-    version_comparison = compare_versions(local_version, peer_version)
+    version_comparison = Utilities.compare_versions(local_version, peer_version)
     logging.info(
-        f"{get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
+        f"{Utilities.get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
     )
 
     # If the active and passive target devices are running the same version
@@ -712,32 +624,32 @@ def handle_firewall_ha(
             with target_devices_to_revisit_lock:
                 target_devices_to_revisit.append(target_device)
             logging.info(
-                f"{get_emoji('search')} {hostname}: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list."
+                f"{Utilities.get_emoji('search')} {hostname}: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list."
             )
             return False, None
 
         elif local_state == "passive":
             # Continue with upgrade process on the passive target device
             logging.info(
-                f"{get_emoji('report')} {hostname}: Target device is passive",
+                f"{Utilities.get_emoji('report')} {hostname}: Target device is passive",
             )
             return True, None
 
         elif local_state == "initial":
             # Continue with upgrade process on the initial target device
             logging.info(
-                f"{get_emoji('warning')} {hostname}: Target device is in initial HA state",
+                f"{Utilities.get_emoji('warning')} {hostname}: Target device is in initial HA state",
             )
             return True, None
 
     elif version_comparison == "older":
         logging.info(
-            f"{get_emoji('report')} {hostname}: Target device is on an older version"
+            f"{Utilities.get_emoji('report')} {hostname}: Target device is on an older version"
         )
         # Suspend HA state of active if the passive is on a later release
         if local_state == "active" and not dry_run:
             logging.info(
-                f"{get_emoji('report')} {hostname}: Suspending HA state of active"
+                f"{Utilities.get_emoji('report')} {hostname}: Suspending HA state of active"
             )
             suspend_ha_active(
                 target_device,
@@ -747,12 +659,12 @@ def handle_firewall_ha(
 
     elif version_comparison == "newer":
         logging.info(
-            f"{get_emoji('report')} {hostname}: Target device is on a newer version"
+            f"{Utilities.get_emoji('report')} {hostname}: Target device is on a newer version"
         )
         # Suspend HA state of passive if the active is on a later release
         if local_state == "passive" and not dry_run:
             logging.info(
-                f"{get_emoji('report')} {hostname}: Suspending HA state of passive"
+                f"{Utilities.get_emoji('report')} {hostname}: Suspending HA state of passive"
             )
             suspend_ha_passive(
                 target_device,
@@ -822,8 +734,12 @@ def handle_panorama_ha(
     if not ha_details:
         return True, None
 
-    logging.debug(f"{get_emoji('report')} {hostname}: Deployment info: {deploy_info}")
-    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: Deployment info: {deploy_info}"
+    )
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: HA details: {ha_details}"
+    )
 
     local_state = ha_details["result"]["local-info"]["state"]
     local_version = ha_details["result"]["local-info"]["build-rel"]
@@ -831,7 +747,7 @@ def handle_panorama_ha(
     peer_version = ha_details["result"]["peer-info"]["build-rel"]
 
     logging.info(
-        f"{get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
+        f"{Utilities.get_emoji('report')} {hostname}: Local state: {local_state}, Local version: {local_version}, Peer version: {peer_version}"
     )
 
     # Check if the firewall is in the revisit list
@@ -844,9 +760,9 @@ def handle_panorama_ha(
         retry_interval = 60
 
         # Override if settings.yaml exists and contains these settings
-        if settings_file_path.exists():
-            max_retries = settings_file.get("ha_sync.max_tries", max_retries)
-            retry_interval = settings_file.get("ha_sync.retry_interval", retry_interval)
+        if SETTINGS_FILE_PATH.exists():
+            max_retries = SETTINGS_FILE.get("ha_sync.max_tries", max_retries)
+            retry_interval = SETTINGS_FILE.get("ha_sync.retry_interval", retry_interval)
 
         for attempt in range(max_retries):
             logging.info(
@@ -870,9 +786,9 @@ def handle_panorama_ha(
                     f"HA synchronization still in progress on {hostname}. Rechecking after wait period."
                 )
 
-    version_comparison = compare_versions(local_version, peer_version)
+    version_comparison = Utilities.compare_versions(local_version, peer_version)
     logging.info(
-        f"{get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
+        f"{Utilities.get_emoji('report')} {hostname}: Version comparison: {version_comparison}"
     )
 
     # If the active and passive target devices are running the same version
@@ -882,14 +798,14 @@ def handle_panorama_ha(
             with target_devices_to_revisit_lock:
                 target_devices_to_revisit.append(target_device)
             logging.info(
-                f"{get_emoji('search')} {hostname}: Detected primary-active target device in HA pair running the same version as its peer. Added target device to revisit list."
+                f"{Utilities.get_emoji('search')} {hostname}: Detected primary-active target device in HA pair running the same version as its peer. Added target device to revisit list."
             )
             return False, None
 
         elif local_state == "secondary-passive":
             # Continue with upgrade process on the secondary-passive target device
             logging.info(
-                f"{get_emoji('report')} {hostname}: Target device is secondary-passive",
+                f"{Utilities.get_emoji('report')} {hostname}: Target device is secondary-passive",
             )
             return True, None
 
@@ -899,18 +815,18 @@ def handle_panorama_ha(
         ):
             # Continue with upgrade process on the secondary-suspended or secondary-non-functional target device
             logging.info(
-                f"{get_emoji('warning')} {hostname}: Target device is {local_state}",
+                f"{Utilities.get_emoji('warning')} {hostname}: Target device is {local_state}",
             )
             return True, None
 
     elif version_comparison == "older":
         logging.info(
-            f"{get_emoji('report')} {hostname}: Target device is on an older version"
+            f"{Utilities.get_emoji('report')} {hostname}: Target device is on an older version"
         )
         # Suspend HA state of active if the primary-active is on a later release
         if local_state == "primary-active" and not dry_run:
             logging.info(
-                f"{get_emoji('report')} {hostname}: Suspending HA state of primary-active"
+                f"{Utilities.get_emoji('report')} {hostname}: Suspending HA state of primary-active"
             )
             suspend_ha_active(
                 target_device,
@@ -920,12 +836,12 @@ def handle_panorama_ha(
 
     elif version_comparison == "newer":
         logging.info(
-            f"{get_emoji('report')} {hostname}: Target device is on a newer version"
+            f"{Utilities.get_emoji('report')} {hostname}: Target device is on a newer version"
         )
         # Suspend HA state of secondary-passive if the primary-active is on a later release
         if local_state == "primary-active" and not dry_run:
             logging.info(
-                f"{get_emoji('report')} {hostname}: Suspending HA state of primary-active"
+                f"{Utilities.get_emoji('report')} {hostname}: Suspending HA state of primary-active"
             )
             suspend_ha_passive(
                 target_device,
@@ -990,22 +906,24 @@ def ha_sync_check_firewall(
       between HA peers may not be as critical.
     """
 
-    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
+    logging.info(
+        f"{Utilities.get_emoji('start')} {hostname}: Checking if HA peer is in sync."
+    )
     if ha_details and ha_details["result"]["group"]["running-sync"] == "synchronized":
         logging.info(
-            f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
+            f"{Utilities.get_emoji('success')} {hostname}: HA peer sync test has been completed."
         )
         return True
     else:
         if strict_sync_check:
             logging.error(
-                f"{get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
+                f"{Utilities.get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
             )
-            logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
+            logging.error(f"{Utilities.get_emoji('stop')} {hostname}: Halting script.")
             sys.exit(1)
         else:
             logging.warning(
-                f"{get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
+                f"{Utilities.get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
             )
             return False
 
@@ -1064,22 +982,24 @@ def ha_sync_check_panorama(
       between HA peers may not be as critical.
     """
 
-    logging.info(f"{get_emoji('start')} {hostname}: Checking if HA peer is in sync.")
+    logging.info(
+        f"{Utilities.get_emoji('start')} {hostname}: Checking if HA peer is in sync."
+    )
     if ha_details and ha_details["result"]["running-sync"] == "synchronized":
         logging.info(
-            f"{get_emoji('success')} {hostname}: HA peer sync test has been completed."
+            f"{Utilities.get_emoji('success')} {hostname}: HA peer sync test has been completed."
         )
         return True
     else:
         if strict_sync_check:
             logging.error(
-                f"{get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
+                f"{Utilities.get_emoji('error')} {hostname}: HA peer state is not in sync, please try again."
             )
-            logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
+            logging.error(f"{Utilities.get_emoji('stop')} {hostname}: Halting script.")
             sys.exit(1)
         else:
             logging.warning(
-                f"{get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
+                f"{Utilities.get_emoji('warning')} {hostname}: HA peer state is not in sync. This will be noted, but the script will continue."
             )
             return False
 
@@ -1139,14 +1059,14 @@ def perform_readiness_checks(
     """
 
     # Load settings if the file exists
-    if settings_file_path.exists():
-        with open(settings_file_path, "r") as file:
+    if SETTINGS_FILE_PATH.exists():
+        with open(SETTINGS_FILE_PATH, "r") as file:
             settings = yaml.safe_load(file)
 
         # Check if readiness checks are disabled in the settings
         if settings.get("readiness_checks", {}).get("disabled", False):
             logging.info(
-                f"{get_emoji('skipped')} {hostname}: Readiness checks are disabled in the settings. Skipping readiness checks for {hostname}."
+                f"{Utilities.get_emoji('skipped')} {hostname}: Readiness checks are disabled in the settings. Skipping readiness checks for {hostname}."
             )
             # Early return, no readiness checks performed
             return
@@ -1177,7 +1097,7 @@ def perform_readiness_checks(
         ]
 
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing readiness checks of target firewall."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing readiness checks of target firewall."
     )
 
     readiness_check = run_assurance(
@@ -1190,10 +1110,12 @@ def perform_readiness_checks(
 
     # Check if a readiness check was successfully created
     if isinstance(readiness_check, ReadinessCheckReport):
-        logging.info(f"{get_emoji('success')} {hostname}: Readiness Checks completed")
+        logging.info(
+            f"{Utilities.get_emoji('success')} {hostname}: Readiness Checks completed"
+        )
         readiness_check_report_json = readiness_check.model_dump_json(indent=4)
         logging.debug(
-            f"{get_emoji('save')} {hostname}: Readiness Check Report: {readiness_check_report_json}"
+            f"{Utilities.get_emoji('save')} {hostname}: Readiness Check Report: {readiness_check_report_json}"
         )
 
         Utilities.ensure_directory_exists(file_path)
@@ -1202,11 +1124,11 @@ def perform_readiness_checks(
             file.write(readiness_check_report_json)
 
         logging.debug(
-            f"{get_emoji('save')} {hostname}: Readiness checks completed for {hostname}, saved to {file_path}"
+            f"{Utilities.get_emoji('save')} {hostname}: Readiness checks completed for {hostname}, saved to {file_path}"
         )
     else:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Failed to create readiness check"
+            f"{Utilities.get_emoji('error')} {hostname}: Failed to create readiness check"
         )
 
 
@@ -1270,11 +1192,13 @@ def perform_reboot(
     retry_interval = 60
 
     # Override if settings.yaml exists and contains these settings
-    if settings_file_path.exists():
-        max_retries = settings_file.get("reboot.max_tries", max_retries)
-        retry_interval = settings_file.get("reboot.retry_interval", retry_interval)
+    if SETTINGS_FILE_PATH.exists():
+        max_retries = SETTINGS_FILE.get("reboot.max_tries", max_retries)
+        retry_interval = SETTINGS_FILE.get("reboot.retry_interval", retry_interval)
 
-    logging.info(f"{get_emoji('start')} {hostname}: Rebooting the target device.")
+    logging.info(
+        f"{Utilities.get_emoji('start')} {hostname}: Rebooting the target device."
+    )
 
     # Initiate reboot
     reboot_job = target_device.op(
@@ -1282,7 +1206,9 @@ def perform_reboot(
         cmd_xml=False,
     )
     reboot_job_result = flatten_xml_to_dict(reboot_job)
-    logging.info(f"{get_emoji('report')} {hostname}: {reboot_job_result['result']}")
+    logging.info(
+        f"{Utilities.get_emoji('report')} {hostname}: {reboot_job_result['result']}"
+    )
 
     # Wait for the target device reboot process to initiate before checking status
     time.sleep(initial_sleep_duration)
@@ -1293,18 +1219,18 @@ def perform_reboot(
             target_device.refresh_system_info()
             current_version = target_device.version
             logging.info(
-                f"{get_emoji('report')} {hostname}: Current device version: {current_version}"
+                f"{Utilities.get_emoji('report')} {hostname}: Current device version: {current_version}"
             )
 
             # Check if the device has rebooted to the target version
             if current_version == target_version:
                 logging.info(
-                    f"{get_emoji('success')} {hostname}: Device rebooted to the target version successfully."
+                    f"{Utilities.get_emoji('success')} {hostname}: Device rebooted to the target version successfully."
                 )
                 rebooted = True
             else:
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Device rebooted but not to the target version."
+                    f"{Utilities.get_emoji('error')} {hostname}: Device rebooted but not to the target version."
                 )
                 sys.exit(1)
 
@@ -1315,14 +1241,14 @@ def perform_reboot(
             RemoteDisconnected,
         ) as e:
             logging.warning(
-                f"{get_emoji('warning')} {hostname}: Retry attempt {attempt + 1} due to error: {e}"
+                f"{Utilities.get_emoji('warning')} {hostname}: Retry attempt {attempt + 1} due to error: {e}"
             )
             attempt += 1
             time.sleep(retry_interval)
 
     if not rebooted:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Failed to reboot to the target version after {max_retries} attempts."
+            f"{Utilities.get_emoji('error')} {hostname}: Failed to reboot to the target version after {max_retries} attempts."
         )
         sys.exit(1)
 
@@ -1391,14 +1317,14 @@ def perform_snapshot(
     """
 
     # Load settings if the file exists
-    if settings_file_path.exists():
-        with open(settings_file_path, "r") as file:
+    if SETTINGS_FILE_PATH.exists():
+        with open(SETTINGS_FILE_PATH, "r") as file:
             settings = yaml.safe_load(file)
 
         # Check if snapshots are disabled in the settings
         if settings.get("snapshots", {}).get("disabled", False):
             logging.info(
-                f"{get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
+                f"{Utilities.get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
             )
             return None  # Early return, no snapshot performed
         # Override default values with settings if snapshots are not disabled
@@ -1410,7 +1336,7 @@ def perform_snapshot(
         retry_interval = 60
 
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing snapshot of network state information."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing snapshot of network state information."
     )
     attempt = 0
     snapshot = None
@@ -1418,7 +1344,7 @@ def perform_snapshot(
     while attempt < max_retries and snapshot is None:
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Attempting to capture network state snapshot (Attempt {attempt + 1} of {max_retries})."
+                f"{Utilities.get_emoji('start')} {hostname}: Attempting to capture network state snapshot (Attempt {attempt + 1} of {max_retries})."
             )
 
             # Take snapshots
@@ -1432,7 +1358,7 @@ def perform_snapshot(
 
             if snapshot is not None and isinstance(snapshot, SnapshotReport):
                 logging.info(
-                    f"{get_emoji('success')} {hostname}: Network snapshot created successfully on attempt {attempt + 1}."
+                    f"{Utilities.get_emoji('success')} {hostname}: Network snapshot created successfully on attempt {attempt + 1}."
                 )
 
                 # Save the snapshot to the specified file path as JSON
@@ -1441,7 +1367,7 @@ def perform_snapshot(
                     file.write(snapshot.model_dump_json(indent=4))
 
                 logging.info(
-                    f"{get_emoji('save')} {hostname}: Network state snapshot collected and saved to {file_path}"
+                    f"{Utilities.get_emoji('save')} {hostname}: Network state snapshot collected and saved to {file_path}"
                 )
 
                 return snapshot
@@ -1449,14 +1375,14 @@ def perform_snapshot(
         # Catch specific and general exceptions
         except (AttributeError, IOError, Exception) as error:
             logging.warning(
-                f"{get_emoji('warning')} {hostname}: Snapshot attempt failed with error: {error}. Retrying after {retry_interval} seconds."
+                f"{Utilities.get_emoji('warning')} {hostname}: Snapshot attempt failed with error: {error}. Retrying after {retry_interval} seconds."
             )
             time.sleep(retry_interval)
             attempt += 1
 
     if snapshot is None:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Failed to create snapshot after {max_retries} attempts."
+            f"{Utilities.get_emoji('error')} {hostname}: Failed to create snapshot after {max_retries} attempts."
         )
 
 
@@ -1526,55 +1452,57 @@ def perform_upgrade(
     retry_interval = 60
 
     # Override if settings.yaml exists and contains these settings
-    if settings_file_path.exists():
-        max_retries = settings_file.get("install.max_tries", max_retries)
-        retry_interval = settings_file.get("install.retry_interval", retry_interval)
+    if SETTINGS_FILE_PATH.exists():
+        max_retries = SETTINGS_FILE.get("install.max_tries", max_retries)
+        retry_interval = SETTINGS_FILE.get("install.retry_interval", retry_interval)
 
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing upgrade to version {target_version}.\n"
-        f"{get_emoji('report')} {hostname}: The install will take several minutes, check for status details within the GUI."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing upgrade to version {target_version}.\n"
+        f"{Utilities.get_emoji('report')} {hostname}: The install will take several minutes, check for status details within the GUI."
     )
 
     attempt = 0
     while attempt < max_retries:
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Attempting upgrade to version {target_version} (Attempt {attempt + 1} of {max_retries})."
+                f"{Utilities.get_emoji('start')} {hostname}: Attempting upgrade to version {target_version} (Attempt {attempt + 1} of {max_retries})."
             )
             install_job = target_device.software.install(target_version, sync=True)
 
             if install_job["success"]:
                 logging.info(
-                    f"{get_emoji('success')} {hostname}: Upgrade completed successfully"
+                    f"{Utilities.get_emoji('success')} {hostname}: Upgrade completed successfully"
                 )
                 logging.debug(
-                    f"{get_emoji('report')} {hostname}: Install Job {install_job}"
+                    f"{Utilities.get_emoji('report')} {hostname}: Install Job {install_job}"
                 )
                 break  # Exit loop on successful upgrade
             else:
-                logging.error(f"{get_emoji('error')} {hostname}: Upgrade job failed.")
+                logging.error(
+                    f"{Utilities.get_emoji('error')} {hostname}: Upgrade job failed."
+                )
                 attempt += 1
                 if attempt < max_retries:
                     logging.info(
-                        f"{get_emoji('warning')} {hostname}: Retrying in {retry_interval} seconds."
+                        f"{Utilities.get_emoji('warning')} {hostname}: Retrying in {retry_interval} seconds."
                     )
                     time.sleep(retry_interval)
 
         except PanDeviceError as upgrade_error:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Upgrade error: {upgrade_error}"
+                f"{Utilities.get_emoji('error')} {hostname}: Upgrade error: {upgrade_error}"
             )
             error_message = str(upgrade_error)
             if "software manager is currently in use" in error_message:
                 attempt += 1
                 if attempt < max_retries:
                     logging.info(
-                        f"{get_emoji('warning')} {hostname}: Software manager is busy. Retrying in {retry_interval} seconds."
+                        f"{Utilities.get_emoji('warning')} {hostname}: Software manager is busy. Retrying in {retry_interval} seconds."
                     )
                     time.sleep(retry_interval)
             else:
                 logging.error(
-                    f"{get_emoji('stop')} {hostname}: Critical error during upgrade. Halting script."
+                    f"{Utilities.get_emoji('stop')} {hostname}: Critical error during upgrade. Halting script."
                 )
                 sys.exit(1)
 
@@ -1638,7 +1566,7 @@ def run_assurance(
     - This function is designed for extensibility, allowing new operation types and associated actions to be added as
       operational needs evolve.
     - Some operational parameters can be dynamically adjusted by providing a 'settings.yaml' file if the function
-      utilizes a 'settings_file_path' to load these settings, offering greater control and customization of the operations.
+      utilizes a 'SETTINGS_FILE_PATH' to load these settings, offering greater control and customization of the operations.
     """
 
     # setup Firewall client
@@ -1651,14 +1579,14 @@ def run_assurance(
         for action in actions:
             if action not in AssuranceOptions.READINESS_CHECKS.keys():
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Invalid action for readiness check: {action}"
+                    f"{Utilities.get_emoji('error')} {hostname}: Invalid action for readiness check: {action}"
                 )
 
                 sys.exit(1)
 
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Performing readiness checks to determine if firewall is ready for upgrade."
+                f"{Utilities.get_emoji('start')} {hostname}: Performing readiness checks to determine if firewall is ready for upgrade."
             )
             result = checks_firewall.run_readiness_checks(actions)
 
@@ -1672,7 +1600,7 @@ def run_assurance(
 
         except Exception as e:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Error running readiness checks: {e}"
+                f"{Utilities.get_emoji('error')} {hostname}: Error running readiness checks: {e}"
             )
 
             return None
@@ -1682,16 +1610,18 @@ def run_assurance(
         for action in actions:
             if action not in AssuranceOptions.STATE_SNAPSHOTS.keys():
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Invalid action for state snapshot: {action}"
+                    f"{Utilities.get_emoji('error')} {hostname}: Invalid action for state snapshot: {action}"
                 )
                 return
 
         # take snapshots
         try:
-            logging.debug(f"{get_emoji('start')} {hostname}: Performing snapshots.")
+            logging.debug(
+                f"{Utilities.get_emoji('start')} {hostname}: Performing snapshots."
+            )
             results = checks_firewall.run_snapshots(snapshots_config=actions)
             logging.debug(
-                f"{get_emoji('report')} {hostname}: Snapshot results {results}"
+                f"{Utilities.get_emoji('report')} {hostname}: Snapshot results {results}"
             )
 
             if results:
@@ -1702,7 +1632,8 @@ def run_assurance(
 
         except Exception as e:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Error running snapshots: %s", e
+                f"{Utilities.get_emoji('error')} {hostname}: Error running snapshots: %s",
+                e,
             )
             return
 
@@ -1710,17 +1641,17 @@ def run_assurance(
         for action in actions:
             if action not in AssuranceOptions.REPORTS.keys():
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Invalid action for report: {action}"
+                    f"{Utilities.get_emoji('error')} {hostname}: Invalid action for report: {action}"
                 )
                 return
             logging.info(
-                f"{get_emoji('report')} {hostname}: Generating report: {action}"
+                f"{Utilities.get_emoji('report')} {hostname}: Generating report: {action}"
             )
             # result = getattr(Report(firewall), action)(**config)
 
     else:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Invalid operation type: {operation_type}"
+            f"{Utilities.get_emoji('error')} {hostname}: Invalid operation type: {operation_type}"
         )
         return
 
@@ -1783,12 +1714,12 @@ def software_download(
     - The function checks the device's current software inventory to avoid unnecessary downloads.
     - It supports devices configured in High Availability (HA) pairs by considering HA synchronization during the download.
     - Continuous feedback is provided through logging, with updates on the download status every 30 seconds, enhancing visibility into the process.
-    - The retry logic and intervals for monitoring the download progress can be customized in the `settings.yaml` file if `settings_file_path` is utilized within the function, allowing for tailored behavior based on specific operational environments.
+    - The retry logic and intervals for monitoring the download progress can be customized in the `settings.yaml` file if `SETTINGS_FILE_PATH` is utilized within the function, allowing for tailored behavior based on specific operational environments.
     """
 
     if target_device.software.versions[target_version]["downloaded"]:
         logging.info(
-            f"{get_emoji('success')} {hostname}: version {target_version} already on target device."
+            f"{Utilities.get_emoji('success')} {hostname}: version {target_version} already on target device."
         )
         return True
 
@@ -1798,19 +1729,19 @@ def software_download(
         != "downloading"
     ):
         logging.info(
-            f"{get_emoji('search')} {hostname}: version {target_version} is not on the target device"
+            f"{Utilities.get_emoji('search')} {hostname}: version {target_version} is not on the target device"
         )
 
         start_time = time.time()
 
         try:
             logging.info(
-                f"{get_emoji('start')} {hostname}: version {target_version} is beginning download"
+                f"{Utilities.get_emoji('start')} {hostname}: version {target_version} is beginning download"
             )
             target_device.software.download(target_version)
         except PanDeviceXapiError as download_error:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Download Error {download_error}"
+                f"{Utilities.get_emoji('error')} {hostname}: Download Error {download_error}"
             )
 
             sys.exit(1)
@@ -1822,7 +1753,7 @@ def software_download(
 
             if dl_status is True:
                 logging.info(
-                    f"{get_emoji('success')} {hostname}: {target_version} downloaded in {elapsed_time} seconds",
+                    f"{Utilities.get_emoji('success')} {hostname}: {target_version} downloaded in {elapsed_time} seconds",
                 )
                 return True
             elif dl_status in (False, "downloading"):
@@ -1834,15 +1765,15 @@ def software_download(
                 )
                 if ha_details:
                     logging.info(
-                        f"{get_emoji('working')} {hostname}: Downloading version {target_version} - HA will sync image - Elapsed time: {elapsed_time} seconds"
+                        f"{Utilities.get_emoji('working')} {hostname}: Downloading version {target_version} - HA will sync image - Elapsed time: {elapsed_time} seconds"
                     )
                 else:
                     logging.info(
-                        f"{get_emoji('working')} {hostname}: {status_msg} - Elapsed time: {elapsed_time} seconds"
+                        f"{Utilities.get_emoji('working')} {hostname}: {status_msg} - Elapsed time: {elapsed_time} seconds"
                     )
             else:
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Download failed after {elapsed_time} seconds"
+                    f"{Utilities.get_emoji('error')} {hostname}: Download failed after {elapsed_time} seconds"
                 )
                 return False
 
@@ -1850,7 +1781,7 @@ def software_download(
 
     else:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Error downloading {target_version}."
+            f"{Utilities.get_emoji('error')} {hostname}: Error downloading {target_version}."
         )
 
         sys.exit(1)
@@ -1912,12 +1843,12 @@ def software_update_check(
 
     # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
     logging.debug(
-        f"{get_emoji('working')} {hostname}: Refreshing running system information"
+        f"{Utilities.get_emoji('working')} {hostname}: Refreshing running system information"
     )
     target_device.refresh_system_info()
 
     # check to see if the specified version is older than the current version
-    determine_upgrade(
+    Utilities.determine_upgrade(
         target_device,
         hostname,
         major,
@@ -1927,29 +1858,29 @@ def software_update_check(
 
     # retrieve available versions of PAN-OS
     logging.info(
-        f"{get_emoji('working')} {hostname}: Refreshing list of available software versions"
+        f"{Utilities.get_emoji('working')} {hostname}: Refreshing list of available software versions"
     )
     target_device.software.check()
     available_versions = target_device.software.versions
 
     if version in available_versions:
-        retry_count = settings_file.get("download.max_tries", 3)
-        wait_time = settings_file.get("download.retry_interval", 60)
+        retry_count = SETTINGS_FILE.get("download.max_tries", 3)
+        wait_time = SETTINGS_FILE.get("download.retry_interval", 60)
 
         logging.info(
-            f"{get_emoji('success')} {hostname}: version {version} is available for download"
+            f"{Utilities.get_emoji('success')} {hostname}: version {version} is available for download"
         )
 
         base_version_key = f"{major}.{minor}.0"
         if available_versions.get(base_version_key, {}).get("downloaded"):
             logging.info(
-                f"{get_emoji('success')} {hostname}: Base image for {version} is already downloaded"
+                f"{Utilities.get_emoji('success')} {hostname}: Base image for {version} is already downloaded"
             )
             return True
         else:
             for attempt in range(retry_count):
                 logging.error(
-                    f"{get_emoji('error')} {hostname}: Base image for {version} is not downloaded. Attempting download."
+                    f"{Utilities.get_emoji('error')} {hostname}: Base image for {version} is not downloaded. Attempting download."
                 )
                 downloaded = software_download(
                     target_device, hostname, base_version_key, ha_details
@@ -1957,10 +1888,10 @@ def software_update_check(
 
                 if downloaded:
                     logging.info(
-                        f"{get_emoji('success')} {hostname}: Base image {base_version_key} downloaded successfully"
+                        f"{Utilities.get_emoji('success')} {hostname}: Base image {base_version_key} downloaded successfully"
                     )
                     logging.info(
-                        f"{get_emoji('success')} {hostname}: Pausing for {wait_time} seconds to let {base_version_key} image load into the software manager before downloading {version}"
+                        f"{Utilities.get_emoji('success')} {hostname}: Pausing for {wait_time} seconds to let {base_version_key} image load into the software manager before downloading {version}"
                     )
 
                     # Wait before retrying to ensure the device has processed the downloaded base image
@@ -1979,19 +1910,19 @@ def software_update_check(
 
                     else:
                         logging.info(
-                            f"{get_emoji('report')} {hostname}: Waiting for device to load the new base image into software manager"
+                            f"{Utilities.get_emoji('report')} {hostname}: Waiting for device to load the new base image into software manager"
                         )
                         # Retry if the version is still not recognized
                         continue
                 else:
                     if attempt < retry_count - 1:
                         logging.error(
-                            f"{get_emoji('error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds."
+                            f"{Utilities.get_emoji('error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds."
                         )
                         time.sleep(wait_time)
                     else:
                         logging.error(
-                            f"{get_emoji('error')} {hostname}: Failed to download base image after {retry_count} attempts."
+                            f"{Utilities.get_emoji('error')} {hostname}: Failed to download base image after {retry_count} attempts."
                         )
                         return False
 
@@ -2000,7 +1931,7 @@ def software_update_check(
         close_matches = find_close_matches(list(available_versions.keys()), version)
         close_matches_str = ", ".join(close_matches)
         logging.error(
-            f"{get_emoji('error')} {hostname}: Version {version} is not available for download. Closest matches: {close_matches_str}"
+            f"{Utilities.get_emoji('error')} {hostname}: Version {version} is not available for download. Closest matches: {close_matches_str}"
         )
         return False
 
@@ -2054,17 +1985,17 @@ def suspend_ha_active(
         )
         if "success" in suspension_response.text:
             logging.info(
-                f"{get_emoji('success')} {hostname}: Active target device HA state suspended."
+                f"{Utilities.get_emoji('success')} {hostname}: Active target device HA state suspended."
             )
             return True
         else:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Failed to suspend active target device HA state."
+                f"{Utilities.get_emoji('error')} {hostname}: Failed to suspend active target device HA state."
             )
             return False
     except Exception as e:
         logging.warning(
-            f"{get_emoji('warning')} {hostname}: Error received when suspending active target device HA state: {e}"
+            f"{Utilities.get_emoji('warning')} {hostname}: Error received when suspending active target device HA state: {e}"
         )
         return False
 
@@ -2115,17 +2046,17 @@ def suspend_ha_passive(
         )
         if "success" in suspension_response.text:
             logging.info(
-                f"{get_emoji('success')} {hostname}: Passive target device HA state suspended."
+                f"{Utilities.get_emoji('success')} {hostname}: Passive target device HA state suspended."
             )
             return True
         else:
             logging.error(
-                f"{get_emoji('error')} {hostname}: Failed to suspend passive target device HA state."
+                f"{Utilities.get_emoji('error')} {hostname}: Failed to suspend passive target device HA state."
             )
             return False
     except Exception as e:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Error suspending passive target device HA state: {e}"
+            f"{Utilities.get_emoji('error')} {hostname}: Error suspending passive target device HA state: {e}"
         )
         return False
 
@@ -2183,23 +2114,25 @@ def upgrade_firewall(
     """
 
     # Refresh system information to ensure we have the latest data
-    logging.debug(f"{get_emoji('start')} Refreshing system information.")
+    logging.debug(f"{Utilities.get_emoji('start')} Refreshing system information.")
     firewall_details = SystemSettings.refreshall(firewall)[0]
     hostname = firewall_details.hostname
     logging.info(
-        f"{get_emoji('report')} {hostname}: {firewall.serial} {firewall_details.ip_address}"
+        f"{Utilities.get_emoji('report')} {hostname}: {firewall.serial} {firewall_details.ip_address}"
     )
 
     # Determine if the firewall is standalone, HA, or in a cluster
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing test to see if firewall is standalone, HA, or in a cluster."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing test to see if firewall is standalone, HA, or in a cluster."
     )
     deploy_info, ha_details = get_ha_status(
         firewall,
         hostname,
     )
-    logging.info(f"{get_emoji('report')} {hostname}: HA mode: {deploy_info}")
-    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+    logging.info(f"{Utilities.get_emoji('report')} {hostname}: HA mode: {deploy_info}")
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: HA details: {ha_details}"
+    )
 
     # If firewall is part of HA pair, determine if it's active or passive
     if ha_details:
@@ -2212,7 +2145,7 @@ def upgrade_firewall(
         if not proceed_with_upgrade:
             if peer_firewall:
                 logging.info(
-                    f"{get_emoji('start')} {hostname}: Switching control to the peer firewall for upgrade."
+                    f"{Utilities.get_emoji('start')} {hostname}: Switching control to the peer firewall for upgrade."
                 )
                 upgrade_firewall(peer_firewall, target_version, dry_run)
             else:
@@ -2220,7 +2153,7 @@ def upgrade_firewall(
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing tests to validate firewall's readiness."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing tests to validate firewall's readiness."
     )
     update_available = software_update_check(
         firewall,
@@ -2228,18 +2161,20 @@ def upgrade_firewall(
         target_version,
         ha_details,
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: Readiness check complete")
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: Readiness check complete"
+    )
 
     # gracefully exit if the firewall is not ready for an upgrade to target version
     if not update_available:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Not ready for upgrade to {target_version}.",
+            f"{Utilities.get_emoji('error')} {hostname}: Not ready for upgrade to {target_version}.",
         )
         sys.exit(1)
 
     # Download the target version
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
     )
     image_downloaded = software_download(
         firewall,
@@ -2249,27 +2184,27 @@ def upgrade_firewall(
     )
     if deploy_info == "active" or deploy_info == "passive":
         logging.info(
-            f"{get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
+            f"{Utilities.get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
         )
     else:
         logging.info(
-            f"{get_emoji('success')} {hostname}: version {target_version} has been downloaded."
+            f"{Utilities.get_emoji('success')} {hostname}: version {target_version} has been downloaded."
         )
 
     # Begin snapshots of the network state
     if not image_downloaded:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting."
+            f"{Utilities.get_emoji('error')} {hostname}: Image not downloaded, exiting."
         )
 
         sys.exit(1)
 
     # Determine snapshot actions to perform based on settings.yaml
-    if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
+    if SETTINGS_FILE_PATH.exists() and SETTINGS_FILE.get("snapshots.customize", False):
         # Extract state actions where value is True from settings.yaml
         selected_actions = [
             action
-            for action, enabled in settings_file.get("snapshots.state", {}).items()
+            for action, enabled in SETTINGS_FILE.get("snapshots.state", {}).items()
             if enabled
         ]
     else:
@@ -2304,23 +2239,25 @@ def upgrade_firewall(
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
     )
     backup_config = backup_configuration(
         firewall,
         hostname,
         f'assurance/configurations/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: {backup_config}")
+    logging.debug(f"{Utilities.get_emoji('report')} {hostname}: {backup_config}")
 
     # Exit execution is dry_run is True
     if dry_run is True:
-        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting.")
-        logging.info(f"{get_emoji('stop')} {hostname}: Halting script.")
+        logging.info(
+            f"{Utilities.get_emoji('success')} {hostname}: Dry run complete, exiting."
+        )
+        logging.info(f"{Utilities.get_emoji('stop')} {hostname}: Halting script.")
         sys.exit(0)
     else:
         logging.info(
-            f"{get_emoji('report')} {hostname}: Not a dry run, continue with upgrade."
+            f"{Utilities.get_emoji('report')} {hostname}: Not a dry run, continue with upgrade."
         )
 
     # Perform the upgrade
@@ -2341,30 +2278,30 @@ def upgrade_firewall(
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
     )
     backup_config = backup_configuration(
         firewall,
         hostname,
         f'assurance/configurations/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: {backup_config}")
+    logging.debug(f"{Utilities.get_emoji('report')} {hostname}: {backup_config}")
 
     # Wait for the device to become ready for the post upgrade snapshot
     logging.info(
-        f"{get_emoji('working')} {hostname}: Waiting for the device to become ready for the post upgrade snapshot."
+        f"{Utilities.get_emoji('working')} {hostname}: Waiting for the device to become ready for the post upgrade snapshot."
     )
     time.sleep(120)
 
     # Load settings if the file exists
-    if settings_file_path.exists():
-        with open(settings_file_path, "r") as file:
+    if SETTINGS_FILE_PATH.exists():
+        with open(SETTINGS_FILE_PATH, "r") as file:
             settings = yaml.safe_load(file)
 
         # Check if snapshots are disabled in the settings
         if settings.get("snapshots", {}).get("disabled", False):
             logging.info(
-                f"{get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
+                f"{Utilities.get_emoji('skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
             )
             return None  # Early return, no snapshot performed
 
@@ -2386,7 +2323,7 @@ def upgrade_firewall(
             pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
 
             logging.debug(
-                f"{get_emoji('report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
+                f"{Utilities.get_emoji('report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
             )
 
             folder_path = f"assurance/snapshots/{hostname}/diff"
@@ -2404,7 +2341,7 @@ def upgrade_firewall(
             )
 
             logging.info(
-                f"{get_emoji('save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+                f"{Utilities.get_emoji('save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
             )
 
             json_report = (
@@ -2416,7 +2353,7 @@ def upgrade_firewall(
                 file.write(json.dumps(pre_post_diff))
 
             logging.debug(
-                f"{get_emoji('save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
+                f"{Utilities.get_emoji('save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
             )
 
 
@@ -2472,23 +2409,25 @@ def upgrade_panorama(
     """
 
     # Refresh system information to ensure we have the latest data
-    logging.debug(f"{get_emoji('start')} Refreshing system information.")
+    logging.debug(f"{Utilities.get_emoji('start')} Refreshing system information.")
     panorama_details = SystemSettings.refreshall(panorama)[0]
     hostname = panorama_details.hostname
     logging.info(
-        f"{get_emoji('report')} {hostname}: {panorama.serial} {panorama_details.ip_address}"
+        f"{Utilities.get_emoji('report')} {hostname}: {panorama.serial} {panorama_details.ip_address}"
     )
 
     # Determine if the Panorama is standalone, HA, or in a cluster
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing test to see if Panorama is standalone, HA, or in a cluster."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing test to see if Panorama is standalone, HA, or in a cluster."
     )
     deploy_info, ha_details = get_ha_status(
         panorama,
         hostname,
     )
-    logging.info(f"{get_emoji('report')} {hostname}: HA mode: {deploy_info}")
-    logging.debug(f"{get_emoji('report')} {hostname}: HA details: {ha_details}")
+    logging.info(f"{Utilities.get_emoji('report')} {hostname}: HA mode: {deploy_info}")
+    logging.debug(
+        f"{Utilities.get_emoji('report')} {hostname}: HA details: {ha_details}"
+    )
 
     # If Panorama is part of HA pair, determine if it's active or passive
     if ha_details:
@@ -2501,7 +2440,7 @@ def upgrade_panorama(
         if not proceed_with_upgrade:
             if peer_panorama:
                 logging.info(
-                    f"{get_emoji('start')} {hostname}: Switching control to the peer Panorama for upgrade."
+                    f"{Utilities.get_emoji('start')} {hostname}: Switching control to the peer Panorama for upgrade."
                 )
                 upgrade_panorama(peer_panorama, target_version, dry_run)
             else:
@@ -2510,7 +2449,7 @@ def upgrade_panorama(
 
     # Check to see if the Panorama is ready for an upgrade
     logging.debug(
-        f"{get_emoji('start')} {hostname}: Performing tests to validate Panorama's readiness."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing tests to validate Panorama's readiness."
     )
     update_available = software_update_check(
         panorama,
@@ -2522,13 +2461,13 @@ def upgrade_panorama(
     # gracefully exit if the Panorama is not ready for an upgrade to target version
     if not update_available:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Not ready for upgrade to {target_version}.",
+            f"{Utilities.get_emoji('error')} {hostname}: Not ready for upgrade to {target_version}.",
         )
         sys.exit(1)
 
     # Download the target version
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing test to see if {target_version} is already downloaded."
     )
     image_downloaded = software_download(
         panorama,
@@ -2538,17 +2477,17 @@ def upgrade_panorama(
     )
     if deploy_info == "primary-active" or deploy_info == "secondary-passive":
         logging.info(
-            f"{get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
+            f"{Utilities.get_emoji('success')} {hostname}: {target_version} has been downloaded and sync'd to HA peer."
         )
     else:
         logging.info(
-            f"{get_emoji('success')} {hostname}: Panorama version {target_version} has been downloaded."
+            f"{Utilities.get_emoji('success')} {hostname}: Panorama version {target_version} has been downloaded."
         )
 
     # Begin snapshots of the network state
     if not image_downloaded:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Image not downloaded, exiting."
+            f"{Utilities.get_emoji('error')} {hostname}: Image not downloaded, exiting."
         )
 
         sys.exit(1)
@@ -2559,10 +2498,10 @@ def upgrade_panorama(
 
     # Print out list of Panorama appliances to revisit
     logging.debug(
-        f"{get_emoji('report')} Panorama appliances to revisit: {target_devices_to_revisit}"
+        f"{Utilities.get_emoji('report')} Panorama appliances to revisit: {target_devices_to_revisit}"
     )
     logging.debug(
-        f"{get_emoji('report')} {hostname}: Is Panorama to revisit: {is_panorama_to_revisit}"
+        f"{Utilities.get_emoji('report')} {hostname}: Is Panorama to revisit: {is_panorama_to_revisit}"
     )
 
     # Perform HA sync check, skipping standalone Panoramas
@@ -2576,23 +2515,25 @@ def upgrade_panorama(
 
     # Back up configuration to local filesystem
     logging.info(
-        f"{get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
+        f"{Utilities.get_emoji('start')} {hostname}: Performing backup of configuration to local filesystem."
     )
     backup_config = backup_configuration(
         panorama,
         hostname,
         f'assurance/configurations/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
     )
-    logging.debug(f"{get_emoji('report')} {hostname}: {backup_config}")
+    logging.debug(f"{Utilities.get_emoji('report')} {hostname}: {backup_config}")
 
     # Exit execution is dry_run is True
     if dry_run is True:
-        logging.info(f"{get_emoji('success')} {hostname}: Dry run complete, exiting.")
-        logging.info(f"{get_emoji('stop')} {hostname}: Halting script.")
+        logging.info(
+            f"{Utilities.get_emoji('success')} {hostname}: Dry run complete, exiting."
+        )
+        logging.info(f"{Utilities.get_emoji('stop')} {hostname}: Halting script.")
         sys.exit(0)
     else:
         logging.info(
-            f"{get_emoji('start')} {hostname}: Not a dry run, continue with upgrade."
+            f"{Utilities.get_emoji('start')} {hostname}: Not a dry run, continue with upgrade."
         )
 
     # Perform the upgrade
@@ -2676,186 +2617,25 @@ def check_readiness_and_log(
 
     if test_result["state"]:
         logging.info(
-            f"{get_emoji('success')} {hostname}: Passed Readiness Check: {test_info['description']}"
+            f"{Utilities.get_emoji('success')} {hostname}: Passed Readiness Check: {test_info['description']}"
         )
     else:
         if test_info["log_level"] == "error":
-            logging.error(f"{get_emoji('error')} {hostname}: {log_message}")
+            logging.error(f"{Utilities.get_emoji('error')} {hostname}: {log_message}")
             if test_info["exit_on_failure"]:
-                logging.error(f"{get_emoji('stop')} {hostname}: Halting script.")
+                logging.error(
+                    f"{Utilities.get_emoji('stop')} {hostname}: Halting script."
+                )
 
                 sys.exit(1)
         elif test_info["log_level"] == "warning":
             logging.info(
-                f"{get_emoji('skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
+                f"{Utilities.get_emoji('skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
             )
         else:
-            logging.info(f"{get_emoji('report')} {hostname}: Log Message {log_message}")
-
-
-def compare_versions(
-    version1: str,
-    version2: str,
-) -> str:
-    """
-    Compares two version strings to determine their relative sequence.
-
-    This utility function is essential for upgrade processes, compatibility checks, and system maintenance workflows. It compares two version strings by breaking them down into their constituent parts (major, minor, maintenance, and hotfix numbers) and evaluating their numerical order. The function is designed to accurately compare versions, accounting for the complexities of versioning schemes, including hotfixes and pre-release versions.
-
-    Parameters
-    ----------
-    version1 : str
-        The first version string to compare, formatted as 'major.minor.maintenance' or 'major.minor.maintenance-hotfix'.
-    version2 : str
-        The second version string for comparison, formatted similarly to 'version1'.
-
-    Returns
-    -------
-    str
-        A string indicating the comparison result: 'older' if 'version1' predates 'version2', 'newer' if 'version1' is more recent than 'version2', or 'equal' if both versions are the same.
-
-    Examples
-    --------
-    Comparing version strings to establish their relative order:
-        >>> compare_versions('8.1.0', '8.2.0')
-        'older'  # Indicates that '8.1.0' is an older version compared to '8.2.0'
-
-        >>> compare_versions('9.0.1', '9.0.1-h1')
-        'newer'  # Hotfix versions are considered newer, hence '9.0.1' is newer compared to '9.0.1-h1'
-
-        >>> compare_versions('10.0.5', '10.0.5')
-        'equal'  # Indicates that both version strings are identical
-
-    Notes
-    -----
-    - This function is a key tool in managing software updates, ensuring that systems are running the intended or most compatible software versions.
-    - It supports a broad range of versioning formats, making it versatile for different software and systems.
-    - The function is designed to be reliable and straightforward, providing clear outputs for decision-making processes related to version management.
-    """
-
-    parsed_version1 = parse_version(version1)
-    parsed_version2 = parse_version(version2)
-
-    if parsed_version1 < parsed_version2:
-        return "older"
-    elif parsed_version1 > parsed_version2:
-        return "newer"
-    else:
-        return "equal"
-
-
-def configure_logging(
-    level: str,
-    encoding: str = "utf-8",
-    log_file_path: str = "logs/upgrade.log",
-    log_max_size: int = 10 * 1024 * 1024,
-) -> None:
-    """
-    Sets up the logging infrastructure for the application, specifying the minimum severity level of messages to log,
-    character encoding for log files, and file logging details such as path and maximum size. The function initializes
-    logging to both the console and a rotating file, ensuring that log messages are both displayed in real-time and
-    archived for future analysis. The rotating file handler helps manage disk space by limiting the log file size and
-    archiving older logs. This setup is crucial for monitoring application behavior, troubleshooting issues, and
-    maintaining an audit trail of operations.
-
-    Parameters
-    ----------
-    level : str
-        The minimum severity level of log messages to record. Valid levels are 'DEBUG', 'INFO', 'WARNING', 'ERROR',
-        and 'CRITICAL', in order of increasing severity.
-    encoding : str, optional
-        The character encoding for the log files. Defaults to 'utf-8', accommodating a wide range of characters and symbols.
-    log_file_path : str, optional
-        The path to the log file where messages will be stored. Defaults to 'logs/upgrade.log'.
-    log_max_size : int, optional
-        The maximum size of the log file in bytes before it is rotated. Defaults to 10 MB (10 * 1024 * 1024 bytes).
-
-    Raises
-    ------
-    ValueError
-        If the specified logging level is invalid, ensuring that log messages are captured at appropriate severity levels.
-
-    Examples
-    --------
-    Basic logging configuration with default settings:
-        >>> configure_logging('INFO')
-        # Configures logging to capture messages of level INFO and above, using default encoding and file settings.
-
-    Advanced logging configuration with custom settings:
-        >>> configure_logging('DEBUG', 'iso-8859-1', '/var/log/myapp.log', 5 * 1024 * 1024)
-        # Configures logging to capture all messages including debug, using ISO-8859-1 encoding, storing logs in
-        # '/var/log/myapp.log', with a maximum file size of 5 MB before rotating.
-
-    Notes
-    -----
-    - It is essential to configure logging appropriately to capture sufficient detail for effective monitoring and
-      troubleshooting, without overwhelming the system with excessive log data.
-    - The logging setup, including file path and maximum size, can be customized via a 'settings.yaml' file if the
-      application supports loading configuration settings from such a file. This allows for dynamic adjustment of
-      logging behavior based on operational needs or user preferences.
-    """
-
-    allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    if level.upper() not in allowed_levels:
-        raise ValueError(
-            f"Invalid log level: {level}. Allowed levels are: {', '.join(allowed_levels)}"
-        )
-
-    # Use the provided log_level parameter if given, otherwise fall back to settings file or default
-    log_level = (
-        level.upper() if level else settings_file.get("logging.level", "INFO").upper()
-    )
-
-    # Override if settings.yaml exists and contains these settings
-    if settings_file_path.exists():
-        # Use the provided log_file_path parameter if given, otherwise fall back to settings file or default
-        log_file_path = settings_file.get("logging.file_path", "logs/upgrade.log")
-        # Convert MB to bytes
-        log_max_size = settings_file.get("logging.max_size", 10) * 1024 * 1024
-
-    # Use the provided log_upgrade_log_count parameter if given, otherwise fall back to settings file or default
-    log_upgrade_log_count = settings_file.get("logging.upgrade_log_count", 3)
-
-    # Set the logging level
-    logging_level = getattr(logging, log_level, logging.INFO)
-
-    # Set up logging
-    logger = logging.getLogger()
-    logger.setLevel(logging_level)
-
-    # Remove any existing handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-
-    # Create handlers
-    console_handler = logging.StreamHandler()
-    file_handler = RotatingFileHandler(
-        log_file_path,
-        maxBytes=log_max_size,
-        backupCount=log_upgrade_log_count,
-        encoding=encoding,
-    )
-
-    # Create formatters and add them to the handlers
-    if log_level == "DEBUG":
-        console_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-        file_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-    else:
-        console_format = logging.Formatter("%(message)s")
-        file_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-
-    console_handler.setFormatter(console_format)
-    file_handler.setFormatter(file_format)
-
-    # Add handlers to the logger
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+            logging.info(
+                f"{Utilities.get_emoji('report')} {hostname}: Log Message {log_message}"
+            )
 
 
 def connect_to_host(
@@ -2901,7 +2681,7 @@ def connect_to_host(
     -----
     - Initiating a connection to a device is a prerequisite for performing any operational or configuration tasks via the API.
     - The function's error handling provides clear diagnostics, aiding in troubleshooting connection issues.
-    - Configuration settings for the connection, such as timeout periods and retry attempts, can be customized through the `settings.yaml` file, if `settings_file_path` is utilized within the function.
+    - Configuration settings for the connection, such as timeout periods and retry attempts, can be customized through the `settings.yaml` file, if `SETTINGS_FILE_PATH` is utilized within the function.
     """
 
     try:
@@ -2915,14 +2695,14 @@ def connect_to_host(
 
     except PanConnectionTimeout:
         logging.error(
-            f"{get_emoji('error')} {hostname}: Connection to the appliance timed out. Please check the DNS hostname or IP address and network connectivity."
+            f"{Utilities.get_emoji('error')} {hostname}: Connection to the appliance timed out. Please check the DNS hostname or IP address and network connectivity."
         )
 
         sys.exit(1)
 
     except Exception as e:
         logging.error(
-            f"{get_emoji('error')} {hostname}: An error occurred while connecting to the appliance: {e}"
+            f"{Utilities.get_emoji('error')} {hostname}: An error occurred while connecting to the appliance: {e}"
         )
 
         sys.exit(1)
@@ -3146,15 +2926,15 @@ def find_close_matches(
     """
 
     # Parse the target version
-    target_major, target_minor, target_maintenance, target_hotfix = parse_version(
-        target_version
+    target_major, target_minor, target_maintenance, target_hotfix = (
+        Utilities.parse_version(target_version)
     )
 
     version_distances = []
 
     for version in available_versions:
         # Parse each available version
-        major, minor, maintenance, hotfix = parse_version(version)
+        major, minor, maintenance, hotfix = Utilities.parse_version(version)
 
         # Calculate a simple "distance" between versions, considering major, minor, maintenance, and hotfix components
         distance = (
@@ -3299,7 +3079,7 @@ def generate_diff_report_pdf(
       upgrade process.
     - The PDF format ensures the report is accessible and easily distributable for review by various stakeholders.
     - Configuration for the PDF generation, such as layout and styling, can be customized through a `settings.yaml`
-      file if the `settings_file_path` variable is utilized in the function, allowing for adaptation to specific
+      file if the `SETTINGS_FILE_PATH` variable is utilized in the function, allowing for adaptation to specific
       reporting standards or preferences.
     """
 
@@ -3389,56 +3169,6 @@ def generate_diff_report_pdf(
 
     # Build the PDF
     pdf.build(content)
-
-
-def get_emoji(action: str) -> str:
-    """
-    Maps specific action keywords to their corresponding emoji symbols for enhanced log and user interface messages.
-
-    This utility function is designed to add visual cues to log messages or user interface outputs by associating specific action keywords with relevant emoji symbols. It aims to improve the readability and user experience by providing a quick visual reference for the action's nature or outcome. The function supports a predefined set of keywords, each mapping to a unique emoji. If an unrecognized keyword is provided, the function returns an empty string to ensure seamless operation without interrupting the application flow.
-
-    Parameters
-    ----------
-    action : str
-        A keyword representing the action or status for which an emoji is required. Supported keywords include 'success', 'error', 'warning', 'working', 'report', 'search', 'save', 'stop', and 'start'.
-
-    Returns
-    -------
-    str
-        The emoji symbol associated with the specified action keyword. Returns an empty string if the keyword is not recognized, maintaining non-disruptive output.
-
-    Examples
-    --------
-    Adding visual cues to log messages:
-        >>> logging.info(f"{get_emoji('success')} Operation successful.")
-        >>> logging.error(f"{get_emoji('error')} An error occurred.")
-
-    Enhancing user prompts in a command-line application:
-        >>> print(f"{get_emoji('start')} Initiating the process.")
-        >>> print(f"{get_emoji('stop')} Process terminated.")
-
-    Notes
-    -----
-    - The function enhances the aesthetic and functional aspects of textual outputs, making them more engaging and easier to interpret at a glance.
-    - It is implemented with a fail-safe approach, where unsupported keywords result in an empty string, thus preserving the integrity and continuity of the output.
-    - Customization or extension of the supported action keywords and their corresponding emojis can be achieved by modifying the internal emoji_map dictionary.
-
-    This function is not expected to raise any exceptions, ensuring stable and predictable behavior across various usage contexts.
-    """
-
-    emoji_map = {
-        "success": "✅",
-        "warning": "🟧",
-        "error": "❌",
-        "working": "🔧",
-        "report": "📝",
-        "search": "🔍",
-        "save": "💾",
-        "skipped": "🟨",
-        "stop": "🛑",
-        "start": "🚀",
-    }
-    return emoji_map.get(action, "")
 
 
 def get_firewall_details(firewall: Firewall) -> Dict[str, Any]:
@@ -3545,7 +3275,7 @@ def get_firewalls_from_panorama(panorama: Panorama) -> list[Firewall]:
     -----
     - This function is crucial for scripts aimed at performing operations across multiple firewalls managed by a Panorama appliance, enabling targeted actions based on specific criteria.
     - Utilizes dynamic filtering to provide flexibility in selecting firewalls based on various attributes, enhancing the script's utility in complex environments.
-    - Default filter settings can be overridden by a `settings.yaml` file if `settings_file_path` is used within the script, providing a mechanism for customization and default configuration.
+    - Default filter settings can be overridden by a `settings.yaml` file if `SETTINGS_FILE_PATH` is used within the script, providing a mechanism for customization and default configuration.
 
     Exceptions
     ----------
@@ -3688,7 +3418,7 @@ def ip_callback(value: str) -> str:
     - This function is integral to CLI tools that require precise and validated network endpoints to function correctly.
     - Leveraging both 'ipaddress' for IP validation and DNS resolution ensures a robust check against a wide range of inputs.
     - The function's utility extends beyond mere validation, contributing to the tool's overall resilience and user-friendliness by preventing erroneous network operations.
-    - Default settings can be overridden by configurations specified in a `settings.yaml` file if `settings_file_path` is used within the script, allowing for customized validation logic based on the application's needs.
+    - Default settings can be overridden by configurations specified in a `settings.yaml` file if `SETTINGS_FILE_PATH` is used within the script, allowing for customized validation logic based on the application's needs.
     """
 
     # First, try to resolve as a hostname
@@ -3739,7 +3469,7 @@ def model_from_api_response(
     -----
     - The function simplifies the integration of XML-based API responses into Pythonic data structures, enabling more effective data manipulation and validation.
     - It is crucial for the Pydantic model to accurately reflect the expected data structure of the API response to ensure a successful conversion.
-    - Default configuration and behavior can be modified through the use of a `settings.yaml` file if the application supports loading configurations in this manner and `settings_file_path` is utilized.
+    - Default configuration and behavior can be modified through the use of a `settings.yaml` file if the application supports loading configurations in this manner and `SETTINGS_FILE_PATH` is utilized.
 
     Raises
     ------
@@ -3749,92 +3479,6 @@ def model_from_api_response(
 
     result_dict = flatten_xml_to_dict(element)
     return model.from_api_response(result_dict)
-
-
-def parse_version(version: str) -> Tuple[int, int, int, int]:
-    """
-    Decomposes a version string into a structured numerical format, facilitating easy comparison and analysis
-    of version numbers. The version string is expected to follow a conventional format, with major, minor, and
-    maintenance components, and an optional hotfix identifier. This function extracts these components into a
-    tuple of integers, where the hotfix component defaults to 0 if not specified. This standardized representation
-    is crucial for tasks like determining upgrade paths, assessing compatibility, and sorting version numbers.
-
-    Parameters
-    ----------
-    version : str
-        A version string following the 'major.minor.maintenance' or 'major.minor.maintenance-hhotfix' format,
-        where 'major', 'minor', 'maintenance', and 'hotfix' are numerical values.
-
-    Returns
-    -------
-    Tuple[int, int, int, int]
-        A tuple containing the major, minor, maintenance, and hotfix components as integers. The hotfix is set
-        to 0 if it is not explicitly included in the version string.
-
-    Examples
-    --------
-    Parsing a version without a hotfix:
-        >>> parse_version("10.0.1")
-        (10, 0, 1, 0)
-
-    Parsing a version with a hotfix component:
-        >>> parse_version("10.0.1-h2")
-        (10, 0, 1, 2)
-
-    Notes
-    -----
-    - Accurate version parsing is essential for software management operations, such as upgrades and compatibility checks.
-    - The function is designed to strictly interpret the version string based on the expected format. Any deviation from
-      this format may lead to incorrect parsing results or errors.
-
-    Raises
-    ------
-    ValueError
-        If the version string does not conform to the expected format or includes non-numeric values where integers
-        are anticipated, indicating the version string is malformed or invalid.
-
-    This function's behavior can be influenced by version format settings specified in a `settings.yaml` file, if such
-    settings are supported and utilized within the broader application context. This allows for adaptability in version
-    parsing according to customized or application-specific versioning schemes.
-    """
-
-    # Remove .xfr suffix from the version string, keeping the hotfix part intact
-    version = re.sub(r"\.xfr$", "", version)
-
-    parts = version.split(".")
-    # Ensure there are two or three parts, and if three, the third part does not contain invalid characters like 'h' or 'c' without a preceding '-'
-    if (
-        len(parts) < 2
-        or len(parts) > 3
-        or (len(parts) == 3 and re.search(r"[^0-9\-]h|[^0-9\-]c", parts[2]))
-    ):
-        raise ValueError(f"Invalid version format: '{version}'.")
-
-    major, minor = map(int, parts[:2])  # Raises ValueError if conversion fails
-
-    maintenance = 0
-    hotfix = 0
-
-    if len(parts) == 3:
-        maintenance_part = parts[2]
-        if "-h" in maintenance_part:
-            maintenance_str, hotfix_str = maintenance_part.split("-h")
-        elif "-c" in maintenance_part:
-            maintenance_str, hotfix_str = maintenance_part.split("-c")
-        else:
-            maintenance_str = maintenance_part
-            hotfix_str = "0"
-
-        # Validate and convert maintenance and hotfix parts
-        if not maintenance_str.isdigit() or not hotfix_str.isdigit():
-            raise ValueError(
-                f"Invalid maintenance or hotfix format in version '{version}'."
-            )
-
-        maintenance = int(maintenance_str)
-        hotfix = int(hotfix_str)
-
-    return major, minor, maintenance, hotfix
 
 
 def resolve_hostname(hostname: str) -> bool:
@@ -4095,14 +3739,14 @@ app = typer.Typer(help="PAN-OS Upgrade script")
 # Global variables
 
 # Define the path to the settings file
-settings_file_path = Path.cwd() / "settings.yaml"
+SETTINGS_FILE_PATH = Path.cwd() / "settings.yaml"
 inventory_file_path = Path.cwd() / "inventory.yaml"
 
 # Initialize Dynaconf settings object conditionally based on the existence of settings.yaml
-if settings_file_path.exists():
-    settings_file = Dynaconf(settings_files=[str(settings_file_path)])
+if SETTINGS_FILE_PATH.exists():
+    SETTINGS_FILE = Dynaconf(settings_files=[str(SETTINGS_FILE_PATH)])
 else:
-    settings_file = Dynaconf()
+    SETTINGS_FILE = Dynaconf()
 
 # Initialize colorama
 init()
@@ -4155,13 +3799,11 @@ def common_setup(
     Notes
     -----
     - Directory setup is performed only once; existing directories are not modified.
-    - Logging configuration affects the entire application's logging behavior; the log level can be overridden by `settings.yaml` if `settings_file_path` is detected in the function.
+    - Logging configuration affects the entire application's logging behavior; the log level can be overridden by `settings.yaml` if `SETTINGS_FILE_PATH` is detected in the function.
     - A successful device connection is critical for the function to return; otherwise, it may raise exceptions based on connection issues.
 
-    The ability to override default settings with `settings.yaml` is supported for the log level configuration in this function if `settings_file_path` is utilized within `configure_logging`.
+    The ability to override default settings with `settings.yaml` is supported for the log level configuration in this function if `SETTINGS_FILE_PATH` is utilized within `configure_logging`.
     """
-
-    log_level = settings_file.get("logging.level", "INFO")
 
     # Create necessary directories
     directories = [
@@ -4176,7 +3818,10 @@ def common_setup(
         Utilities.ensure_directory_exists(os.path.join(dir, "dummy_file"))
 
     # Configure logging right after directory setup
-    configure_logging(log_level)
+    Utilities.configure_logging(
+        settings_file=SETTINGS_FILE,
+        settings_file_path=SETTINGS_FILE_PATH,
+    )
 
     # Connect to the device
     device = connect_to_host(hostname, username, password)
@@ -4268,8 +3913,8 @@ def firewall(
     """
 
     # Display the custom banner for firewall upgrade
-    if settings_file_path.exists():
-        console_welcome_banner(mode="firewall", config_path=settings_file_path)
+    if SETTINGS_FILE_PATH.exists():
+        console_welcome_banner(mode="firewall", config_path=SETTINGS_FILE_PATH)
     else:
         console_welcome_banner(mode="firewall")
 
@@ -4373,8 +4018,8 @@ def panorama(
     """
 
     # Display the custom banner for panorama upgrade
-    if settings_file_path.exists():
-        console_welcome_banner(mode="panorama", config_path=settings_file_path)
+    if SETTINGS_FILE_PATH.exists():
+        console_welcome_banner(mode="panorama", config_path=SETTINGS_FILE_PATH)
     else:
         console_welcome_banner(mode="panorama")
 
@@ -4484,17 +4129,17 @@ def batch(
     """
 
     # Display the custom banner for batch firewall upgrades
-    if settings_file_path.exists():
+    if SETTINGS_FILE_PATH.exists():
         if inventory_file_path.exists():
             console_welcome_banner(
                 mode="batch",
-                config_path=settings_file_path,
+                config_path=SETTINGS_FILE_PATH,
                 inventory_path=inventory_file_path,
             )
         else:
             console_welcome_banner(
                 mode="batch",
-                config_path=settings_file_path,
+                config_path=SETTINGS_FILE_PATH,
             )
 
     elif inventory_file_path.exists():
@@ -4516,24 +4161,24 @@ def batch(
     # Exit script if device is Firewall (batch upgrade is only supported when connecting to Panorama)
     if type(device) is Firewall:
         logging.info(
-            f"{get_emoji('error')} {hostname}: Batch upgrade is only supported when connecting to Panorama."
+            f"{Utilities.get_emoji('error')} {hostname}: Batch upgrade is only supported when connecting to Panorama."
         )
         sys.exit(1)
 
     # Report the successful connection to Panorama
     logging.info(
-        f"{get_emoji('success')} {hostname}: Connection to Panorama established. Firewall connections will be proxied!"
+        f"{Utilities.get_emoji('success')} {hostname}: Connection to Panorama established. Firewall connections will be proxied!"
     )
 
     # Get firewalls connected to Panorama
     logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
+        f"{Utilities.get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
     )
     all_firewalls = get_firewalls_from_panorama(device)
 
     # Retrieve additional information about all of the firewalls
     logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
+        f"{Utilities.get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
     firewalls_info = threaded_get_firewall_details(all_firewalls)
 
@@ -4558,7 +4203,7 @@ def batch(
         if hostname in firewall_mapping
     ]
     logging.info(
-        f"{get_emoji('working')} {hostname}: Selected {len(firewall_objects_for_upgrade)} firewalls from inventory.yaml for upgrade."
+        f"{Utilities.get_emoji('working')} {hostname}: Selected {len(firewall_objects_for_upgrade)} firewalls from inventory.yaml for upgrade."
     )
 
     # Now, firewall_objects_for_upgrade should contain the actual Firewall objects
@@ -4568,7 +4213,7 @@ def batch(
         raise typer.Exit()
 
     typer.echo(
-        f"{get_emoji('report')} {hostname}: Upgrading {len(firewall_objects_for_upgrade)} devices to version {target_version}..."
+        f"{Utilities.get_emoji('report')} {hostname}: Upgrading {len(firewall_objects_for_upgrade)} devices to version {target_version}..."
     )
 
     firewall_list = "\n".join(
@@ -4579,33 +4224,35 @@ def batch(
     )
 
     typer.echo(
-        f"{get_emoji('report')} {hostname}: Please confirm the selected firewalls:\n{firewall_list}"
+        f"{Utilities.get_emoji('report')} {hostname}: Please confirm the selected firewalls:\n{firewall_list}"
     )
 
     # Asking for user confirmation before proceeding
     if dry_run:
         typer.echo(
-            f"{get_emoji('warning')} {hostname}: Dry run mode is enabled, upgrade workflow will be skipped."
+            f"{Utilities.get_emoji('warning')} {hostname}: Dry run mode is enabled, upgrade workflow will be skipped."
         )
         confirmation = typer.confirm(
             "Do you want to proceed with the dry run?", abort=True
         )
     else:
         typer.echo(
-            f"{get_emoji('warning')} {hostname}: Dry run mode is disabled, upgrade workflow will be executed."
+            f"{Utilities.get_emoji('warning')} {hostname}: Dry run mode is disabled, upgrade workflow will be executed."
         )
         confirmation = typer.confirm(
-            f"{get_emoji('report')} {hostname}: Do you want to proceed with the upgrade?",
+            f"{Utilities.get_emoji('report')} {hostname}: Do you want to proceed with the upgrade?",
             abort=True,
         )
-        typer.echo(f"{get_emoji('start')} Proceeding with the upgrade...")
+        typer.echo(f"{Utilities.get_emoji('start')} Proceeding with the upgrade...")
 
     if confirmation:
-        typer.echo(f"{get_emoji('start')} Proceeding with the upgrade...")
+        typer.echo(f"{Utilities.get_emoji('start')} Proceeding with the upgrade...")
 
         # Using ThreadPoolExecutor to manage threads
-        threads = settings_file.get("concurrency.threads", 10)
-        logging.info(f"{get_emoji('working')} {hostname}: Using {threads} threads.")
+        threads = SETTINGS_FILE.get("concurrency.threads", 10)
+        logging.info(
+            f"{Utilities.get_emoji('working')} {hostname}: Using {threads} threads."
+        )
         with ThreadPoolExecutor(max_workers=threads) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
@@ -4625,19 +4272,19 @@ def batch(
                     future.result()
                 except Exception as exc:
                     logging.error(
-                        f"{get_emoji('error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
+                        f"{Utilities.get_emoji('error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
                     )
 
         # Revisit the firewalls that were skipped in the initial pass
         if target_devices_to_revisit:
             logging.info(
-                f"{get_emoji('start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
+                f"{Utilities.get_emoji('start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
             )
 
             # Using ThreadPoolExecutor to manage threads for revisiting firewalls
-            threads = settings_file.get("concurrency.threads", 10)
+            threads = SETTINGS_FILE.get("concurrency.threads", 10)
             logging.debug(
-                f"{get_emoji('working')} {hostname}: Using {threads} threads."
+                f"{Utilities.get_emoji('working')} {hostname}: Using {threads} threads."
             )
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 future_to_firewall = {
@@ -4656,11 +4303,11 @@ def batch(
                     try:
                         future.result()
                         logging.info(
-                            f"{get_emoji('success')} {hostname}: Completed revisiting firewalls"
+                            f"{Utilities.get_emoji('success')} {hostname}: Completed revisiting firewalls"
                         )
                     except Exception as exc:
                         logging.error(
-                            f"{get_emoji('error')} {hostname}: Exception while revisiting firewalls: {exc}"
+                            f"{Utilities.get_emoji('error')} {hostname}: Exception while revisiting firewalls: {exc}"
                         )
 
             # Clear the list after revisiting
@@ -4758,18 +4405,18 @@ def inventory(
 
     # Report the successful connection to Panorama
     logging.info(
-        f"{get_emoji('success')} {hostname}: Connection to Panorama established."
+        f"{Utilities.get_emoji('success')} {hostname}: Connection to Panorama established."
     )
 
     # Get firewalls connected to Panorama
     logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
+        f"{Utilities.get_emoji('working')} {hostname}: Retrieving a list of all firewalls connected to Panorama..."
     )
     all_firewalls = get_firewalls_from_panorama(panorama)
 
     # Retrieve additional information about all of the firewalls
     logging.info(
-        f"{get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
+        f"{Utilities.get_emoji('working')} {hostname}: Retrieving detailed information of each firewall..."
     )
     firewalls_info = threaded_get_firewall_details(all_firewalls)
 
