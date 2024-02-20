@@ -1,7 +1,8 @@
 import os
 import pytest
 import tempfile
-from pan_os_upgrade.upgrade import connect_to_host, backup_configuration
+from pan_os_upgrade.components.device import connect_to_host
+from pan_os_upgrade.components.upgrade import backup_configuration
 from dotenv import load_dotenv
 
 
@@ -30,7 +31,11 @@ def test_backup_configuration():
         os.remove(test_backup_path)
 
     # Call the backup_configuration function
-    backup_success = backup_configuration(target_device, hostname, test_backup_path)
+    backup_success = backup_configuration(
+        file_path=test_backup_path,
+        hostname=hostname,
+        target_device=target_device,
+    )
 
     assert backup_success, "Backup should succeed"
 

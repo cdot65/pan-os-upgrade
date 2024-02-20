@@ -1,5 +1,5 @@
 import pytest
-from pan_os_upgrade.upgrade import get_emoji
+from pan_os_upgrade.main import get_emoji
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,8 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from pan_os_upgrade.upgrade import connect_to_host, determine_upgrade
+from pan_os_upgrade.components.device import connect_to_host
+from pan_os_upgrade.components.utilities import determine_upgrade
 from panos.firewall import Firewall
 from panos.panorama import Panorama
 
@@ -22,7 +23,11 @@ def test_determine_upgrade():
         )
 
     # Connect to the device
-    target_device = connect_to_host(hostname, username, password)
+    target_device = connect_to_host(
+        hostname=hostname,
+        password=password,
+        username=username,
+    )
 
     # Ensure the connection was successful and the device is either a Firewall or Panorama instance
     assert isinstance(
@@ -37,7 +42,11 @@ def test_determine_upgrade():
     # Use a try-except block to capture the SystemExit raised by the determine_upgrade function when no upgrade is needed or a downgrade is attempted
     try:
         determine_upgrade(
-            target_device, hostname, target_major, target_minor, target_maintenance
+            hostname=hostname,
+            target_device=target_device,
+            target_maintenance=target_maintenance,
+            target_major=target_major,
+            target_minor=target_minor,
         )
     except SystemExit as e:
         assert (

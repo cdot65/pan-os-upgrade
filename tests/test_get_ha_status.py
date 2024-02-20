@@ -1,7 +1,7 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from pan_os_upgrade.upgrade import connect_to_host, get_ha_status
+from pan_os_upgrade.components.device import connect_to_host, get_ha_status
 
 # Loading environment variables from .env file for credentials
 load_dotenv(".dev.env")
@@ -29,10 +29,17 @@ def test_get_ha_status(hostname, expected_mode, expected_status):
         )
 
     # Connect to the device
-    target_device = connect_to_host(hostname, username, password)
+    target_device = connect_to_host(
+        hostname=hostname,
+        password=password,
+        username=username,
+    )
 
     # Call the get_ha_status function
-    ha_mode, ha_config = get_ha_status(target_device, hostname)
+    ha_mode, ha_config = get_ha_status(
+        hostname=hostname,
+        target_device=target_device,
+    )
 
     # Assert the HA mode is as expected
     assert (

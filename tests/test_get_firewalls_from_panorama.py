@@ -7,7 +7,7 @@ from panos.device import SystemSettings
 from panos.panorama import Panorama
 from panos.firewall import Firewall
 
-from pan_os_upgrade.upgrade import get_firewalls_from_panorama
+from pan_os_upgrade.main import get_firewalls_from_panorama
 
 
 @pytest.fixture

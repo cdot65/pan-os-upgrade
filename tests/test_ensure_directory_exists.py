@@ -1,7 +1,7 @@
 import os
 import pytest
 import tempfile
-from pan_os_upgrade.upgrade import ensure_directory_exists
+from pan_os_upgrade.components.utilities import ensure_directory_exists
 
 
 def test_ensure_directory_exists_creates_directory():

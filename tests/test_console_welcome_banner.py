@@ -1,5 +1,5 @@
 import pytest
-from pan_os_upgrade.upgrade import console_welcome_banner
+from pan_os_upgrade.components.utilities import console_welcome_banner
 from pathlib import Path
 
 
@@ -43,47 +43,42 @@ from pathlib import Path
         ),
     ],
 )
-def test_console_welcome_banner_modes(capsys, mode, key_phrases):
-    console_welcome_banner(mode)
-    captured = capsys.readouterr().out
+def test_console_welcome_banner_modes(mode, key_phrases):
+    banner = console_welcome_banner(mode)
     for phrase in key_phrases:
-        assert phrase in captured
+        assert phrase in banner
 
 
-def test_console_welcome_banner_with_config_path(mocker, capsys):
+def test_console_welcome_banner_with_config_path(mocker):
     config_path = Path("/path/to/config.yaml")
     mocker.patch.object(Path, "exists", return_value=True)
-    console_welcome_banner("firewall", config_path=config_path)
-    captured = capsys.readouterr().out
+    banner = console_welcome_banner("firewall", config_path=config_path)
     assert (
         f"Settings: Custom configuration loaded file detected and loaded at:\n{config_path}"
-        in captured
+        in banner
     )
 
 
-def test_console_welcome_banner_without_config_path(capsys):
-    console_welcome_banner("firewall")
-    captured = capsys.readouterr().out
+def test_console_welcome_banner_without_config_path():
+    banner = console_welcome_banner("firewall")
     expected_message = (
         "Settings: No settings.yaml file was found, default values will be used.\n"
         "You can create a settings.yaml file with 'pan-os-upgrade settings' command."
     )
-    assert expected_message in captured
+    assert expected_message in banner
 
 
-def test_console_welcome_banner_with_inventory_path(mocker, capsys):
+def test_console_welcome_banner_with_inventory_path(mocker):
     inventory_path = Path("/path/to/inventory.yaml")
     mocker.patch.object(Path, "exists", return_value=True)
-    console_welcome_banner("batch", inventory_path=inventory_path)
-    captured = capsys.readouterr().out
+    banner = console_welcome_banner("batch", inventory_path=inventory_path)
     assert (
         f"Inventory: Custom inventory loaded file detected and loaded at:\n{inventory_path}"
-        in captured
+        in banner
     )
 
 
-def test_console_welcome_banner_without_inventory_path(capsys):
-    console_welcome_banner("batch")
-    captured = capsys.readouterr().out
+def test_console_welcome_banner_without_inventory_path():
+    banner = console_welcome_banner("batch")
     expected_message = "Inventory: No inventory.yaml file was found, firewalls will need be selected through the menu.\nYou can create an inventory.yaml file with 'pan-os-upgrade inventory' command."
-    assert expected_message in captured
+    assert expected_message in banner

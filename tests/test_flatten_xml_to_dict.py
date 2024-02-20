@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from pan_os_upgrade.upgrade import flatten_xml_to_dict
+from pan_os_upgrade.components.utilities import flatten_xml_to_dict
 
 
 def test_flatten_show_highavailability_state():
