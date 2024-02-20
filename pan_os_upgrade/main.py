@@ -89,17 +89,17 @@ from colorama import init, Fore
 from dynaconf import Dynaconf
 
 # project imports
-from pan_os_upgrade.assurance import AssuranceOptions
-from pan_os_upgrade.device import (
+from pan_os_upgrade.components.assurance import AssuranceOptions
+from pan_os_upgrade.components.device import (
     common_setup,
     get_firewalls_from_panorama,
     threaded_get_firewall_details,
 )
-from pan_os_upgrade.upgrade import (
+from pan_os_upgrade.components.upgrade import (
     upgrade_firewall,
     upgrade_panorama,
 )
-from pan_os_upgrade.utilities import (
+from pan_os_upgrade.components.utilities import (
     console_welcome_banner,
     create_firewall_mapping,
     get_emoji,

@@ -23,23 +23,23 @@ from panos_upgrade_assurance.snapshot_compare import SnapshotCompare
 from dynaconf import LazySettings
 
 # Local imports
-from pan_os_upgrade.assurance import (
+from pan_os_upgrade.components.assurance import (
     AssuranceOptions,
     generate_diff_report_pdf,
     perform_readiness_checks,
     perform_snapshot,
 )
-from pan_os_upgrade.device import (
+from pan_os_upgrade.components.device import (
     get_ha_status,
     perform_reboot,
 )
-from pan_os_upgrade.ha import (
+from pan_os_upgrade.components.ha import (
     ha_sync_check_firewall,
     ha_sync_check_panorama,
     handle_firewall_ha,
     handle_panorama_ha,
 )
-from pan_os_upgrade.utilities import (
+from pan_os_upgrade.components.utilities import (
     backup_configuration,
     determine_upgrade,
     ensure_directory_exists,

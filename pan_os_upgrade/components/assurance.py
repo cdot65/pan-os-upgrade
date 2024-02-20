@@ -20,7 +20,7 @@ from pan_os_upgrade.models import (
     SnapshotReport,
     ReadinessCheckReport,
 )
-from pan_os_upgrade.utilities import (
+from pan_os_upgrade.components.utilities import (
     ensure_directory_exists,
     get_emoji,
 )

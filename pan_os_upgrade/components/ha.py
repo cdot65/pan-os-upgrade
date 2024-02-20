@@ -8,8 +8,8 @@ from panos.panorama import Panorama
 
 from dynaconf import LazySettings
 from pathlib import Path
-from pan_os_upgrade.device import get_ha_status
-from pan_os_upgrade.utilities import (
+from pan_os_upgrade.components.device import get_ha_status
+from pan_os_upgrade.components.utilities import (
     compare_versions,
     get_emoji,
 )

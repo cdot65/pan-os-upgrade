@@ -23,7 +23,7 @@ from panos.firewall import Firewall
 from panos.panorama import Panorama
 
 # Project imports
-from pan_os_upgrade.utilities import (
+from pan_os_upgrade.components.utilities import (
     configure_logging,
     ensure_directory_exists,
     get_emoji,
@@ -468,13 +468,9 @@ def perform_reboot(
     )
 
     # Initiate reboot
-    reboot_job = target_device.op(
+    target_device.op(
         "<request><restart><system/></restart></request>",
         cmd_xml=False,
-    )
-    reboot_job_result = flatten_xml_to_dict(element=reboot_job)
-    logging.info(
-        f"{get_emoji(action='report')} {hostname}: {reboot_job_result['result']}"
     )
 
     # Wait for the target device reboot process to initiate before checking status
