@@ -302,11 +302,11 @@ def console_welcome_banner(
 
 
 def configure_logging(
-    settings_file: LazySettings,
-    settings_file_path: Path,
     encoding: str = "utf-8",
     log_file_path: str = "logs/upgrade.log",
     log_max_size: int = 10 * 1024 * 1024,
+    settings_file: LazySettings = None,
+    settings_file_path: Path = None,
 ) -> None:
     """
     Sets up the logging infrastructure for the application, specifying the minimum severity level of messages to log,

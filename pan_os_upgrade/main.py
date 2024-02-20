@@ -225,8 +225,8 @@ def firewall(
     # Display the custom banner for firewall upgrade
     if SETTINGS_FILE_PATH.exists():
         banner = console_welcome_banner(
-            mode="firewall",
             config_path=SETTINGS_FILE_PATH,
+            mode="firewall",
         )
     else:
         banner = console_welcome_banner(mode="firewall")
@@ -338,8 +338,8 @@ def panorama(
     # Display the custom banner for panorama upgrade
     if SETTINGS_FILE_PATH.exists():
         banner = console_welcome_banner(
-            mode="panorama",
             config_path=SETTINGS_FILE_PATH,
+            mode="panorama",
         )
     else:
         banner = console_welcome_banner(mode="panorama")
@@ -460,20 +460,20 @@ def batch(
     if SETTINGS_FILE_PATH.exists():
         if INVENTORY_FILE_PATH.exists():
             banner = console_welcome_banner(
-                mode="batch",
                 config_path=SETTINGS_FILE_PATH,
                 inventory_path=INVENTORY_FILE_PATH,
+                mode="batch",
             )
         else:
             banner = console_welcome_banner(
-                mode="batch",
                 config_path=SETTINGS_FILE_PATH,
+                mode="batch",
             )
 
     elif INVENTORY_FILE_PATH.exists():
         banner = console_welcome_banner(
-            mode="batch",
             inventory_path=INVENTORY_FILE_PATH,
+            mode="batch",
         )
 
     else:
