@@ -1,7 +1,8 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from pan_os_upgrade.upgrade import connect_to_host, determine_upgrade
+from pan_os_upgrade.device import connect_to_host
+from pan_os_upgrade.utilities import determine_upgrade
 from panos.firewall import Firewall
 from panos.panorama import Panorama
 

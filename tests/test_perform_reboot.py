@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from panos.firewall import Firewall
 from panos.panorama import Panorama
-from pan_os_upgrade.upgrade import perform_reboot
+from pan_os_upgrade.device import perform_reboot
 
 
 @pytest.fixture

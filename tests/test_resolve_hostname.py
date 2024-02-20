@@ -1,4 +1,4 @@
-from pan_os_upgrade.upgrade import resolve_hostname
+from pan_os_upgrade.utilities import resolve_hostname
 
 
 def test_resolve_hostname_success():

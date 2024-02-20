@@ -3,7 +3,7 @@ import pytest
 from dotenv import load_dotenv
 
 from panos.panorama import Panorama
-from pan_os_upgrade.upgrade import get_managed_devices
+from pan_os_upgrade.device import get_managed_devices
 
 # project imports
 from pan_os_upgrade.models import (

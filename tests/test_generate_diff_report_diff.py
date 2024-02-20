@@ -1,4 +1,4 @@
-from pan_os_upgrade.upgrade import generate_diff_report_pdf
+from pan_os_upgrade.assurance import generate_diff_report_pdf
 
 
 def test_generate_diff_report_pdf(tmp_path):

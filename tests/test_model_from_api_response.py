@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from pydantic import BaseModel
 
-from pan_os_upgrade.upgrade import model_from_api_response
+from pan_os_upgrade.utilities import model_from_api_response
 
 
 # Define your model classes

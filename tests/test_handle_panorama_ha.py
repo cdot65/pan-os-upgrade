@@ -2,7 +2,8 @@ import os
 import pytest
 from dotenv import load_dotenv
 from panos.panorama import Panorama
-from pan_os_upgrade.upgrade import connect_to_host, handle_panorama_ha
+from pan_os_upgrade.device import connect_to_host
+from pan_os_upgrade.ha import handle_panorama_ha
 
 # Load environment variables from .env file
 load_dotenv(".dev.env")

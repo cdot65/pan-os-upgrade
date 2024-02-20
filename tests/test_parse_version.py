@@ -1,6 +1,6 @@
 import pytest
 
-from pan_os_upgrade.upgrade import parse_version
+from pan_os_upgrade.utilities import parse_version
 
 
 # Test cases for valid version strings, including the new "-c" prefix and the blip of time when "-xfr" was used

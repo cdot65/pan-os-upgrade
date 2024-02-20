@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from pan_os_upgrade.upgrade import ha_sync_check_firewall
+from pan_os_upgrade.ha import ha_sync_check_firewall
 
 # Define test cases for different HA synchronization states
 # 'expected_result' is True if HA sync check should pass, and False if it should fail or the device is not in HA

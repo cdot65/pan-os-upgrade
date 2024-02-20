@@ -1,7 +1,7 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from pan_os_upgrade.upgrade import connect_to_host, get_ha_status
+from pan_os_upgrade.device import connect_to_host, get_ha_status
 
 # Loading environment variables from .env file for credentials
 load_dotenv(".dev.env")

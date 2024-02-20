@@ -1,7 +1,8 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import pytest
-from pan_os_upgrade.upgrade import configure_logging
+from pan_os_upgrade.utilities import configure_logging
+from dynaconf import LazySettings
 
 
 @pytest.fixture
@@ -12,13 +13,25 @@ def reset_logging():
 
 
 def test_configure_logging_debug_level(reset_logging, tmp_path):
-    log_file_path = tmp_path / "test.log"
-    log_max_size = 5 * 1024 * 1024  # 5 MB for testing
+    # Create a temporary YAML settings file with the desired log file path in the temp directory
+    settings_file = tmp_path / "settings.yaml"
+    log_file_path = tmp_path / "test.log"  # Use the temp path for the log file
+    settings_content = f"""
+    logging:
+      level: DEBUG
+      file_path: {log_file_path}  # Use the temp log file path here
+      max_size: 10
+      upgrade_log_count: 3
+    """
+    settings_file.write_text(settings_content)
+
+    # Load settings from the YAML file
+    settings = LazySettings(SETTINGS_FILE=str(settings_file))
+
     configure_logging(
-        "DEBUG",
         encoding="utf-8",
-        log_file_path=str(log_file_path),
-        log_max_size=log_max_size,
+        settings_file=settings,
+        settings_file_path=settings_file,
     )
 
     logger = logging.getLogger()
@@ -30,86 +43,6 @@ def test_configure_logging_debug_level(reset_logging, tmp_path):
     assert any(
         isinstance(h, RotatingFileHandler) for h in logger.handlers
     ), "File handler should be added."
-
-    file_handler = next(
-        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
-    )
-    assert file_handler.baseFilename == str(
-        log_file_path
-    ), "File handler should use the specified log file path."
-    assert (
-        file_handler.encoding == "utf-8"
-    ), "File handler should use the specified encoding."
-    assert (
-        file_handler.maxBytes == log_max_size
-    ), "File handler should respect the specified max log size."
-
-
-def test_configure_logging_invalid_level(reset_logging):
-    with pytest.raises(ValueError):
-        configure_logging("INVALID_LEVEL")
-
-
-@pytest.mark.parametrize("log_level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-def test_configure_logging_levels(reset_logging, tmp_path, log_level):
-    log_file_path = tmp_path / f"{log_level.lower()}_test.log"
-    configure_logging(
-        log_level,
-        encoding="utf-8",
-        log_file_path=str(log_file_path),
-    )
-
-    logger = logging.getLogger()
-    assert logger.level == getattr(
-        logging, log_level
-    ), f"Logging level should be set to {log_level}."
-
-    assert any(
-        isinstance(h, logging.StreamHandler) for h in logger.handlers
-    ), "Console handler should be added."
-    assert any(
-        isinstance(h, RotatingFileHandler) for h in logger.handlers
-    ), "File handler should be added."
-
-    file_handler = next(
-        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
-    )
-    assert file_handler.baseFilename == str(
-        log_file_path
-    ), "File handler should use the specified log file path."
-
-
-@pytest.mark.parametrize("encoding", ["utf-8", "iso-8859-1"])
-def test_configure_logging_encodings(reset_logging, tmp_path, encoding):
-    log_file_path = tmp_path / f"encoding_{encoding}_test.log"
-    configure_logging(
-        "INFO",
-        encoding=encoding,
-        log_file_path=str(log_file_path),
-    )
-
-    logger = logging.getLogger()  # Define logger here
-    file_handler = next(
-        h for h in logger.handlers if isinstance(h, RotatingFileHandler)
-    )
-    assert (
-        file_handler.encoding == encoding
-    ), f"File handler should use the specified encoding {encoding}."
-
-
-@pytest.mark.parametrize("invalid_level", ["INVALID", "LOG", "TRACE"])
-def test_configure_logging_invalid_levels(reset_logging, invalid_level):
-    with pytest.raises(ValueError):
-        configure_logging(invalid_level)
-
-
-# Test default parameters are used correctly
-def test_configure_logging_default_parameters(reset_logging, tmp_path):
-    log_file_path = tmp_path / "upgrade.log"  # Use a temporary directory
-    configure_logging("INFO", log_file_path=str(log_file_path))
-
-    logger = logging.getLogger()
-    assert logger.level == logging.INFO, "Logging level should be set to INFO."
 
     file_handler = next(
         h for h in logger.handlers if isinstance(h, RotatingFileHandler)

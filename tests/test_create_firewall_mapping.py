@@ -1,12 +1,12 @@
 import os
 import pytest
 from dotenv import load_dotenv
-from pan_os_upgrade.upgrade import (
+from pan_os_upgrade.device import (
     connect_to_host,
     get_firewalls_from_panorama,
     threaded_get_firewall_details,
-    create_firewall_mapping,
 )
+from pan_os_upgrade.utilities import create_firewall_mapping
 from panos.firewall import Firewall
 
 

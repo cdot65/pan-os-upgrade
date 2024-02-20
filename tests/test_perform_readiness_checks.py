@@ -2,7 +2,8 @@ import os
 import pytest
 import tempfile
 import json
-from pan_os_upgrade.upgrade import connect_to_host, perform_readiness_checks
+from pan_os_upgrade.device import connect_to_host
+from pan_os_upgrade.assurance import perform_readiness_checks
 from dotenv import load_dotenv
 from panos.firewall import Firewall
 

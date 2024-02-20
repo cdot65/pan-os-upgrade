@@ -1,6 +1,6 @@
 import os
 import pytest
-from pan_os_upgrade.upgrade import connect_to_host
+from pan_os_upgrade.device import connect_to_host
 from panos.base import PanDevice
 from unittest.mock import patch
 from dotenv import load_dotenv

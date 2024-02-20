@@ -1,4 +1,4 @@
-from pan_os_upgrade.upgrade import find_close_matches
+from pan_os_upgrade.utilities import find_close_matches
 
 
 def test_find_close_matches_exact_match():

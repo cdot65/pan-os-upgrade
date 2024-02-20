@@ -2,7 +2,7 @@ import os
 import pytest
 from typer.testing import CliRunner
 
-from pan_os_upgrade.upgrade import ip_callback
+from pan_os_upgrade.main import ip_callback
 
 runner = CliRunner()
 

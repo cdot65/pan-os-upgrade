@@ -2,19 +2,19 @@ import os
 import pytest
 from dotenv import load_dotenv
 from panos.firewall import Firewall
-from pan_os_upgrade.upgrade import (
+from pan_os_upgrade.device import (
     connect_to_host,
     get_ha_status,
-    handle_firewall_ha,
-    target_devices_to_revisit,
 )
+from pan_os_upgrade.ha import handle_firewall_ha
+from pan_os_upgrade.main import target_devices_to_revisit
 
 # Load environment variables from .env file
 load_dotenv(".dev.env")
 
 # Define test cases with different HA configurations
 test_cases = [
-    ("houston.cdot.io", None),  # Standalone, expecting no HA peer and proceed
+    ("lab-fw1.cdot.io", None),  # Standalone, expecting no HA peer and proceed
     (
         "woodlands-fw1.cdot.io",
         "active",

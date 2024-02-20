@@ -1,7 +1,5 @@
 import pytest
-from pan_os_upgrade.upgrade import (
-    compare_versions,
-)
+from pan_os_upgrade.utilities import compare_versions
 
 
 # Test cases for versions where the first is older than the second
@@ -15,7 +13,13 @@ from pan_os_upgrade.upgrade import (
     ],
 )
 def test_compare_versions_older(version1, version2, expected):
-    assert compare_versions(version1, version2) == expected
+    assert (
+        compare_versions(
+            version1=version1,
+            version2=version2,
+        )
+        == expected
+    )
 
 
 # Test cases for versions where the first is newer than the second
@@ -29,7 +33,13 @@ def test_compare_versions_older(version1, version2, expected):
     ],
 )
 def test_compare_versions_newer(version1, version2, expected):
-    assert compare_versions(version1, version2) == expected
+    assert (
+        compare_versions(
+            version1=version1,
+            version2=version2,
+        )
+        == expected
+    )
 
 
 # Test cases for versions that are equal
@@ -42,4 +52,10 @@ def test_compare_versions_newer(version1, version2, expected):
     ],
 )
 def test_compare_versions_equal(version1, version2):
-    assert compare_versions(version1, version2) == "equal"
+    assert (
+        compare_versions(
+            version1=version1,
+            version2=version2,
+        )
+        == "equal"
+    )
