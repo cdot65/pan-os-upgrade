@@ -1,5 +1,5 @@
 import pytest
-from pan_os_upgrade.utilities import compare_versions
+from pan_os_upgrade.components.utilities import compare_versions
 
 
 # Test cases for versions where the first is older than the second

@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import pytest
-from pan_os_upgrade.utilities import configure_logging
+from pan_os_upgrade.components.utilities import configure_logging
 from dynaconf import LazySettings
 
 

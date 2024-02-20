@@ -1,5 +1,5 @@
-from pan_os_upgrade.assurance import check_readiness_and_log
-from pan_os_upgrade.utilities import get_emoji
+from pan_os_upgrade.components.assurance import check_readiness_and_log
+from pan_os_upgrade.components.utilities import get_emoji
 
 
 def test_readiness_check_passed(mocker):

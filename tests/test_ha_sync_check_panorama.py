@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from pan_os_upgrade.ha import ha_sync_check_panorama
+from pan_os_upgrade.components.ha import ha_sync_check_panorama
 
 # Define test cases for different HA synchronization states for Panorama
 # 'expected_result' is True if HA sync check should pass, and False if it should fail or the device is not in HA
@@ -29,13 +29,21 @@ def test_ha_sync_check_panorama(
     hostname, ha_details, strict_sync_check, expected_result
 ):
     # Patch the logging within ha_sync_check_panorama to prevent actual logging during the test
-    with patch("pan_os_upgrade.upgrade.logging"):
+    with patch("pan_os_upgrade.main.logging"):
         if strict_sync_check and not expected_result:
             # Expect SystemExit due to strict sync check failure
             with pytest.raises(SystemExit):
-                ha_sync_check_panorama(hostname, ha_details, strict_sync_check)
+                ha_sync_check_panorama(
+                    ha_details=ha_details,
+                    hostname=hostname,
+                    strict_sync_check=strict_sync_check,
+                )
         else:
-            result = ha_sync_check_panorama(hostname, ha_details, strict_sync_check)
+            result = ha_sync_check_panorama(
+                ha_details=ha_details,
+                hostname=hostname,
+                strict_sync_check=strict_sync_check,
+            )
 
             # Assert the function's behavior matches the expected outcome
             assert (

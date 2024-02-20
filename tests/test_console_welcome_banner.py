@@ -1,5 +1,5 @@
 import pytest
-from pan_os_upgrade.utilities import console_welcome_banner
+from pan_os_upgrade.components.utilities import console_welcome_banner
 from pathlib import Path
 
 

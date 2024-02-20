@@ -102,7 +102,7 @@ def panorama():
 
 class TestModelCreation:
     def test_model_from_api_response_managed_devices(self, show_devices_all_fixture):
-        from pan_os_upgrade.main import model_from_api_response
+        from pan_os_upgrade.components.device import model_from_api_response
         from pan_os_upgrade.models.devices import ManagedDevices
 
         test_xml = show_devices_all_fixture
@@ -123,13 +123,13 @@ class TestModelCreation:
 class TestPanoramaMethods:
     def test_get_managed_devices_integration(self, panorama):
         """Validate it works with actual data as well."""
-        from pan_os_upgrade.main import get_managed_devices
+        from pan_os_upgrade.components.device import get_managed_devices
 
         unfiltered = get_managed_devices(panorama)
         assert unfiltered
 
     def test_get_managed_devices(self, show_devices_all_fixture):
-        from pan_os_upgrade.main import get_managed_devices
+        from pan_os_upgrade.components.device import get_managed_devices
         from pan_os_upgrade.models.devices import ManagedDevice
 
         mock_panorama = MagicMock()

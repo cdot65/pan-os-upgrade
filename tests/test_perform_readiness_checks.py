@@ -2,9 +2,9 @@ import os
 import pytest
 import tempfile
 import json
-from pan_os_upgrade.device import connect_to_host
-from pan_os_upgrade.assurance import perform_readiness_checks
 from dotenv import load_dotenv
+from pan_os_upgrade.components.device import connect_to_host
+from pan_os_upgrade.components.assurance import perform_readiness_checks
 from panos.firewall import Firewall
 
 # Load environment variables from .env file
@@ -12,15 +12,15 @@ load_dotenv(".dev.env")
 
 # Define test cases for different firewalls
 test_cases = [
-    "houston.cdot.io",  # Standalone firewall
-    "woodlands-fw1.cdot.io",  # HA firewall 1
-    "woodlands-fw2.cdot.io",  # HA firewall 2
+    "lab-fw1.cdot.io",  # Standalone firewall
+    "lab-fw6.cdot.io",  # HA firewall 1
+    "lab-fw7.cdot.io",  # HA firewall 2
 ]
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize("hostname", test_cases)
-def test_perform_readiness_checks(hostname):
+def test_perform_readiness_checks(hostname, tmp_path):
     username = os.getenv("PAN_USERNAME")
     password = os.getenv("PAN_PASSWORD")
 
@@ -29,7 +29,11 @@ def test_perform_readiness_checks(hostname):
         pytest.skip("Skipping test due to missing environment variables.")
 
     # Connect to the target device
-    target_device = connect_to_host(hostname, username, password)
+    target_device = connect_to_host(
+        hostname=hostname,
+        password=password,
+        username=username,
+    )
 
     # Ensure the target device is a Firewall instance
     assert isinstance(
@@ -42,8 +46,25 @@ def test_perform_readiness_checks(hostname):
     ) as tmp_file:
         test_readiness_path = tmp_file.name
 
+    # Create a temporary YAML settings file with the desired log file path in the temp directory
+    settings_file = tmp_path / "settings.yaml"
+    log_file_path = tmp_path / "test.log"  # Use the temp path for the log file
+    settings_content = f"""
+    logging:
+      level: DEBUG
+      file_path: {log_file_path}  # Use the temp log file path here
+      max_size: 10
+      upgrade_log_count: 3
+    """
+    settings_file.write_text(settings_content)
+
     # Perform readiness checks and save to the temporary file
-    perform_readiness_checks(target_device, hostname, test_readiness_path)
+    perform_readiness_checks(
+        file_path=test_readiness_path,
+        firewall=target_device,
+        hostname=hostname,
+        settings_file_path=settings_file,
+    )
 
     # Verify the readiness report file is created
     assert os.path.exists(test_readiness_path), "Readiness report file was not created"

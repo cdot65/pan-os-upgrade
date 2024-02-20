@@ -1,4 +1,4 @@
-from pan_os_upgrade.assurance import generate_diff_report_pdf
+from pan_os_upgrade.components.assurance import generate_diff_report_pdf
 
 
 def test_generate_diff_report_pdf(tmp_path):
@@ -27,7 +27,12 @@ def test_generate_diff_report_pdf(tmp_path):
     hostname = "fw-hostname"
     target_version = "9.1.3"
 
-    generate_diff_report_pdf(pre_post_diff, str(file_path), hostname, target_version)
+    generate_diff_report_pdf(
+        file_path=str(file_path),
+        hostname=hostname,
+        pre_post_diff=pre_post_diff,
+        target_version=target_version,
+    )
 
     # Check if the file was created
     assert file_path.is_file()

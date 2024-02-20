@@ -1,8 +1,8 @@
 import os
 import pytest
 import tempfile
-from pan_os_upgrade.device import connect_to_host
-from pan_os_upgrade.upgrade import backup_configuration
+from pan_os_upgrade.components.device import connect_to_host
+from pan_os_upgrade.components.upgrade import backup_configuration
 from dotenv import load_dotenv
 
 
