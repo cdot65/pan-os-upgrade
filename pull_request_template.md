@@ -27,4 +27,4 @@ Provide a detailed description of the changes your pull request introduces.
 
 #### Is there anything the reviewers should know?
 
-💔Thank you for your contributions!
+Thank you for your contributions!
