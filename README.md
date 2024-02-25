@@ -31,8 +31,8 @@
         <li><a href="#support">Support</a></li>
         <li><a href="#usage">Usage</a></li>
         <li><a href="#key-features">Key Features</a></li>
-        <li><a href="#example-execution">Example Execution</a></li>
         <li><a href="#logic-workflow">Logic Workflow</a></li>
+        <li><a href="#example-execution">Example Execution</a></li>
         <li><a href="#contributing">Contributing</a></li>
         <li><a href="#license">License</a></li>
         <li><a href="#contact">Contact</a></li>
@@ -43,9 +43,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-This project is a comprehensive solution for automating the complex real-world upgrade workflows for PAN-OS firewalls and Panorama appliances.
-
-It is designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configuration backups, network snapshots, and system readiness checks of Palo Alto Networks appliances.
+`pan-os-upgrade` is designed to provide network administrators and security professionals with an efficient tool to execute configuration backups, network state snapshots, system readiness checks, and operating system upgrades of Palo Alto Networks firewalls and Panorama appliances.
 
 Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot65/pan-os-upgrade)
 Documentation: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.io/pan-os-upgrade/)
@@ -59,18 +57,27 @@ For details on the support provided by Palo Alto Networks for this project, plea
 ### Key Features
 
 - **Three Unique Upgrade Workflows Supported**:
-  - `firewall`: targets and upgrades an individual firewall
+  - `firewall`: targets and upgrades an individual PAN-OS firewall
   - `panorama`: targets and upgrades an individual Panorama appliance
-  - `batch`: targets a Panorama appliance and upgrades firewalls in batch
+  - `batch`: targets a Panorama appliance and upgrades firewalls in bulk
 - **Automation of Routine Tasks**: Reduces manual errors and saves time by automating upgrades, configurations, and system checks.
 - **Support for Direct and Proxy Connections**: Connect directly to firewalls or through a Panorama appliance, with support for targeting specific devices using filters.
 - **Pre/Post Diff**: Network snapshots are taken before and after the upgrade process, providing a PDF report of changes within the network environment after the upgrade completes.
-- **Active/Passive High Availability (HA) Workflow**: Fully supports upgrading devices in active/passive HA configurations, ensuring both members are properly upgraded and synchronized.
+- **Active/Passive High Availability (HA) Workflow**: Fully supports upgrading devices in active/passive HA configurations when executed in `batch` mode, ensuring both members are properly upgraded and synchronized.
 - **Multi-threading for Efficiency**: Utilizes multi-threading to parallelize upgrades, especially beneficial when upgrading multiple devices through Panorama, enhancing performance and reducing overall upgrade time.
 - **Customizable and Extensible**: Execution of the script can be tailored to fit diverse network environments and requirements, offering flexibility for various deployment scenarios.
 - **Comprehensive PAN-OS Interactions**: Facilitates extensive interactions with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
 
 > **Note**: While this script is optimized for standalone and active/passive HA environments, it has not been tested against active/active or clustered firewalls.
+
+<!-- LOGIC WORKFLOW -->
+### Logic Workflow
+
+You can view the logical workflow of the `pan-os-upgrade` subcommands by viewing these diagrams:
+
+- [pan-os-upgrade firewall](https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true)
+- [pan-os-upgrade panorama](https://link.excalidraw.com/readonly/lFTV51plR0DBR5FdkC5Y?darkMode=true)
+- [pan-os-upgrade batch](https://link.excalidraw.com/readonly/hNOeOAWRlk4t9uKBfPVE?darkMode=true)
 
 <!-- EXAMPLE EXECUTION -->
 ### Example Execution
@@ -288,15 +295,6 @@ Here's an example of the PDF diff report that's generated:
 <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/report.png?raw=true" alt="PDF">
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- LOGIC WORKFLOW -->
-### Logic Workflow
-
-You can view the logical workflow of the scripts by viewing these diagrams:
-
-- [pan-os-upgrade firewall](https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true)
-
-<iframe src="https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true" width="100%" height="100%" style="border: none;"></iframe>
 
 <!-- USAGE -->
 ## Usage
