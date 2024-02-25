@@ -154,6 +154,9 @@ def connect_to_host(
             api_username=username,
             api_password=password,
         )
+        logging.info(
+            f"{get_emoji(action='start')} {hostname}: Connection to the appliance successful."
+        )
 
         return target_device
 
