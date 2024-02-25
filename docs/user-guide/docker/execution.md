@@ -91,7 +91,7 @@ Settings: Custom configuration loaded file detected and loaded at:
 /app/settings.yaml
 =================================================================================================
 🚀 lab-fw1.cdot.io: Connection to the appliance successful.
-📝 lab-fw1: 007054000254141 192.168.255.11
+📝 lab-fw1: 007054000654320 192.168.255.11
 📝 lab-fw1: HA mode: disabled
 📝 lab-fw1: Current version: 10.1.3-h3
 📝 lab-fw1: Target version: 10.1.4
@@ -129,7 +129,7 @@ Settings: Custom configuration loaded file detected and loaded at:
 🚀 lab-fw1: Performing upgrade to version 10.1.4.
 📝 lab-fw1: The install will take several minutes, check for status details within the GUI.
 🚀 lab-fw1: Attempting upgrade to version 10.1.4 (Attempt 1 of 3).
-Device 007054000254141 installing version: 10.1.4
+Device 007054000654320 installing version: 10.1.4
 ✅ lab-fw1: Upgrade completed successfully
 🚀 lab-fw1: Rebooting the target device.
 🟧 lab-fw1: Retry attempt 1 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
