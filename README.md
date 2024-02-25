@@ -13,7 +13,7 @@
     <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/logo.svg?raw=true" alt="Logo">
     <h3 align="center">PAN-OS and Panorama Upgrade Automation</h3>
     <p align="center">
-        Streamlining Palo Alto Networks Firewall Upgrades with Python Automation
+        Streamlining Upgrades of Palo Alto Networks Firewall and Panorama appliances
         <br />
         <a href="https://cdot65.github.io/pan-os-upgrade"><strong>Documentation Website »</strong></a>
         <br />
@@ -30,6 +30,9 @@
         <li><a href="#about-the-project">About The Project</a></li>
         <li><a href="#support">Support</a></li>
         <li><a href="#usage">Usage</a></li>
+        <li><a href="#key-features">Key Features</a></li>
+        <li><a href="#example-execution">Example Execution</a></li>
+        <li><a href="#logic-workflow">Logic Workflow</a></li>
         <li><a href="#contributing">Contributing</a></li>
         <li><a href="#license">License</a></li>
         <li><a href="#contact">Contact</a></li>
@@ -40,7 +43,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-This project is a comprehensive Python-based solution for automating PAN-OS upgrades. It's designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configurations, and system checks of Palo Alto Networks appliances.
+This project is a comprehensive solution for automating the complex real-world upgrade workflows for PAN-OS firewalls and Panorama appliances. It's designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configuration backups, network snapshots, and system readiness checks of Palo Alto Networks appliances.
 
 Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot65/pan-os-upgrade)
 Documentation: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.io/pan-os-upgrade/)
@@ -50,6 +53,7 @@ Documentation: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.
 
 For details on the support provided by Palo Alto Networks for this project, please consult the [SUPPORT.md](https://github.com/cdot65/pan-os-upgrade/blob/main/SUPPORT.md) file in the repository.
 
+<!-- KEY FEATURES -->
 ### Key Features
 
 - **Three Unique Upgrade Workflows Supported**:
@@ -66,7 +70,8 @@ For details on the support provided by Palo Alto Networks for this project, plea
 
 > **Note**: While this script is optimized for standalone and active/passive HA environments, it has not been tested against active/active or clustered firewalls.
 
-Example Execution
+<!-- EXAMPLE EXECUTION -->
+### Example Execution
 
 <div class="termy">
 
@@ -253,6 +258,15 @@ Device 007954000123451 installing version: 10.1.3-h2
 </div>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- LOGIC WORKFLOW -->
+### Logic Workflow
+
+You can view the logical workflow of the scripts by viewing these diagrams:
+
+- [pan-os-upgrade firewall](https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true)
+
+<iframe src="https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true" width="100%" height="100%" style="border: none;"></iframe>
 
 <!-- USAGE -->
 ## Usage
