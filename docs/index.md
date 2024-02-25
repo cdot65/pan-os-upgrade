@@ -39,9 +39,7 @@ hide:
 
 ---
 
-This project is a comprehensive solution for automating the complex real-world upgrade workflows for PAN-OS firewalls and Panorama appliances.
-
-It is designed to provide network administrators and security professionals with an efficient tool to manage upgrades, configuration backups, network snapshots, and system readiness checks of Palo Alto Networks appliances.
+`pan-os-upgrade` is designed to provide network administrators and security professionals with an efficient tool to execute configuration backups, network state snapshots, system readiness checks, and operating system upgrades of Palo Alto Networks firewalls and Panorama appliances.
 
 ## Key Features
 
@@ -56,6 +54,16 @@ It is designed to provide network administrators and security professionals with
 - **Multi-threading for Efficiency**: Utilizes multi-threading to parallelize upgrades, especially beneficial when upgrading multiple devices through Panorama, enhancing performance and reducing overall upgrade time.
 - **Customizable and Extensible**: Execution of the script can be tailored to fit diverse network environments and requirements, offering flexibility for various deployment scenarios.
 - **Comprehensive PAN-OS Interactions**: Facilitates extensive interactions with Palo Alto Networks appliances for operations like readiness checks, state snapshots, and report generation.
+
+---
+
+### Logic Workflow
+
+You can view the logical workflow of the `pan-os-upgrade` subcommands by viewing these diagrams:
+
+- [pan-os-upgrade firewall](https://link.excalidraw.com/readonly/JYX3bXR6dS8Eoejmpcfx?darkMode=true)
+- [pan-os-upgrade panorama](https://link.excalidraw.com/readonly/lFTV51plR0DBR5FdkC5Y?darkMode=true)
+- [pan-os-upgrade batch](https://link.excalidraw.com/readonly/hNOeOAWRlk4t9uKBfPVE?darkMode=true)
 
 ---
 
