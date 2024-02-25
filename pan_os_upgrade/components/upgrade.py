@@ -539,6 +539,7 @@ def upgrade_firewall(
             target_devices_to_revisit_lock=target_devices_to_revisit_lock,
         )
 
+        # gracefully exit the upgrade_firewall function if the firewall is not ready for an upgrade to target version
         if not proceed_with_upgrade:
             if peer_firewall:
                 logging.info(
@@ -550,7 +551,7 @@ def upgrade_firewall(
 
     # Check to see if the firewall is ready for an upgrade
     logging.debug(
-        f"{get_emoji(action='start')} {hostname}: Performing tests to validate firewall's readiness."
+        f"{get_emoji(action='start')} {hostname}: Checking to see if a PAN-OS upgrade is available."
     )
     update_available = software_update_check(
         ha_details=ha_details,
@@ -560,7 +561,6 @@ def upgrade_firewall(
         target_device=firewall,
         version=target_version,
     )
-    logging.debug(f"{get_emoji(action='report')} {hostname}: Readiness check complete")
 
     # gracefully exit if the firewall is not ready for an upgrade to target version
     if not update_available:
@@ -704,59 +704,56 @@ def upgrade_firewall(
             logging.info(
                 f"{get_emoji(action='skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
             )
-            return None  # Early return, no snapshot performed
+            # Early return, no snapshot performed
+            return None
 
-        else:
-            # Perform the post-upgrade snapshot
-            post_snapshot = perform_snapshot(
-                actions=selected_actions,
-                file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-                firewall=firewall,
-                hostname=hostname,
-                settings_file_path=settings_file_path,
-            )
+    else:
+        # Perform the post-upgrade snapshot
+        post_snapshot = perform_snapshot(
+            actions=selected_actions,
+            file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+            firewall=firewall,
+            hostname=hostname,
+            settings_file_path=settings_file_path,
+        )
 
-            # initialize object storing both snapshots
-            snapshot_compare = SnapshotCompare(
-                left_snapshot=pre_snapshot.model_dump(),
-                right_snapshot=post_snapshot.model_dump(),
-            )
+        # initialize object storing both snapshots
+        snapshot_compare = SnapshotCompare(
+            left_snapshot=pre_snapshot.model_dump(),
+            right_snapshot=post_snapshot.model_dump(),
+        )
 
-            pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
+        pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
 
-            logging.debug(
-                f"{get_emoji(action='report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
-            )
+        logging.debug(
+            f"{get_emoji(action='report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
+        )
 
-            folder_path = f"assurance/snapshots/{hostname}/diff"
-            pdf_report = (
-                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
-            )
-            ensure_directory_exists(file_path=pdf_report)
+        folder_path = f"assurance/snapshots/{hostname}/diff"
+        pdf_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
+        ensure_directory_exists(file_path=pdf_report)
 
-            # Generate the PDF report for the diff
-            generate_diff_report_pdf(
-                file_path=pdf_report,
-                hostname=hostname,
-                pre_post_diff=pre_post_diff,
-                target_version=target_version,
-            )
+        # Generate the PDF report for the diff
+        generate_diff_report_pdf(
+            file_path=pdf_report,
+            hostname=hostname,
+            pre_post_diff=pre_post_diff,
+            target_version=target_version,
+        )
 
-            logging.info(
-                f"{get_emoji(action='save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
-            )
+        logging.info(
+            f"{get_emoji(action='save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+        )
 
-            json_report = (
-                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
-            )
+        json_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
 
-            # Write the file to the local filesystem as JSON
-            with open(json_report, "w") as file:
-                file.write(json.dumps(pre_post_diff))
+        # Write the file to the local filesystem as JSON
+        with open(json_report, "w") as file:
+            file.write(json.dumps(pre_post_diff))
 
-            logging.debug(
-                f"{get_emoji(action='save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
-            )
+        logging.debug(
+            f"{get_emoji(action='save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
+        )
 
 
 def upgrade_panorama(
