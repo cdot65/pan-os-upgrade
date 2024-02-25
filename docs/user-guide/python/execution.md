@@ -12,104 +12,74 @@ You can start the script interactively by simply issuing `pan-os-upgrade` from y
 
 ```console
 pan-os-upgrade firewall
-Firewall hostname or IP: houston.cdot.io
-Firewall username: cdot
+Firewall hostname or IP: lab-fw1.cdot.io
+Firewall username: officehours
 Firewall password:
-Target version: 11.1.1
-Dry Run? [Y/n]:
-===================================================================
+Target version: 10.1.4
+Dry Run? [Y/n]: n
+=================================================================================================
 Welcome to the PAN-OS upgrade tool
 
-You have selected to upgrade a single Firewall appliance.
+This script software is provided on an 'as-is' basis with no warranties, and no support provided.
 
-No settings.yaml file was found. Default values will be used.
-Create a settings.yaml file with 'pan-os-upgrade settings' command.
-===================================================================
-📝 houston: 007954000123453 192.168.255.211
-📝 houston: HA mode: disabled
-📝 houston: Current version: 10.1.3
-📝 houston: Target version: 11.1.1
-✅ houston: Upgrade required from 10.1.3 to 11.1.1
-🔧 houston: Refreshing list of available software versions
-✅ houston: version 11.1.1 is available for download
-❌ houston: Base image for 11.1.1 is not downloaded. Attempting download.
-🔍 houston: version 11.1.0 is not on the target device
-🚀 houston: version 11.1.0 is beginning download
-Device 007954000123453 downloading version: 11.1.0
-🔧 houston: Downloading version 11.1.0 - Elapsed time: 3 seconds
-🔧 houston: Downloading version 11.1.0 - Elapsed time: 37 seconds
-🔧 houston: Downloading version 11.1.0 - Elapsed time: 69 seconds
-🔧 houston: Downloading version 11.1.0 - Elapsed time: 102 seconds
-🔧 houston: Downloading version 11.1.0 - Elapsed time: 134 seconds
-✅ houston: 11.1.0 downloaded in 167 seconds
-✅ houston: Base image 11.1.0 downloaded successfully
-✅ houston: Pausing for 60 seconds to let 11.1.0 image load into the software manager before downloading 11.1.1
-📝 houston: Current version: 10.1.3
-📝 houston: Target version: 11.1.1
-✅ houston: Upgrade required from 10.1.3 to 11.1.1
-🔧 houston: Refreshing list of available software versions
-✅ houston: version 11.1.1 is available for download
-✅ houston: Base image for 11.1.1 is already downloaded
-🚀 houston: Performing test to see if 11.1.1 is already downloaded.
-🔍 houston: version 11.1.1 is not on the target device
-🚀 houston: version 11.1.1 is beginning download
-Device 007954000123453 downloading version: 11.1.1
-🔧 houston: Downloading version 11.1.1 - Elapsed time: 6 seconds
-🔧 houston: Downloading version 11.1.1 - Elapsed time: 40 seconds
-🔧 houston: Downloading version 11.1.1 - Elapsed time: 74 seconds
-✅ houston: 11.1.1 downloaded in 110 seconds
-✅ houston: version 11.1.1 has been downloaded.
-🚀 houston: Performing snapshot of network state information.
-🚀 houston: Attempting to capture network state snapshot (Attempt 1 of 3).
-✅ houston: Network snapshot created successfully on attempt 1.
-💾 houston: Network state snapshot collected and saved to assurance/snapshots/houston/pre/2024-02-04_09-19-25.json
-🚀 houston: Performing readiness checks to determine if firewall is ready for upgrade.
-✅ houston: Passed Readiness Check: Check if active support is available
-🟨 houston: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
-✅ houston: Passed Readiness Check: Check if there are pending changes on device
-🟨 houston: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
-🟨 houston: Skipped Readiness Check: Running Latest Content Version
-✅ houston: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
-✅ houston: Passed Readiness Check: No Expired Licenses
-✅ houston: Passed Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
-🟨 houston: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
-🟨 houston: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
-🟨 houston: Skipped Readiness Check: Check for any job with status different than FIN
-🟨 houston: Skipped Readiness Check: Check if NTP is synchronized
-🟨 houston: Skipped Readiness Check: Check if the clock is synchronized between dataplane and management plane
-✅ houston: Passed Readiness Check: Check connectivity with the Panorama appliance
-🟨 houston: Skipped Readiness Check: Check if a critical session is present in the sessions table
-✅ houston: Readiness Checks completed
-🚀 houston: Performing backup of configuration to local filesystem.
-📝 houston: Not a dry run, continue with upgrade.
-🚀 houston: Performing upgrade to version 11.1.1.
-📝 houston: The install will take several minutes, check for status details within the GUI.
-🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 1 of 3).
-Device 007954000123453 installing version: 11.1.1
-❌ houston: Upgrade error: Device 007954000123453 attempt to install version 11.1.1 failed: ['Failed to install 11.1.1 with the following errors.\nSW version is 11.1.1\nThe software manager is currently in use. Please try again later.\nFailed to install   version  11.1.1  type  panos\n\n']
-🟧 houston: Software manager is busy. Retrying in 60 seconds.
-🚀 houston: Attempting upgrade to version 11.1.1 (Attempt 2 of 3).
-Device 007954000123453 installing version: 11.1.1
-✅ houston: Upgrade completed successfully
-🚀 houston: Rebooting the target device.
-📝 houston: Command succeeded with no output
-🟧 houston: Retry attempt 1 due to error: URLError: reason: [Errno 60] Operation timed out
-🟧 houston: Retry attempt 2 due to error: URLError: reason: [Errno 60] Operation timed out
-🟧 houston: Retry attempt 3 due to error: URLError: reason: [Errno 61] Connection refused
-🟧 houston: Retry attempt 4 due to error: URLError: reason: [Errno 61] Connection refused
-🟧 houston: Retry attempt 5 due to error: URLError: reason: [Errno 61] Connection refused
-🟧 houston: Retry attempt 6 due to error: URLError: code: 403 reason: API Error: Invalid Credential
-🟧 houston: Retry attempt 7 due to error: URLError: code: 403 reason: API Error: Invalid Credential
-🟧 houston: Retry attempt 8 due to error: URLError: code: 403 reason: API Error: Invalid Credential
-📝 houston: Current device version: 11.1.1
-✅ houston: Device rebooted to the target version successfully.
-🚀 houston: Performing backup of configuration to local filesystem.
-🔧 houston: Waiting for the device to become ready for the post upgrade snapshot.
-🚀 houston: Performing snapshot of network state information.
-🚀 houston: Attempting to capture network state snapshot (Attempt 1 of 3).
-✅ houston: Network snapshot created successfully on attempt 1.
-💾 houston: Network state snapshot collected and saved to assurance/snapshots/houston/post/2024-02-04_09-44-21.json
-💾 houston: Snapshot comparison PDF report saved to assurance/snapshots/houston/diff/2024-02-04_09-44-25_report.pdf
+The selected `firewall` subcommand will upgrade a single Firewall appliance.
+
+Settings: Custom configuration loaded file detected and loaded at:
+/app/settings.yaml
+=================================================================================================
+🚀 lab-fw1.cdot.io: Connection to the appliance successful.
+📝 lab-fw1: 007054000654320 192.168.255.11
+📝 lab-fw1: HA mode: disabled
+📝 lab-fw1: Current version: 10.1.3-h3
+📝 lab-fw1: Target version: 10.1.4
+✅ lab-fw1: Upgrade required from 10.1.3-h3 to 10.1.4
+🔧 lab-fw1: Refreshing list of available software versions
+✅ lab-fw1: version 10.1.4 is available for download
+✅ lab-fw1: Base image for 10.1.4 is already downloaded
+🚀 lab-fw1: Performing test to see if 10.1.4 is already downloaded.
+✅ lab-fw1: version 10.1.4 already on target device.
+✅ lab-fw1: version 10.1.4 has been downloaded.
+🚀 lab-fw1: Performing snapshot of network state information.
+🚀 lab-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ lab-fw1: Network snapshot created successfully on attempt 1.
+💾 lab-fw1: Network state snapshot collected and saved to assurance/snapshots/lab-fw1/pre/2024-02-25_11-38-57.json
+🚀 lab-fw1: Performing readiness checks of target firewall.
+🚀 lab-fw1: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ lab-fw1: Passed Readiness Check: Check if active support is available
+🟨 lab-fw1: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
+✅ lab-fw1: Passed Readiness Check: Check if there are pending changes on device
+🟨 lab-fw1: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 lab-fw1: Skipped Readiness Check: Running Latest Content Version
+✅ lab-fw1: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
+✅ lab-fw1: Passed Readiness Check: No Expired Licenses
+🟨 lab-fw1: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+🟨 lab-fw1: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 lab-fw1: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 lab-fw1: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 lab-fw1: Skipped Readiness Check: Check if NTP is synchronized
+🟨 lab-fw1: Skipped Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ lab-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 lab-fw1: Skipped Readiness Check: Check if a critical session is present in the sessions table
+✅ lab-fw1: Readiness Checks completed
+🚀 lab-fw1: Performing backup of configuration to local filesystem.
+📝 lab-fw1: Not a dry run, continue with upgrade.
+🚀 lab-fw1: Performing upgrade to version 10.1.4.
+📝 lab-fw1: The install will take several minutes, check for status details within the GUI.
+🚀 lab-fw1: Attempting upgrade to version 10.1.4 (Attempt 1 of 3).
+Device 007054000654320 installing version: 10.1.4
+✅ lab-fw1: Upgrade completed successfully
+🚀 lab-fw1: Rebooting the target device.
+🟧 lab-fw1: Retry attempt 1 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 2 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 3 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 4 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 5 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 6 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+🟧 lab-fw1: Retry attempt 7 due to error: URLError: reason: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)
+📝 lab-fw1: Current device version: 10.1.4
+✅ lab-fw1: Device rebooted to the target version successfully.
+🚀 lab-fw1: Performing backup of configuration to local filesystem.
+🔧 lab-fw1: Waiting for the device to become ready for the post upgrade snapshot.
 ```
 
 </div>
@@ -144,62 +114,204 @@ Examples:
 ❯ pan-os-upgrade batch
 Panorama hostname or IP: panorama1.cdot.io
 Panorama username: officehours
-Panorama password: 
+Panorama password:
 Firewall target version (ex: 10.1.2): 10.1.3-h3
-Dry Run? [Y/n]: 
-===========================================================================
+Dry Run? [Y/n]: n
+=================================================================================================
 Welcome to the PAN-OS upgrade tool
 
-You have selected to perform a batch upgrade of firewalls through Panorama.
+This script software is provided on an 'as-is' basis with no warranties, and no support provided.
 
-Custom configuration loaded from:
-/Users/cdot/development/public/pan-os-upgrade/pan_os_upgrade/settings.yaml
+The selected `batch` subcommand will upgrade one or more firewalls.
 
-No inventory.yaml file was found, getting firewalls connected to Panorama.
-Create an inventory.yaml file with 'pan-os-upgrade inventory' command.
-===========================================================================
+Settings: No settings.yaml file was found, default values will be used.
+You can create a settings.yaml file with 'pan-os-upgrade settings' command.
+
+Inventory: No inventory.yaml file was found, firewalls will need be selected through the menu.
+You can create an inventory.yaml file with 'pan-os-upgrade inventory' command.
+=================================================================================================
+🚀 panorama1.cdot.io: Connection to the appliance successful.
 ✅ panorama1.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
 🔧 panorama1.cdot.io: Retrieving a list of all firewalls connected to Panorama...
 🔧 panorama1.cdot.io: Retrieving detailed information of each firewall...
-╒═════╤════════════╤════════════════╤═════════╤═════════════════╤══════════════╤═══════════════╕
-│   # │ Hostname   │ IP Address     │ Model   │          Serial │ SW Version   │ App Version   │
-╞═════╪════════════╪════════════════╪═════════╪═════════════════╪══════════════╪═══════════════╡
-│   1 │ katy-fw1   │ 192.168.255.41 │ PA-VM   │ 007954000123454 │ 10.1.3-h2    │ 8799-8509     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   2 │ katy-fw2   │ 192.168.255.42 │ PA-VM   │ 007954000123455 │ 10.1.3-h2    │ 8799-8509     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   3 │ lab-fw1    │ 192.168.255.11 │ PA-VM   │ 007954000123456 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   4 │ lab-fw2    │ 192.168.255.12 │ PA-VM   │ 007954000123457 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   5 │ lab-fw3    │ 192.168.255.13 │ PA-VM   │ 007954000123458 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   6 │ lab-fw4    │ 192.168.255.14 │ PA-VM   │ 007954000123459 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   7 │ lab-fw5    │ 192.168.255.15 │ PA-VM   │ 007954000123460 │ 10.1.3-h3    │ 8729-8157     │
-╘═════╧════════════╧════════════════╧═════════╧═════════════════╧══════════════╧═══════════════╛
+╒═════╤════════════╤════════════════╤═════════╤═══════════╤═══════════╤═══════════╤═══════════╕
+│   # │ Hostname   │ IP Address     │ Model   │ PAN-OS    │ Content   │ HA Mode   │ Preempt   │
+╞═════╪════════════╪════════════════╪═════════╪═══════════╪═══════════╪═══════════╪═══════════╡
+│   1 │ katy-fw1   │ 192.168.255.41 │ PA-VM   │ 10.1.3-h3 │ 8799-8509 │ passive   │ no        │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   2 │ katy-fw2   │ 192.168.255.42 │ PA-VM   │ 10.1.3-h3 │ 8799-8509 │ active    │ no        │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   3 │ lab-fw1    │ 192.168.255.11 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   4 │ lab-fw2    │ 192.168.255.12 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   5 │ lab-fw3    │ 192.168.255.13 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   6 │ lab-fw4    │ 192.168.255.14 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   7 │ lab-fw5    │ 192.168.255.15 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   8 │ lab-fw6    │ 192.168.255.16 │ PA-VM   │ 10.1.4-h4 │ 8729-8157 │ active    │ yes       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   9 │ lab-fw7    │ 192.168.255.17 │ PA-VM   │ 10.1.4-h4 │ 8729-8157 │ passive   │ yes       │
+╘═════╧════════════╧════════════════╧═════════╧═══════════╧═══════════╧═══════════╧═══════════╛
 You can select devices by entering their numbers, ranges, or separated by commas.
 Examples: '1', '2-4', '1,3,5-7'.
 Type 'done' on a new line when finished.
 
-Enter your selection(s): 1,3,5-7
-katy-fw1 selected.
-lab-fw1 selected.
-lab-fw3 selected.
-lab-fw4 selected.
-lab-fw5 selected.
+Enter your selection(s): 3-4
+  - lab-fw1 selected.
+  - lab-fw2 selected.
 Enter your selection(s): done
-📝 panorama1.cdot.io: Upgrading 5 devices to version 10.1.3-h3...
+🔧 panorama1.cdot.io: Selected 2 firewalls from inventory.yaml for upgrade.
+📝 panorama1.cdot.io: Upgrading 2 devices to version 10.1.3-h3...
 📝 panorama1.cdot.io: Please confirm the selected firewalls:
-  - katy-fw1 (192.168.255.41)
   - lab-fw1 (192.168.255.11)
-  - lab-fw3 (192.168.255.13)
-  - lab-fw4 (192.168.255.14)
-  - lab-fw5 (192.168.255.15)
-🟧 panorama1.cdot.io: Dry run mode is enabled, upgrade workflow will be skipped.
-Do you want to proceed with the dry run? [y/N]: y
+  - lab-fw2 (192.168.255.12)
+🟧 panorama1.cdot.io: Dry run mode is disabled, upgrade workflow will be executed.
+📝 panorama1.cdot.io: Do you want to proceed with the upgrade? [y/N]: y
 🚀 Proceeding with the upgrade...
-... shortened output for brevity ...
+🚀 Proceeding with the upgrade...
+🔧 panorama1.cdot.io: Using 10 threads.
+📝 lab-fw1: 007054000654321 192.168.255.41
+📝 lab-fw2: 007054000654322 192.168.255.42
+📝 lab-fw1: HA mode: active
+📝 lab-fw2: HA mode: passive
+📝 lab-fw1: Local state: active, Local version: 10.1.3, Peer version: 10.1.3
+📝 lab-fw1: Version comparison: equal
+🔍 lab-fw1: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list.
+📝 lab-fw2: Local state: passive, Local version: 10.1.3, Peer version: 10.1.3
+📝 lab-fw2: Version comparison: equal
+📝 lab-fw2: Target device is passive
+📝 lab-fw2: Current version: 10.1.3
+📝 lab-fw2: Target version: 10.1.3-h3
+✅ lab-fw2: Upgrade required from 10.1.3 to 10.1.3-h3
+🔧 lab-fw2: Refreshing list of available software versions
+✅ lab-fw2: version 10.1.3-h3 is available for download
+✅ lab-fw2: Base image for 10.1.3-h3 is already downloaded
+🚀 lab-fw2: Performing test to see if 10.1.3-h3 is already downloaded.
+✅ lab-fw2: version 10.1.3-h3 already on target device.
+✅ lab-fw2: 10.1.3-h3 has been downloaded and sync'd to HA peer.
+🚀 lab-fw2: Performing snapshot of network state information.
+🚀 lab-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ lab-fw2: Network snapshot created successfully on attempt 1.
+💾 lab-fw2: Network state snapshot collected and saved to assurance/snapshots/lab-fw2/pre/2024-02-25_04-14-15.json
+🚀 lab-fw2: Performing readiness checks of target firewall.
+🚀 lab-fw2: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ lab-fw2: Passed Readiness Check: Check if active support is available
+🟨 lab-fw2: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
+✅ lab-fw2: Passed Readiness Check: Check if there are pending changes on device
+🟨 lab-fw2: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 lab-fw2: Skipped Readiness Check: Running Latest Content Version
+✅ lab-fw2: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
+✅ lab-fw2: Passed Readiness Check: No Expired Licenses
+🟨 lab-fw2: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+✅ lab-fw2: Passed Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 lab-fw2: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 lab-fw2: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 lab-fw2: Skipped Readiness Check: Check if NTP is synchronized
+✅ lab-fw2: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ lab-fw2: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 lab-fw2: Skipped Readiness Check: Check if a critical session is present in the sessions table
+✅ lab-fw2: Readiness Checks completed
+🚀 lab-fw2: Checking if HA peer is in sync.
+✅ lab-fw2: HA peer sync test has been completed.
+🚀 lab-fw2: Performing backup of configuration to local filesystem.
+📝 lab-fw2: Not a dry run, continue with upgrade.
+🚀 lab-fw2: Performing upgrade to version 10.1.3-h3.
+📝 lab-fw2: The install will take several minutes, check for status details within the GUI.
+🚀 lab-fw2: Attempting upgrade to version 10.1.3-h3 (Attempt 1 of 3).
+Device 007054000654322 installing version: 10.1.3-h3
+✅ lab-fw2: Upgrade completed successfully
+🚀 lab-fw2: Rebooting the target device.
+🟧 lab-fw2: Retry attempt 1 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 2 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 3 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 4 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 5 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 6 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 7 due to error: 007054000654322 not connected
+🟧 lab-fw2: Retry attempt 8 due to error: 007054000654322 not connected
+📝 lab-fw2: Current device version: 10.1.3-h3
+✅ lab-fw2: Device rebooted to the target version successfully.
+🚀 lab-fw2: Performing backup of configuration to local filesystem.
+🔧 lab-fw2: Waiting for the device to become ready for the post upgrade snapshot.
+🚀 lab-fw2: Performing snapshot of network state information.
+🚀 lab-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
+❌ lab-fw2: Error running snapshots: ElementTree.fromstring ParseError: junk after document element: line 1, column 3703
+🚀 lab-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ lab-fw2: Network snapshot created successfully on attempt 1.
+💾 lab-fw2: Network state snapshot collected and saved to assurance/snapshots/lab-fw2/post/2024-02-25_04-32-05.json
+💾 lab-fw2: Snapshot comparison PDF report saved to assurance/snapshots/lab-fw2/diff/2024-02-25_04-32-08_report.pdf
+🚀 panorama1.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
+📝 lab-fw1: 007054000654321 192.168.255.41
+📝 lab-fw1: HA mode: active
+📝 lab-fw1: Local state: active, Local version: 10.1.3, Peer version: 10.1.3-h3
+Waiting for HA synchronization to complete on lab-fw1. Attempt 1/3
+HA synchronization complete on lab-fw1. Proceeding with upgrade.
+📝 lab-fw1: Version comparison: older
+📝 lab-fw1: Target device is on an older version
+📝 lab-fw1: Suspending HA state of active
+🟧 lab-fw1: Error received when suspending active target device HA state: argument of type 'NoneType' is not iterable
+📝 lab-fw1: Current version: 10.1.3
+📝 lab-fw1: Target version: 10.1.3-h3
+✅ lab-fw1: Upgrade required from 10.1.3 to 10.1.3-h3
+🔧 lab-fw1: Refreshing list of available software versions
+✅ lab-fw1: version 10.1.3-h3 is available for download
+✅ lab-fw1: Base image for 10.1.3-h3 is already downloaded
+🚀 lab-fw1: Performing test to see if 10.1.3-h3 is already downloaded.
+✅ lab-fw1: version 10.1.3-h3 already on target device.
+✅ lab-fw1: 10.1.3-h3 has been downloaded and sync'd to HA peer.
+🚀 lab-fw1: Performing snapshot of network state information.
+🚀 lab-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ lab-fw1: Network snapshot created successfully on attempt 1.
+💾 lab-fw1: Network state snapshot collected and saved to assurance/snapshots/lab-fw1/pre/2024-02-25_04-33-26.json
+🚀 lab-fw1: Performing readiness checks of target firewall.
+🚀 lab-fw1: Performing readiness checks to determine if firewall is ready for upgrade.
+✅ lab-fw1: Passed Readiness Check: Check if active support is available
+🟨 lab-fw1: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
+✅ lab-fw1: Passed Readiness Check: Check if there are pending changes on device
+🟨 lab-fw1: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
+🟨 lab-fw1: Skipped Readiness Check: Running Latest Content Version
+✅ lab-fw1: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
+✅ lab-fw1: Passed Readiness Check: No Expired Licenses
+🟨 lab-fw1: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
+🟨 lab-fw1: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
+🟨 lab-fw1: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
+🟨 lab-fw1: Skipped Readiness Check: Check for any job with status different than FIN
+🟨 lab-fw1: Skipped Readiness Check: Check if NTP is synchronized
+✅ lab-fw1: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
+✅ lab-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
+🟨 lab-fw1: Skipped Readiness Check: Check if a critical session is present in the sessions table
+✅ lab-fw1: Readiness Checks completed
+🚀 lab-fw1: Checking if HA peer is in sync.
+✅ lab-fw1: HA peer sync test has been completed.
+🚀 lab-fw1: Performing backup of configuration to local filesystem.
+📝 lab-fw1: Not a dry run, continue with upgrade.
+🚀 lab-fw1: Performing upgrade to version 10.1.3-h3.
+📝 lab-fw1: The install will take several minutes, check for status details within the GUI.
+🚀 lab-fw1: Attempting upgrade to version 10.1.3-h3 (Attempt 1 of 3).
+Device 007054000654321 installing version: 10.1.3-h3
+✅ lab-fw1: Upgrade completed successfully
+🚀 lab-fw1: Rebooting the target device.
+🟧 lab-fw1: Retry attempt 1 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 2 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 3 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 4 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 5 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 6 due to error: 007054000654321 not connected
+🟧 lab-fw1: Retry attempt 7 due to error: 007054000654321 not connected
+📝 lab-fw1: Current device version: 10.1.3-h3
+✅ lab-fw1: Device rebooted to the target version successfully.
+🚀 lab-fw1: Performing backup of configuration to local filesystem.
+🔧 lab-fw1: Waiting for the device to become ready for the post upgrade snapshot.
+🚀 lab-fw1: Performing snapshot of network state information.
+🚀 lab-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
+✅ lab-fw1: Network snapshot created successfully on attempt 1.
+💾 lab-fw1: Network state snapshot collected and saved to assurance/snapshots/lab-fw1/post/2024-02-25_04-50-28.json
+💾 lab-fw1: Snapshot comparison PDF report saved to assurance/snapshots/lab-fw1/diff/2024-02-25_04-50-29_report.pdf
+✅ panorama1.cdot.io: Completed revisiting firewalls
+
 ```
 
 </div>
@@ -262,163 +374,7 @@ No inventory.yaml file was found, getting firewalls connected to Panorama.
 Create an inventory.yaml file with 'pan-os-upgrade inventory' command.
 ===========================================================================
 ✅ panorama.cdot.io: Connection to Panorama established. Firewall connections will be proxied!
-🔧 panorama.cdot.io: Retrieving a list of all firewalls connected to Panorama...
-🔧 panorama.cdot.io: Retrieving detailed information of each firewall...
-╒═════╤═══════════════╤═════════════════╤═════════╤═════════════════╤══════════════╤═══════════════╕
-│   # │ Hostname      │ IP Address      │ Model   │          Serial │ SW Version   │ App Version   │
-╞═════╪═══════════════╪═════════════════╪═════════╪═════════════════╪══════════════╪═══════════════╡
-│   1 │ Woodlands-fw1 │ 192.168.255.43  │ PA-VM   │ 007954000123451 │ 10.1.3       │ 8729-8157     │
-├─────┼───────────────┼─────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   2 │ Woodlands-fw2 │ 192.168.255.44  │ PA-VM   │ 007954000123452 │ 10.1.3       │ 8729-8157     │
-├─────┼───────────────┼─────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   3 │ houston       │ 192.168.255.211 │ PA-VM   │ 007954000123453 │ 10.1.3       │ 8797-8498     │
-╘═════╧═══════════════╧═════════════════╧═════════╧═════════════════╧══════════════╧═══════════════╛
-You can select devices by entering their numbers, ranges, or separated by commas.
-Examples: '1', '2-4', '1,3,5-7'.
-Type 'done' on a new line when finished.
-
-Enter your selection(s): 1,2
-Woodlands-fw1 selected.
-Woodlands-fw2 selected.
-Enter your selection(s): done
-📝 panorama.cdot.io: Upgrading 2 devices to version 10.1.3-h2...
-📝 panorama.cdot.io: Please confirm the selected firewalls:
-  - Woodlands-fw1 (192.168.255.43)
-  - Woodlands-fw2 (192.168.255.44)
-🟧 panorama.cdot.io: Dry run mode is disabled, upgrade workflow will be executed.
-Do you want to proceed with the upgrade? [y/N]: y
-🚀 Proceeding with the upgrade...
-🚀 Proceeding with the upgrade...
-🔧 panorama.cdot.io: Using 10 threads.
-📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw2: 007954000123452 192.168.255.44
-📝 Woodlands-fw1: HA mode: active
-📝 Woodlands-fw2: HA mode: passive
-📝 Woodlands-fw1: Local state: active, Local version: 10.1.3, Peer version: 10.1.3
-📝 Woodlands-fw1: Version comparison: equal
-🔍 Woodlands-fw1: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list.
-📝 Woodlands-fw2: Local state: passive, Local version: 10.1.3, Peer version: 10.1.3
-📝 Woodlands-fw2: Version comparison: equal
-📝 Woodlands-fw2: Target device is passive
-📝 Woodlands-fw2: Current version: 10.1.3
-📝 Woodlands-fw2: Target version: 10.1.3-h2
-✅ Woodlands-fw2: Upgrade required from 10.1.3 to 10.1.3-h2
-🔧 Woodlands-fw2: Refreshing list of available software versions
-✅ Woodlands-fw2: version 10.1.3-h2 is available for download
-✅ Woodlands-fw2: Base image for 10.1.3-h2 is already downloaded
-🚀 Woodlands-fw2: Performing test to see if 10.1.3-h2 is already downloaded.
-✅ Woodlands-fw2: version 10.1.3-h2 already on target device.
-✅ Woodlands-fw2: 10.1.3-h2 has been downloaded and sync'd to HA peer.
-🚀 Woodlands-fw2: Performing snapshot of network state information.
-🚀 Woodlands-fw2: Attempting to capture network state snapshot (Attempt 1 of 3).
-✅ Woodlands-fw2: Network snapshot created successfully on attempt 1.
-💾 Woodlands-fw2: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw2/pre/2024-02-13_14-18-09.json
-🚀 Woodlands-fw2: Performing readiness checks of target firewall.
-🚀 Woodlands-fw2: Performing readiness checks to determine if firewall is ready for upgrade.
-✅ Woodlands-fw2: Passed Readiness Check: Check if active support is available
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
-✅ Woodlands-fw2: Passed Readiness Check: Check if there are pending changes on device
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
-🟨 Woodlands-fw2: Skipped Readiness Check: Running Latest Content Version
-✅ Woodlands-fw2: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
-✅ Woodlands-fw2: Passed Readiness Check: No Expired Licenses
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
-✅ Woodlands-fw2: Passed Readiness Check: Checks HA pair status from the perspective of the current device
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
-🟨 Woodlands-fw2: Skipped Readiness Check: Check for any job with status different than FIN
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if NTP is synchronized
-✅ Woodlands-fw2: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
-✅ Woodlands-fw2: Passed Readiness Check: Check connectivity with the Panorama appliance
-🟨 Woodlands-fw2: Skipped Readiness Check: Check if a critical session is present in the sessions table
-✅ Woodlands-fw2: Readiness Checks completed
-🚀 Woodlands-fw2: Checking if HA peer is in sync.
-✅ Woodlands-fw2: HA peer sync test has been completed.
-🚀 Woodlands-fw2: Performing backup of configuration to local filesystem.
-📝 Woodlands-fw2: Not a dry run, continue with upgrade.
-🚀 Woodlands-fw2: Performing upgrade to version 10.1.3-h2.
-📝 Woodlands-fw2: The install will take several minutes, check for status details within the GUI.
-🚀 Woodlands-fw2: Attempting upgrade to version 10.1.3-h2 (Attempt 1 of 3).
-Device 007954000123452 installing version: 10.1.3-h2
-✅ Woodlands-fw2: Upgrade completed successfully
-🚀 Woodlands-fw2: Rebooting the target device.
-📝 Woodlands-fw2: Command succeeded with no output
-🟧 Woodlands-fw2: Retry attempt 1 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 2 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 3 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 4 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 5 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 6 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 7 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 8 due to error: 007954000123452 not connected
-🟧 Woodlands-fw2: Retry attempt 9 due to error: 007954000123452 not connected
-📝 Woodlands-fw2: Current device version: 10.1.3-h2
-✅ Woodlands-fw2: Device rebooted to the target version successfully.
-🚀 Woodlands-fw2: Performing backup of configuration to local filesystem.
-🔧 Woodlands-fw2: Waiting for the device to become ready for the post upgrade snapshot.
-🚀 panorama.cdot.io: Revisiting firewalls that were active in an HA pair and had the same version as their peers.
-📝 Woodlands-fw1: 007954000123451 192.168.255.43
-📝 Woodlands-fw1: HA mode: active
-📝 Woodlands-fw1: Local state: active, Local version: 10.1.3, Peer version: 10.1.3-h2
-Waiting for HA synchronization to complete on Woodlands-fw1. Attempt 1/3
-HA synchronization complete on Woodlands-fw1. Proceeding with upgrade.
-📝 Woodlands-fw1: Version comparison: older
-📝 Woodlands-fw1: Target device is on an older version
-📝 Woodlands-fw1: Suspending HA state of active
-🟧 Woodlands-fw1: Error received when suspending active target device HA state: argument of type 'NoneType' is not iterable
-📝 Woodlands-fw1: Current version: 10.1.3
-📝 Woodlands-fw1: Target version: 10.1.3-h2
-✅ Woodlands-fw1: Upgrade required from 10.1.3 to 10.1.3-h2
-🔧 Woodlands-fw1: Refreshing list of available software versions
-✅ Woodlands-fw1: version 10.1.3-h2 is available for download
-✅ Woodlands-fw1: Base image for 10.1.3-h2 is already downloaded
-🚀 Woodlands-fw1: Performing test to see if 10.1.3-h2 is already downloaded.
-✅ Woodlands-fw1: version 10.1.3-h2 already on target device.
-✅ Woodlands-fw1: 10.1.3-h2 has been downloaded and sync'd to HA peer.
-🚀 Woodlands-fw1: Performing snapshot of network state information.
-🚀 Woodlands-fw1: Attempting to capture network state snapshot (Attempt 1 of 3).
-✅ Woodlands-fw1: Network snapshot created successfully on attempt 1.
-💾 Woodlands-fw1: Network state snapshot collected and saved to assurance/snapshots/Woodlands-fw1/pre/2024-02-13_14-37-49.json
-🚀 Woodlands-fw1: Performing readiness checks of target firewall.
-🚀 Woodlands-fw1: Performing readiness checks to determine if firewall is ready for upgrade.
-✅ Woodlands-fw1: Passed Readiness Check: Check if active support is available
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if a given ARP entry is available in the ARP table
-✅ Woodlands-fw1: Passed Readiness Check: Check if there are pending changes on device
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if the certificates' keys meet minimum size requirements
-🟨 Woodlands-fw1: Skipped Readiness Check: Running Latest Content Version
-✅ Woodlands-fw1: Passed Readiness Check: Check if any Dynamic Update job is scheduled to run within the specified time window
-✅ Woodlands-fw1: Passed Readiness Check: No Expired Licenses
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.
-🟨 Woodlands-fw1: Skipped Readiness Check: Checks HA pair status from the perspective of the current device
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if a given IPsec tunnel is in active state
-🟨 Woodlands-fw1: Skipped Readiness Check: Check for any job with status different than FIN
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if NTP is synchronized
-✅ Woodlands-fw1: Passed Readiness Check: Check if the clock is synchronized between dataplane and management plane
-✅ Woodlands-fw1: Passed Readiness Check: Check connectivity with the Panorama appliance
-🟨 Woodlands-fw1: Skipped Readiness Check: Check if a critical session is present in the sessions table
-✅ Woodlands-fw1: Readiness Checks completed
-🚀 Woodlands-fw1: Checking if HA peer is in sync.
-✅ Woodlands-fw1: HA peer sync test has been completed.
-🚀 Woodlands-fw1: Performing backup of configuration to local filesystem.
-📝 Woodlands-fw1: Not a dry run, continue with upgrade.
-🚀 Woodlands-fw1: Performing upgrade to version 10.1.3-h2.
-📝 Woodlands-fw1: The install will take several minutes, check for status details within the GUI.
-🚀 Woodlands-fw1: Attempting upgrade to version 10.1.3-h2 (Attempt 1 of 3).
-Device 007954000123451 installing version: 10.1.3-h2
-✅ Woodlands-fw1: Upgrade completed successfully
-🚀 Woodlands-fw1: Rebooting the target device.
-📝 Woodlands-fw1: Command succeeded with no output
-🟧 Woodlands-fw1: Retry attempt 1 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 2 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 3 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 4 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 5 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 6 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 7 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 8 due to error: 007954000123451 not connected
-🟧 Woodlands-fw1: Retry attempt 9 due to error: 007954000123451 not connected
-📝 Woodlands-fw1: Current device version: 10.1.3-h2
-✅ Woodlands-fw1: Device rebooted to the target version successfully.
-🚀 Woodlands-fw1: Performing backup of configuration to local filesystem.
+... shortened for brevity ...
 🔧 Woodlands-fw1: Waiting for the device to become ready for the post upgrade snapshot.
 ✅ panorama.cdot.io: Completed revisiting firewalls
 ```
@@ -452,44 +408,52 @@ pan-os-upgrade inventory
 Panorama hostname or IP: panorama1.cdot.io
 Panorama username: officehours
 Panorama password:
-=================================================================================
+=================================================================================================
 Welcome to the PAN-OS upgrade inventory menu
 
-Select which firewalls to upgrade based on a list of those connected to Panorama.
+This script software is provided on an 'as-is' basis with no warranties, and no support provided.
 
-This will create an `inventory.yaml` file in your current working directory.
-=================================================================================
+The selected 'inventory' subcommand will create `inventory.yaml` in your current directory.
+This `inventory.yaml` file will contain firewalls to upgrade and will be loaded at runtime.
+=================================================================================================
+🚀 panorama1.cdot.io: Connection to the appliance successful.
 ✅ panorama1.cdot.io: Connection to Panorama established.
 🔧 panorama1.cdot.io: Retrieving a list of all firewalls connected to Panorama...
 🔧 panorama1.cdot.io: Retrieving detailed information of each firewall...
-╒═════╤════════════╤════════════════╤═════════╤═════════════════╤══════════════╤═══════════════╕
-│   # │ Hostname   │ IP Address     │ Model   │          Serial │ SW Version   │ App Version   │
-╞═════╪════════════╪════════════════╪═════════╪═════════════════╪══════════════╪═══════════════╡
-│   1 │ katy-fw1   │ 192.168.255.41 │ PA-VM   │ 007954000123454 │ 10.1.3-h2    │ 8799-8509     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   2 │ katy-fw2   │ 192.168.255.42 │ PA-VM   │ 007954000123455 │ 10.1.3-h2    │ 8799-8509     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   3 │ lab-fw1    │ 192.168.255.11 │ PA-VM   │ 007954000123456 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   4 │ lab-fw2    │ 192.168.255.12 │ PA-VM   │ 007954000123457 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   5 │ lab-fw3    │ 192.168.255.13 │ PA-VM   │ 007954000123458 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   6 │ lab-fw4    │ 192.168.255.14 │ PA-VM   │ 007954000123459 │ 10.1.3-h3    │ 8729-8157     │
-├─────┼────────────┼────────────────┼─────────┼─────────────────┼──────────────┼───────────────┤
-│   7 │ lab-fw5    │ 192.168.255.15 │ PA-VM   │ 007954000123460 │ 10.1.3-h3    │ 8729-8157     │
-╘═════╧════════════╧════════════════╧═════════╧═════════════════╧══════════════╧═══════════════╛
+╒═════╤════════════╤════════════════╤═════════╤═══════════╤═══════════╤═══════════╤═══════════╕
+│   # │ Hostname   │ IP Address     │ Model   │ PAN-OS    │ Content   │ HA Mode   │ Preempt   │
+╞═════╪════════════╪════════════════╪═════════╪═══════════╪═══════════╪═══════════╪═══════════╡
+│   1 │ katy-fw1   │ 192.168.255.41 │ PA-VM   │ 10.1.3-h3 │ 8799-8509 │ passive   │ no        │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   2 │ katy-fw2   │ 192.168.255.42 │ PA-VM   │ 10.1.3-h3 │ 8799-8509 │ active    │ no        │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   3 │ lab-fw1    │ 192.168.255.11 │ PA-VM   │ 10.1.4    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   4 │ lab-fw2    │ 192.168.255.12 │ PA-VM   │ 10.1.3-h3 │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   5 │ lab-fw3    │ 192.168.255.13 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   6 │ lab-fw4    │ 192.168.255.14 │ PA-VM   │ 10.1.3    │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   7 │ lab-fw5    │ 192.168.255.15 │ PA-VM   │ 10.1.3-h3 │ 8729-8157 │ disabled  │ N/A       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   8 │ lab-fw6    │ 192.168.255.16 │ PA-VM   │ 10.1.4-h4 │ 8729-8157 │ active    │ yes       │
+├─────┼────────────┼────────────────┼─────────┼───────────┼───────────┼───────────┼───────────┤
+│   9 │ lab-fw7    │ 192.168.255.17 │ PA-VM   │ 10.1.4-h4 │ 8729-8157 │ passive   │ yes       │
+╘═════╧════════════╧════════════════╧═════════╧═══════════╧═══════════╧═══════════╧═══════════╛
 You can select devices by entering their numbers, ranges, or separated by commas.
 Examples: '1', '2-4', '1,3,5-7'.
 Type 'done' on a new line when finished.
 
-Enter your selection(s): 1, 3-5, 7
-katy-fw1 selected.
-lab-fw1 selected.
-lab-fw2 selected.
-lab-fw3 selected.
-lab-fw5 selected.
+Enter your selection(s): 3,6,8-9
+  - lab-fw1 selected.
+  - lab-fw4 selected.
+  - lab-fw6 selected.
+  - lab-fw7 selected.
 Enter your selection(s): done
+Warning: Firewalls lab-fw6, lab-fw7 have 'preempt' enabled, this can cause an interruption.
+Are you sure that you want to add these firewalls to the upgrade list? (y/n): n
+Firewalls with 'preempt' set to 'yes' have been excluded.
 Selected devices saved to inventory.yaml
 ```
 
@@ -499,11 +463,8 @@ This `inventory.yaml` file can then be used in subsequent upgrade commands to pr
 
 ```yaml
 firewalls_to_upgrade:
-- katy-fw1
 - lab-fw1
-- lab-fw2
-- lab-fw3
-- lab-fw5
+- lab-fw4
 ```
 
 When the subcommand of `batch` is executed, it will look in the current working directory for a file named `inventory.yaml`, and if its found it will use the file's contents as a source of inventory, bypassing the firewall selection menu.
@@ -682,18 +643,28 @@ You will be able to confirm that the file was discovered by the message within t
 <div class="termy">
 
 ```console
-pan-os-upgrade firewall -v 10.2.5 -u cdot -h houston.cdot.io
+pan-os-upgrade firewall
+Firewall hostname or IP: lab-fw1.cdot.io
+Firewall username: officehours
 Firewall password:
-Dry Run? [Y/n]:
-=========================================================
+Target version: 10.1.4
+Dry Run? [Y/n]: n
+=================================================================================================
 Welcome to the PAN-OS upgrade tool
 
-You have selected to upgrade a single Firewall appliance.
+This script software is provided on an 'as-is' basis with no warranties, and no support provided.
 
-Custom configuration loaded from:
-/Users/cdot/development/pan-os-upgrade/settings.yaml
-=========================================================
-📝 houston: 007954000123453 192.168.255.211
+The selected `firewall` subcommand will upgrade a single Firewall appliance.
+
+Settings: Custom configuration loaded file detected and loaded at:
+/app/settings.yaml
+=================================================================================================
+🚀 lab-fw1.cdot.io: Connection to the appliance successful.
+📝 lab-fw1: 007054000254141 192.168.255.11
+📝 lab-fw1: HA mode: disabled
+📝 lab-fw1: Current version: 10.1.3-h3
+📝 lab-fw1: Target version: 10.1.4
+✅ lab-fw1: Upgrade required from 10.1.3-h3 to 10.1.4
 ... shortened for brevity ...
 ```
 
