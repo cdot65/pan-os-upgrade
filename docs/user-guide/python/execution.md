@@ -660,7 +660,7 @@ Settings: Custom configuration loaded file detected and loaded at:
 /app/settings.yaml
 =================================================================================================
 🚀 lab-fw1.cdot.io: Connection to the appliance successful.
-📝 lab-fw1: 007054000254141 192.168.255.11
+📝 lab-fw1: 007054000654320 192.168.255.11
 📝 lab-fw1: HA mode: disabled
 📝 lab-fw1: Current version: 10.1.3-h3
 📝 lab-fw1: Target version: 10.1.4
