@@ -54,65 +54,69 @@ def perform_upgrade(
     settings_file_path: Path,
     target_device: Union[Firewall, Panorama],
     target_version: str,
-) -> None:
+) -> bool:
     """
-    Conducts a comprehensive upgrade process for a Palo Alto Networks device, addressing both single
-    device environments and High Availability (HA) configurations. It manages the sequence from downloading
-    the necessary software version to verifying post-upgrade status. In HA setups, it ensures synchronization
-    and consistency across devices. The function supports a dry-run mode for validation purposes and utilizes
-    customizable settings from a 'settings.yaml' file for retries and intervals, enhancing flexibility.
+    Conducts the upgrade process for a Palo Alto Networks device to a specified version. This function handles
+    downloading the necessary software version and executing the upgrade command. It is designed to work in both
+    standalone and High Availability (HA) configurations, ensuring proper upgrade procedures are followed in each scenario.
+
+    This function attempts the upgrade process up to a maximum number of retries defined in the settings file or default settings.
+    If the software manager is busy, it waits for a specified interval before retrying. The function returns a boolean indicating
+    the success or failure of the installation process.
 
     Parameters
     ----------
-    target_device : Union[Firewall, Panorama]
-        The device to upgrade, represented as a Firewall or Panorama instance with established connectivity.
     hostname : str
-        The hostname or IP address of the target device, employed for logging and identification throughout
-        the upgrade process.
+        The hostname or IP address of the target device.
+    settings_file : LazySettings
+        The LazySettings object containing configurations loaded from the settings file.
+    settings_file_path : Path
+        The filesystem path to the settings.yaml file, which contains custom configuration settings.
+    target_device : Union[Firewall, Panorama]
+        The device object representing the target Firewall or Panorama to be upgraded.
     target_version : str
-        The desired PAN-OS version to which the device will be upgraded, specified in a string format.
-    ha_details : Optional[dict], optional
-        Optional HA configuration details for the target device, required for handling HA-specific upgrade
-        logic such as synchronization checks and peer upgrades.
+        The target PAN-OS version to upgrade the device to.
+
+    Returns
+    -------
+    bool
+        True if the upgrade installation was successful, False otherwise.
 
     Raises
     ------
     SystemExit
-        Exits the script with an error if the upgrade process encounters a critical failure at any point,
-        particularly in verifying the post-upgrade version or HA synchronization status.
+        If a critical error occurs during the upgrade process, the script will exit.
 
     Examples
     --------
-    Upgrading a standalone firewall device:
+    Perform an upgrade on a standalone firewall:
         >>> firewall = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> perform_upgrade(firewall, '192.168.1.1', '10.1.0')
-        # Initiates the upgrade process to version 10.1.0, including pre-upgrade checks and post-upgrade validations.
+        >>> success = perform_upgrade('192.168.1.1', settings_file, Path('/path/to/settings.yaml'), firewall, '10.1.0')
+        >>> if success:
+        ...     print("Upgrade successful")
+        ... else:
+        ...     print("Upgrade failed")
 
-    Upgrading a device in an HA setup:
-        >>> ha_details = {'local': 'active', 'peer': 'passive'}
-        >>> perform_upgrade(firewall, '192.168.1.1', '10.1.0', ha_details=ha_details)
-        # Handles the upgrade with consideration for HA roles, ensuring both peers are synchronized post-upgrade.
+    Perform an upgrade on a device in an HA setup (additional HA logic not shown here):
+        >>> success = perform_upgrade('192.168.1.1', settings_file, Path('/path/to/settings.yaml'), ha_firewall, '10.1.0')
+        >>> if success:
+        ...     print("Upgrade successful")
+        ... else:
+        ...     print("Upgrade failed")
 
     Notes
     -----
-    - The upgrade process is designed to be robust, with retry logic for various steps to handle transient issues.
-    - For HA configurations, the function ensures both devices in the HA pair are upgraded and synchronized,
-      maintaining high availability and minimizing downtime.
-    - Customization options for retry attempts and intervals are provided through a 'settings.yaml' file, allowing
-      adaptation to network conditions and operational policies.
-
-    Workflow
-    --------
-    1. Verify the device's readiness and current version against the target version.
-    2. Download the target software version if not already present on the device.
-    3. Execute the upgrade command and monitor for completion.
-    4. Reboot the device and validate the upgrade by checking the PAN-OS version.
-    5. In HA setups, additional steps include verifying HA status and synchronizing state with the HA peer.
+    - The function uses settings from 'settings.yaml' to determine the maximum number of retry attempts and the interval
+      between retries if the software manager is busy.
+    - The upgrade process includes pre-upgrade checks to ensure the target device is ready for the upgrade.
+    - In HA configurations, additional steps are required to ensure both devices in the HA pair are upgraded and synchronized.
     """
 
     # Initialize with default values
     max_retries = 3
     retry_interval = 60
+    install_success = False
+    attempt = 0
 
     # Override if settings.yaml exists and contains these settings
     if settings_file_path.exists():
@@ -124,7 +128,6 @@ def perform_upgrade(
         f"{get_emoji(action='report')} {hostname}: The install will take several minutes, check for status details within the GUI."
     )
 
-    attempt = 0
     while attempt < max_retries:
         try:
             logging.info(
@@ -139,7 +142,10 @@ def perform_upgrade(
                 logging.debug(
                     f"{get_emoji(action='report')} {hostname}: Install Job {install_job}"
                 )
-                break  # Exit loop on successful upgrade
+                # Mark installation as successful
+                install_success = True
+                # Exit loop on successful upgrade
+                break
             else:
                 logging.error(
                     f"{get_emoji(action='error')} {hostname}: Upgrade job failed."
@@ -168,6 +174,9 @@ def perform_upgrade(
                     f"{get_emoji(action='stop')} {hostname}: Critical error during upgrade. Halting script."
                 )
                 sys.exit(1)
+
+    # Return the installation success flag
+    return install_success
 
 
 def software_download(
@@ -462,50 +471,59 @@ def upgrade_firewall(
     target_devices_to_revisit_lock: Lock = None,
 ) -> None:
     """
-    Manages the entire upgrade process for a Palo Alto Networks firewall to a specified version, with an option for a dry run.
+    Orchestrates the upgrade process for a specified Palo Alto Networks firewall to a target version. This function
+    incorporates various steps including readiness checks, software download, upgrade execution, and system reboot,
+    with special considerations for High Availability (HA) setups. It supports a dry-run option for process validation
+    without applying changes.
 
-    This comprehensive function oversees the firewall's upgrade process, encompassing pre-upgrade assessments, downloading necessary software, and rebooting to the new version. It caters to both standalone units and those configured in High Availability (HA) setups, ensuring proper coordination and failover handling. The dry run mode allows administrators to simulate the upgrade process without applying any changes, useful for validation and planning.
+    The function verifies the success of the software installation before proceeding with the reboot step. If the installation
+    fails, the process halts, preventing unnecessary reboots and ensuring system stability.
 
     Parameters
     ----------
-    firewall : Firewall
-        The firewall instance targeted for the upgrade, initialized with the required authentication and connection settings.
-    target_version : str
-        The desired PAN-OS version to upgrade the firewall to, formatted as a string (e.g., '10.1.0').
     dry_run : bool
-        Specifies whether to simulate the upgrade process (True) without applying any changes, or to perform the actual upgrade (False).
+        If True, simulates the upgrade process without making actual changes to the device.
+    firewall : Firewall
+        The Firewall object representing the device to be upgraded.
+    settings_file : LazySettings
+        Settings loaded from the 'settings.yaml' file for configuring the upgrade process.
+    settings_file_path : Path
+        The path to the 'settings.yaml' file.
+    target_version : str
+        The target PAN-OS version to upgrade the firewall to.
+    target_devices_to_revisit : list, optional
+        A list to append devices that need to be revisited, typically used in HA scenarios.
+    target_devices_to_revisit_lock : Lock, optional
+        A threading lock to synchronize access to the 'target_devices_to_revisit' list in multi-threaded environments.
 
     Raises
     ------
     SystemExit
-        If any critical issues arise during the upgrade process, resulting in its termination.
+        If a critical failure occurs during the upgrade process, the function will terminate the script.
 
     Examples
     --------
-    Upgrading a firewall to a specific version:
+    To upgrade a firewall to version '10.1.0':
         >>> firewall_instance = Firewall(hostname='192.168.1.1', api_username='admin', api_password='admin')
-        >>> upgrade_firewall(firewall_instance, '10.1.0', dry_run=False)
-        # Initiates the actual upgrade process to version 10.1.0.
+        >>> upgrade_firewall(False, firewall_instance, settings_file, Path('/path/to/settings.yaml'), '10.1.0')
 
-    Performing a dry run of the upgrade process:
-        >>> upgrade_firewall(firewall_instance, '10.1.0', dry_run=True)
-        # Simulates the upgrade process without making any changes.
+    To perform a dry run of the upgrade process:
+        >>> upgrade_firewall(True, firewall_instance, settings_file, Path('/path/to/settings.yaml'), '10.1.0')
 
     Notes
     -----
-    - A dry run is recommended before executing the actual upgrade to ensure readiness and mitigate potential issues.
-    - The function utilizes detailed logging to provide transparency and traceability throughout the upgrade process.
-    - Custom settings for the upgrade process, such as retry intervals and snapshot configurations, can be overridden by a `settings.yaml` file if present.
+    - It's recommended to perform a dry run before the actual upgrade to validate the process.
+    - The function ensures that the device is ready for the upgrade through a series of pre-upgrade checks.
+    - In HA configurations, the upgrade process is coordinated between the HA peers to maintain synchronization.
 
     Workflow
     --------
-    1. Validates the current system state and HA configuration.
-    2. Performs readiness checks to ensure the firewall is prepared for upgrade.
-    3. Downloads the necessary software version if not already available.
-    4. Takes pre-upgrade snapshots and backups for rollback purposes.
-    5. Executes the upgrade and reboots the firewall to the target version.
-    6. Verifies post-upgrade status and functionality.
-    7. Performs post-upgrade snapshots and backups for reference and PDF report generation.
+    1. Perform pre-upgrade checks and readiness assessments.
+    2. Download the target software version if it's not already present on the device.
+    3. Attempt the software installation with a defined number of retries for transient errors.
+    4. Verify the success of the software installation before proceeding.
+    5. If the installation is successful and not in dry-run mode, reboot the device to complete the upgrade.
+    6. After reboot, perform post-upgrade validations including configuration backup and system health checks.
     """
 
     # Refresh system information to ensure we have the latest data
@@ -660,7 +678,7 @@ def upgrade_firewall(
         )
 
     # Perform the upgrade
-    perform_upgrade(
+    install_success = perform_upgrade(
         hostname=hostname,
         settings_file=settings_file,
         settings_file_path=settings_file_path,
@@ -668,91 +686,101 @@ def upgrade_firewall(
         target_version=target_version,
     )
 
-    # Perform the reboot
-    perform_reboot(
-        hostname=hostname,
-        settings_file=settings_file,
-        settings_file_path=settings_file_path,
-        target_device=firewall,
-        target_version=target_version,
-    )
-
-    # Back up configuration to local filesystem
-    logging.info(
-        f"{get_emoji(action='start')} {hostname}: Performing backup of configuration to local filesystem."
-    )
-    backup_config = backup_configuration(
-        file_path=f'assurance/configurations/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
-        hostname=hostname,
-        target_device=firewall,
-    )
-    logging.debug(f"{get_emoji(action='report')} {hostname}: {backup_config}")
-
-    # Wait for the device to become ready for the post upgrade snapshot
-    logging.info(
-        f"{get_emoji(action='working')} {hostname}: Waiting for the device to become ready for the post upgrade snapshot."
-    )
-    time.sleep(120)
-
-    # Load settings if the file exists
-    if settings_file_path.exists():
-        with open(settings_file_path, "r") as file:
-            settings = yaml.safe_load(file)
-
-        # Check if snapshots are disabled in the settings
-        if settings.get("snapshots", {}).get("disabled", False):
-            logging.info(
-                f"{get_emoji(action='skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
-            )
-            # Early return, no snapshot performed
-            return None
-
-    else:
-        # Perform the post-upgrade snapshot
-        post_snapshot = perform_snapshot(
-            actions=selected_actions,
-            file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-            firewall=firewall,
+    # Perform the reboot if the installation was successful
+    if install_success:
+        perform_reboot(
             hostname=hostname,
+            settings_file=settings_file,
             settings_file_path=settings_file_path,
-        )
-
-        # initialize object storing both snapshots
-        snapshot_compare = SnapshotCompare(
-            left_snapshot=pre_snapshot.model_dump(),
-            right_snapshot=post_snapshot.model_dump(),
-        )
-
-        pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
-
-        logging.debug(
-            f"{get_emoji(action='report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
-        )
-
-        folder_path = f"assurance/snapshots/{hostname}/diff"
-        pdf_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
-        ensure_directory_exists(file_path=pdf_report)
-
-        # Generate the PDF report for the diff
-        generate_diff_report_pdf(
-            file_path=pdf_report,
-            hostname=hostname,
-            pre_post_diff=pre_post_diff,
+            target_device=firewall,
             target_version=target_version,
         )
 
+        # Back up configuration to local filesystem
         logging.info(
-            f"{get_emoji(action='save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+            f"{get_emoji(action='start')} {hostname}: Performing backup of configuration to local filesystem."
         )
+        backup_config = backup_configuration(
+            file_path=f'assurance/configurations/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.xml',
+            hostname=hostname,
+            target_device=firewall,
+        )
+        logging.debug(f"{get_emoji(action='report')} {hostname}: {backup_config}")
 
-        json_report = f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
+        # Wait for the device to become ready for the post upgrade snapshot
+        logging.info(
+            f"{get_emoji(action='working')} {hostname}: Waiting for the device to become ready for the post upgrade snapshot."
+        )
+        time.sleep(120)
 
-        # Write the file to the local filesystem as JSON
-        with open(json_report, "w") as file:
-            file.write(json.dumps(pre_post_diff))
+        # Load settings if the file exists
+        if settings_file_path.exists():
+            with open(settings_file_path, "r") as file:
+                settings = yaml.safe_load(file)
 
-        logging.debug(
-            f"{get_emoji(action='save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
+            # Check if snapshots are disabled in the settings
+            if settings.get("snapshots", {}).get("disabled", False):
+                logging.info(
+                    f"{get_emoji(action='skipped')} {hostname}: Snapshots are disabled in the settings. Skipping snapshot for {hostname}."
+                )
+                # Early return, no snapshot performed
+                return None
+
+        else:
+            # Perform the post-upgrade snapshot
+            post_snapshot = perform_snapshot(
+                actions=selected_actions,
+                file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                firewall=firewall,
+                hostname=hostname,
+                settings_file_path=settings_file_path,
+            )
+
+            # initialize object storing both snapshots
+            snapshot_compare = SnapshotCompare(
+                left_snapshot=pre_snapshot.model_dump(),
+                right_snapshot=post_snapshot.model_dump(),
+            )
+
+            pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
+
+            logging.debug(
+                f"{get_emoji(action='report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
+            )
+
+            folder_path = f"assurance/snapshots/{hostname}/diff"
+            pdf_report = (
+                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.pdf'
+            )
+            ensure_directory_exists(file_path=pdf_report)
+
+            # Generate the PDF report for the diff
+            generate_diff_report_pdf(
+                file_path=pdf_report,
+                hostname=hostname,
+                pre_post_diff=pre_post_diff,
+                target_version=target_version,
+            )
+
+            logging.info(
+                f"{get_emoji(action='save')} {hostname}: Snapshot comparison PDF report saved to {pdf_report}"
+            )
+
+            json_report = (
+                f'{folder_path}/{time.strftime("%Y-%m-%d_%H-%M-%S")}_report.json'
+            )
+
+            # Write the file to the local filesystem as JSON
+            with open(json_report, "w") as file:
+                file.write(json.dumps(pre_post_diff))
+
+            logging.debug(
+                f"{get_emoji(action='save')} {hostname}: Snapshot comparison JSON report saved to {json_report}"
+            )
+
+    else:
+        logging.error(
+            f"{get_emoji(action='error')} {hostname}: Installation of the target version was not successful. Skipping reboot."
         )
 
 
