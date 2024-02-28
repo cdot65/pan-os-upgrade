@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.3.3
+
+**Release Date:** *<20240228>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Resolved an issue where a firewall would still reboot even if the install failed three consecutive PAN-OS installs.
+
 ## Version 1.3.2
 
 **Release Date:** *<20240225>*
