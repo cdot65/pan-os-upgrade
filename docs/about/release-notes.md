@@ -2,6 +2,15 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.3.4
+
+**Release Date:** *<20240303>*
+
+<!-- trunk-ignore(markdownlint/MD024) -->
+### What's New
+
+- Resolved an issue where snapshots would not be taken after an upgrade if settings.yaml file was present in the current working directory.
+
 ## Version 1.3.3
 
 **Release Date:** *<20240228>*
