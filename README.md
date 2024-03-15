@@ -46,7 +46,14 @@
 `pan-os-upgrade` is designed to provide network administrators and security professionals with an efficient tool to execute configuration backups, network state snapshots, system readiness checks, and operating system upgrades of Palo Alto Networks firewalls and Panorama appliances.
 
 Project Link: [https://github.com/cdot65/pan-os-upgrade](https://github.com/cdot65/pan-os-upgrade)
-Documentation: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.io/pan-os-upgrade/)
+
+Documentation Website: [https://cdot65.github.io/pan-os-upgrade/](https://cdot65.github.io/pan-os-upgrade/)
+
+YouTube Documentation:
+
+<a href="https://www.youtube.com/watch?v=5gdwIni3t9A" target="_blank">
+  <img src="https://github.com/cdot65/pan-os-upgrade/blob/main/docs/images/youtube.png?raw=true" alt="Video Thumbnail">
+</a>
 
 <!-- SUPPORT -->
 ## Support
