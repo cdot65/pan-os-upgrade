@@ -2,12 +2,19 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.3.5
+
+**Release Date:** *<20240315>*
+
+### What's New in version 1.3.5
+
+- Added ability for Panorama appliances to check for a valid license before beginning upgrade process.
+
 ## Version 1.3.4
 
 **Release Date:** *<20240303>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.3.4
 
 - Resolved an issue where snapshots would not be taken after an upgrade if settings.yaml file was present in the current working directory.
 
@@ -15,8 +22,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240228>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.3.3
 
 - Resolved an issue where a firewall would still reboot even if the install failed three consecutive PAN-OS installs.
 
@@ -24,8 +30,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240225>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.3.2
 
 - Documentation updates.
 
@@ -33,8 +38,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240225>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.3.1
 
 - Remediated a bug where snapshots weren't taken after an upgrade if `settings.yaml` wasn't in the current working directory.
 
@@ -42,8 +46,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240220>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.3.0
 
 - Refactor script by breaking functions into smaller, more manageable module function files.
 - Revamp all pytest tests
@@ -52,8 +55,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240217>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.6
 
 - Move HA status collection within the `get_firewall_details` function for batch upgrades.
 - Update interactive inventory menu to include HA role of the firewall and if it has `preempt` enabled.
@@ -62,8 +64,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240215>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.5
 
 - Update repo with SUPPORT.md with details of support.
 - Update console banner message to include disclaimer of support.
@@ -72,8 +73,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240215>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.4
 
 - Remove HA sync strict check before upgrade process to account for scenarios where a passive firewall is upgrades within a thread of the first phase before the active is targeted within the same phase.
 
@@ -81,8 +81,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240214>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.3
 
 - Introduce `create_firewall_mapping` Function to Fix Firewall Object Mapping.
 
@@ -90,8 +89,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240214>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.2
 
 - Changed the HA config sync check of Panorama appliances to be less strict as a temporary workaround for performing HA upgrades.
 
@@ -99,8 +97,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240214>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.1
 
 - Added multi-threaded execution of "show system info" command to grab firewall details
 
@@ -108,8 +105,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240213>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.2.0
 
 - Revamped ability to select multiple firewalls when using Panorama as a communication proxy
 - Removed support for `-f` and `--filter` flags, instead relying on interactive selection menu
@@ -119,8 +115,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240211>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.6
 
 - Added over 100 tests
 - Changed default behavior of ARP snapshots to False
@@ -129,8 +124,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240209>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.5
 
 - Support for skipping all readiness checks and snapshots with `settings` subcommand
 
@@ -138,8 +132,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240209>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.4
 
 - Documentation bug fixes
 - Support for `-c` in hotfix name
@@ -148,7 +141,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240208>*
 
-### What's New
+### What's New in version 1.1.3
 
 - Documentation bug fixes
 
@@ -156,8 +149,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240208>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.2
 
 - Fixed a bug that prevented HA Panorama appliances from being targeted for upgrades
 
@@ -165,8 +157,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240204>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.1
 
 - Fixed a bug that prevented access to the `logo.png` file used by the PDF generation process
 
@@ -174,8 +165,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240204>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.1.0
 
 - Pre/Post upgrade diff report created in PDF format
 - Changed structure of AssuranceOptions
@@ -189,8 +179,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240131>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 1.0.0
 
 - Shipping first release! 🚀
 
@@ -198,8 +187,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240129>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.4.3
 
 - Created workflow that will download the base image if making a major/minor upgrade
 - Included new download settings to be overridden with `pan-os-upgrade` settings
@@ -209,8 +197,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240127>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.4.2
 
 - Created mechanism to override the default settings of `pan-os-upgrade`
 - Added support for new CLI argument, `pan-os-upgrade settings`
@@ -220,8 +207,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240127>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.4.1
 
 - Resolved an issue where missing fields in session snapshots for older PAN-OS versions caused errors in Pydantic models
 - Updated the requirements.txt file to reflect the latest compatible versions of dependencies
@@ -231,8 +217,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240126>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.4.0
 
 - Support for three unique workflows:
   - `firewall`: targets and upgrades an individual firewall
@@ -245,8 +230,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240125>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.3.0
 
 - Multi-threading added for concurrent upgrades (max limit of threads is 10).
 - Gracefully handle HA upgrades for HA active/passive peers.
@@ -256,8 +240,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240123>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.5
 
 - Supports the ability to connect to Panorama as a proxy for firewall connections
 - Added new `--filter` CLI option for Panorama connections
@@ -268,19 +251,17 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240122>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.4
 
 - Resolved a bug where console logging was duplicated
 - Simplified the non-debug console log output
 - Removed `requirements.txt` from Docker container image
 
-## Version 0.2.4
+## Version 0.2.3
 
 **Release Date:** *<20240121>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.3
 
 - Improved error handling for network layer transport.
 - Included new dependency [DNS Python](https://www.dnspython.org/) for hostname lookup
@@ -289,8 +270,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.2
 
 - Optimized for Docker execution.
 - Refreshed documentation to showcase both paths of execution (Python virtual environments and Docker)
@@ -299,8 +279,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.1
 
 - Adjusting the execution of our script to instead reference the Typer app `app()` instead of `main()`.
 - Updated the `pan-os-upgrade` alias within the pyproject.toml file to directly call `app()` instead of `main()`
@@ -309,8 +288,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240121>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.2.0
 
 - Allow for simply running `pan-os-upgrade` without arguments, providing an interactive prompt for missing variables
 - Replaced `argparse` with `typer` for command-line argument parsing, offering a more intuitive and user-friendly CLI experience.
@@ -327,8 +305,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 **Release Date:** *<20240119>*
 
-<!-- trunk-ignore(markdownlint/MD024) -->
-### What's New
+### What's New in version 0.1.1
 
 - First official release of the `pan-os-upgrade` tool on PyPi.
 - Made available for wide usage and distribution.
@@ -337,7 +314,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 - Includes all the features and functionalities as they were in the initial development build.
 
-## Version 0.1.0
+## Version 0.1.0 in version 0.1.0
 
 **Release Date:** *<20240118>*
 

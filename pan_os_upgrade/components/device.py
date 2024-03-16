@@ -175,6 +175,29 @@ def connect_to_host(
         sys.exit(1)
 
 
+def check_panorama_license(panorama: Panorama) -> bool:
+    try:
+
+        # Perform the operational command to retrieve license info
+        response = panorama.op("request license info")
+
+        licenses_element = response.find(".//licenses")
+
+        if licenses_element is None or len(licenses_element) == 0:
+            return False
+
+        # Check if any license entry has expired
+        for entry in licenses_element.findall(".//entry"):
+            if entry.find("expired").text == "yes":
+                return False
+
+        return True
+
+    except Exception as e:
+        logging.error(f"Error checking Panorama license: {e}")
+        return False
+
+
 def get_firewall_details(
     firewall: Firewall,
 ) -> Dict[str, Any]:

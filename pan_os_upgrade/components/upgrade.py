@@ -30,6 +30,7 @@ from pan_os_upgrade.components.assurance import (
     perform_snapshot,
 )
 from pan_os_upgrade.components.device import (
+    check_panorama_license,
     get_ha_status,
     perform_reboot,
 )
@@ -841,6 +842,18 @@ def upgrade_panorama(
     logging.info(
         f"{get_emoji(action='report')} {hostname}: {panorama.serial} {panorama_details.ip_address}"
     )
+
+    # Check Panorama license before proceeding with the upgrade
+    logging.info(f"{get_emoji(action='start')} {hostname}: Checking Panorama license.")
+    if not check_panorama_license(panorama):
+        logging.error(
+            f"{get_emoji(action='error')} {hostname}: Panorama does not have an active license. Cannot proceed with the upgrade."
+        )
+        sys.exit(1)
+    else:
+        logging.info(
+            f"{get_emoji(action='success')} {hostname}: Panorama license is valid."
+        )
 
     # Determine if the Panorama is standalone, HA, or in a cluster
     logging.debug(
