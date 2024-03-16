@@ -1,0 +1,24 @@
+{
+    "cSpell.words": [
+        "adminpassword",
+        "apikey",
+        "apipassword",
+        "apiuser",
+        "argparse",
+        "auditability",
+        "docstrings",
+        "dynaconf",
+        "failovers",
+        "highavailability",
+        "hostnames",
+        "proxied",
+        "Pydantic",
+        "pyproject",
+        "pytest",
+        "refreshall",
+        "typer",
+        "Typer",
+        "unsynchronized",
+        "Xapi"
+    ]
+}
