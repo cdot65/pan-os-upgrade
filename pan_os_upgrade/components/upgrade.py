@@ -49,6 +49,100 @@ from pan_os_upgrade.components.utilities import (
 )
 
 
+def check_ha_compatibility(
+    ha_details: dict,
+    hostname: str,
+    current_major: int,
+    current_minor: int,
+    upgrade_major: int,
+    upgrade_minor: int,
+) -> bool:
+    """
+    Checks the compatibility of the target PAN-OS version with the current version in an HA pair.
+
+    This function assesses whether upgrading a firewall in an HA pair to the target PAN-OS version is compatible
+    with the current version running on the firewall. It compares the major and minor version numbers to determine
+    if the upgrade spans more than one major release or if the minor version increment is too large within the same
+    major version. The function logs warnings for potential compatibility issues and returns a boolean indicating
+    whether the upgrade is compatible or not.
+
+    Parameters
+    ----------
+    ha_details : dict
+        A dictionary containing the HA configuration details of the firewall.
+    hostname : str
+        The hostname or IP address of the firewall for logging purposes.
+    current_major : int
+        The current major version number of PAN-OS running on the firewall.
+    current_minor : int
+        The current minor version number of PAN-OS running on the firewall.
+    upgrade_major : int
+        The target major version number of PAN-OS for the upgrade.
+    upgrade_minor : int
+        The target minor version number of PAN-OS for the upgrade.
+
+    Returns
+    -------
+    bool
+        True if the target PAN-OS version is compatible with the current version in the HA pair, False otherwise.
+
+    Examples
+    --------
+    Check compatibility for an HA pair:
+        >>> ha_details = {'enabled': True, 'group': '1', 'peer_ip': '192.168.1.2'}
+        >>> compatible = check_ha_compatibility(ha_details, 'firewall1', 9, 1, 10, 0)
+        >>> if compatible:
+        ...     print("Upgrade is compatible")
+        ... else:
+        ...     print("Upgrade may cause compatibility issues")
+
+    Check compatibility for a standalone firewall:
+        >>> ha_details = {'enabled': False}
+        >>> compatible = check_ha_compatibility(ha_details, 'firewall2', 8, 1, 9, 0)
+        >>> if compatible:
+        ...     print("Upgrade is compatible")
+        ... else:
+        ...     print("Upgrade may cause compatibility issues")
+
+    Notes
+    -----
+    - The function checks for three scenarios that may cause compatibility issues in an HA pair:
+      1. Upgrading to a version that is more than one major release apart.
+      2. Upgrading within the same major version but the minor version increment is more than one.
+      3. Upgrading to the next major version with a minor version higher than 0.
+    - If the firewall is not in an HA pair, the function logs a success message and returns True.
+    """
+    is_ha_pair = ha_details["result"].get("enabled", False)
+
+    if is_ha_pair:
+        # Check if the major upgrade is more than one release apart
+        if upgrade_major - current_major > 1:
+            logging.warning(
+                f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that is more than one major release apart may cause compatibility issues."
+            )
+            return False
+
+        # Check if the upgrade is within the same major version but the minor upgrade is more than one release apart
+        elif upgrade_major == current_major and upgrade_minor - current_minor > 1:
+            logging.warning(
+                f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that is more than one minor release apart may cause compatibility issues."
+            )
+            return False
+
+        # Check if the upgrade spans exactly one major version but also increases the minor version
+        elif upgrade_major - current_major == 1 and upgrade_minor > 0:
+            logging.warning(
+                f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that spans more than one major release or increases the minor version beyond the first in the next major release may cause compatibility issues."
+            )
+            return False
+
+    # Log compatibility check success
+    logging.info(
+        f"{get_emoji(action='success')} {hostname}: The target version is compatible with the current version."
+    )
+    return True
+
+
 def perform_upgrade(
     hostname: str,
     settings_file: LazySettings,
@@ -379,6 +473,24 @@ def software_update_check(
         target_major=major,
         target_minor=minor,
     )
+
+    current_version = target_device.refresh_system_info().version
+    current_parts = current_version.split(".")
+    current_major, current_minor = map(int, current_parts[:2])
+    upgrade_parts = version.split(".")
+    upgrade_major, upgrade_minor = map(int, upgrade_parts[:2])
+
+    if ha_details and ha_details["result"].get("enabled"):
+        # Check if the target version is compatible with the current version and the HA setup
+        if not check_ha_compatibility(
+            ha_details,
+            hostname,
+            current_major,
+            current_minor,
+            upgrade_major,
+            upgrade_minor,
+        ):
+            return False
 
     # retrieve available versions of PAN-OS
     logging.info(

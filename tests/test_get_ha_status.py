@@ -8,12 +8,15 @@ load_dotenv(".dev.env")
 
 # Updated test cases with corrected HA modes based on test results
 test_cases = [
-    ("panorama.cdot.io", "disabled", None),
     ("panorama1.cdot.io", "primary-active", None),
     ("panorama2.cdot.io", "secondary-passive", None),
-    ("lab-fw1.cdot.io", "disabled", None),
-    ("lab-fw6.cdot.io", "active", None),
-    ("lab-fw7.cdot.io", "passive", None),
+    # ("austin-fw1.cdot.io", "active-primary", None),
+    # ("austin-fw2.cdot.io", "active-secondary", None),
+    ("austin-fw3.cdot.io", "disabled", None),
+    ("dallas-fw1.cdot.io", "active", None),
+    ("dallas-fw2.cdot.io", "passive", None),
+    ("houston-fw1.cdot.io", "active", None),
+    ("houston-fw2.cdot.io", "passive", None),
 ]
 
 

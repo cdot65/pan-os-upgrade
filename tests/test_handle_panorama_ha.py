@@ -12,11 +12,11 @@ load_dotenv(".dev.env")
 
 # Define test cases with different HA configurations
 test_cases = [
-    (
-        "panorama.cdot.io",
-        "standalone",
-        True,
-    ),  # Standalone Panorama, should proceed with upgrade
+    # (
+    #     "panorama.cdot.io",
+    #     "standalone",
+    #     True,
+    # ),  # Standalone Panorama, should proceed with upgrade
     (
         "panorama1.cdot.io",
         "primary-active",
