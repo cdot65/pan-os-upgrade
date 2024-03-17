@@ -168,3 +168,4 @@ logs
 .dev.env
 pan-os-upgrade.code-workspace
 pan_os_upgrade/*.yaml
+pan_os_upgrade/components/example.py
