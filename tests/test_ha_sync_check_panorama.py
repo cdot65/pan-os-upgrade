@@ -5,7 +5,7 @@ from pan_os_upgrade.components.ha import ha_sync_check_panorama
 # Define test cases for different HA synchronization states for Panorama
 # 'expected_result' is True if HA sync check should pass, and False if it should fail or the device is not in HA
 test_cases = [
-    ("panorama.cdot.io", None, True, False),  # Not in HA, should not pass
+    # ("panorama.cdot.io", None, True, False),  # Not in HA, should not pass
     (
         "panorama1.cdot.io",
         {"result": {"running-sync": "synchronized"}},

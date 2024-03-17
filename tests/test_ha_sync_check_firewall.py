@@ -5,15 +5,15 @@ from pan_os_upgrade.components.ha import ha_sync_check_firewall
 # Define test cases for different HA synchronization states
 # 'expected_result' is True if HA sync check should pass, and False if it should fail or the device is not in HA
 test_cases = [
-    ("lab-fw1.cdot.io", None, True, False),  # Not in HA, should not pass
+    ("austin-fw3.cdot.io", None, True, False),  # Not in HA, should not pass
     (
-        "lab-fw6.cdot.io",
+        "dallas-fw1.cdot.io",
         {"result": {"group": {"running-sync": "synchronized"}}},
         True,
         True,
     ),  # In HA and synchronized
     (
-        "lab-fw7.cdot.io",
+        "dallas-fw2.cdot.io",
         {"result": {"group": {"running-sync": "unsynchronized"}}},
         True,
         False,

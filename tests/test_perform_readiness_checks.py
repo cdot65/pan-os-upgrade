@@ -12,9 +12,9 @@ load_dotenv(".dev.env")
 
 # Define test cases for different firewalls
 test_cases = [
-    "lab-fw1.cdot.io",  # Standalone firewall
-    "lab-fw6.cdot.io",  # HA firewall 1
-    "lab-fw7.cdot.io",  # HA firewall 2
+    "austin-fw3.cdot.io",  # Standalone firewall
+    "dallas-fw1.cdot.io",  # HA firewall 1
+    "dallas-fw2.cdot.io",  # HA firewall 2
 ]
 
 
