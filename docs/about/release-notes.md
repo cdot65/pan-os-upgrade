@@ -2,6 +2,14 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.3.6
+
+**Release Date:** *<20240317>*
+
+### What's New in version 1.3.7
+
+- Added compatibility check for devices that are in HA to ensure that two minor or major releases aren't being skipped, which will result in a `suspended` state on the firewall that's upgraded first, and then resulting in a broken HA after the second firewall completes its upgrade.
+
 ## Version 1.3.5
 
 **Release Date:** *<20240315>*
