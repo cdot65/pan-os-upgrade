@@ -18,7 +18,7 @@ test_cases = [
     ),  # HA and is active-primary, might be added to revisit list, check proceed accordingly
     (
         "austin-fw2.cdot.io",
-        "active",
+        "active-secondary",
     ),  # HA and is active, might be added to revisit list, check proceed accordingly
     ("austin-fw3.cdot.io", None),  # Standalone, expecting no HA peer and proceed
     (
