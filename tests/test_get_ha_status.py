@@ -10,8 +10,8 @@ load_dotenv(".dev.env")
 test_cases = [
     ("panorama1.cdot.io", "primary-active", None),
     ("panorama2.cdot.io", "secondary-passive", None),
-    # ("austin-fw1.cdot.io", "active-primary", None),
-    # ("austin-fw2.cdot.io", "active-secondary", None),
+    ("austin-fw1.cdot.io", "active-primary", None),
+    ("austin-fw2.cdot.io", "active-secondary", None),
     ("austin-fw3.cdot.io", "disabled", None),
     ("dallas-fw1.cdot.io", "active", None),
     ("dallas-fw2.cdot.io", "passive", None),
