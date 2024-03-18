@@ -586,13 +586,13 @@ def batch(
     if confirmation:
         typer.echo(f"{get_emoji(action='start')} Proceeding with the upgrade...")
 
-        # Using ThreadPoolExecutor to manage threads
+        # Setting number of threads for concurrent upgrades
         threads = SETTINGS_FILE.get("concurrency.threads", 10)
         logging.info(
             f"{get_emoji(action='working')} {hostname}: Using {threads} threads."
         )
 
-        # Using ThreadPoolExecutor to manage threads for upgrading firewalls
+        # First round of upgrades, targeting all firewalls and placing active firewalls in an HA pair on a revisit list
         with ThreadPoolExecutor(max_workers=threads) as executor:
             # Store future objects along with firewalls for reference
             future_to_firewall = {
@@ -619,7 +619,7 @@ def batch(
                         f"{get_emoji(action='error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
                     )
 
-        # Revisit the firewalls that were skipped in the initial pass
+        # Second round of upgrades, revisiting firewalls that were active in an HA pair and had the same version as their peers
         if target_devices_to_revisit:
             logging.info(
                 f"{get_emoji(action='start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
