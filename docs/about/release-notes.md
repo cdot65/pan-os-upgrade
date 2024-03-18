@@ -4,7 +4,7 @@ Welcome to the release notes for the `pan-os-upgrade` tool. This document provid
 
 ## Version 1.3.7
 
-**Release Date:** *<20240317>*
+**Release Date:** *<20240318>*
 
 ### What's New in version 1.3.7
 
