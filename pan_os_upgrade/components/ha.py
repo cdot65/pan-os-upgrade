@@ -11,6 +11,7 @@ from pathlib import Path
 from pan_os_upgrade.components.device import get_ha_status
 from pan_os_upgrade.components.utilities import (
     compare_versions,
+    flatten_xml_to_dict,
     get_emoji,
 )
 
@@ -272,7 +273,7 @@ def handle_firewall_ha(
             local_version = ha_details["result"]["group"]["local-info"]["build-rel"]
             peer_version = ha_details["result"]["group"]["peer-info"]["build-rel"]
 
-            if peer_version != local_version:
+            if ha_details["result"]["group"]["running-sync"] == "synchronized":
                 logging.info(
                     f"HA synchronization complete on {hostname}. Proceeding with upgrade."
                 )
@@ -290,22 +291,44 @@ def handle_firewall_ha(
         f"{get_emoji(action='report')} {hostname}: Version comparison: {version_comparison}"
     )
 
-    # If the active and passive target devices are running the same version
+    # If the firewall and its peer devices are running the same version
     if version_comparison == "equal":
-        if local_state == "active":
-            # Add the active target device to the list and exit the upgrade process
+
+        # if the current device is active or active-primary
+        if local_state == "active" or local_state == "active-primary":
+
+            # Add the target device to the revisit list and exit the upgrade process
             with target_devices_to_revisit_lock:
                 target_devices_to_revisit.append(target_device)
+
+            # log message to console
             logging.info(
                 f"{get_emoji(action='search')} {hostname}: Detected active target device in HA pair running the same version as its peer. Added target device to revisit list."
             )
+
+            # Exit the upgrade process for the target device at this time, to be revisited later
             return False, None
 
-        elif local_state == "passive":
+        # if the current device is passive or active-secondary
+        elif local_state == "passive" or local_state == "active-secondary":
+
+            # suspend HA state of the target device
+            if not dry_run:
+                logging.info(
+                    f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
+                )
+                suspend_ha_passive(
+                    target_device,
+                    hostname,
+                )
+
+            # log message to console
+            else:
+                logging.info(
+                    f"{get_emoji(action='report')} {hostname}: Target device is passive, but we are in dry-run mode. Skipping HA state suspension.",
+                )
+
             # Continue with upgrade process on the passive target device
-            logging.info(
-                f"{get_emoji(action='report')} {hostname}: Target device is passive",
-            )
             return True, None
 
         elif local_state == "initial":
@@ -320,9 +343,9 @@ def handle_firewall_ha(
             f"{get_emoji(action='report')} {hostname}: Target device is on an older version"
         )
         # Suspend HA state of active if the passive is on a later release
-        if local_state == "active" and not dry_run:
+        if local_state == "active" or local_state == "active-primary" and not dry_run:
             logging.info(
-                f"{get_emoji(action='report')} {hostname}: Suspending HA state of active"
+                f"{get_emoji(action='report')} {hostname}: Suspending HA state of active or active-primary"
             )
             suspend_ha_active(
                 target_device,
@@ -335,9 +358,13 @@ def handle_firewall_ha(
             f"{get_emoji(action='report')} {hostname}: Target device is on a newer version"
         )
         # Suspend HA state of passive if the active is on a later release
-        if local_state == "passive" and not dry_run:
+        if (
+            local_state == "passive"
+            or local_state == "active-secondary"
+            and not dry_run
+        ):
             logging.info(
-                f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive"
+                f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
             )
             suspend_ha_passive(
                 target_device,
@@ -580,7 +607,10 @@ def suspend_ha_active(
             "<request><high-availability><state><suspend/></state></high-availability></request>",
             cmd_xml=False,
         )
-        if "success" in suspension_response.text:
+
+        response_message = flatten_xml_to_dict(suspension_response)
+
+        if response_message["result"] == "Successfully changed HA state to suspended":
             logging.info(
                 f"{get_emoji(action='success')} {hostname}: Active target device HA state suspended."
             )
@@ -636,12 +666,19 @@ def suspend_ha_passive(
     - Coordination with network management and understanding the process to resume HA functionality are essential to ensure the continuity of services and network redundancy.
     """
 
+    logging.info(
+        f"{get_emoji(action='start')} {hostname}: Suspending passive target device HA state."
+    )
+
     try:
         suspension_response = target_device.op(
             "<request><high-availability><state><suspend/></state></high-availability></request>",
             cmd_xml=False,
         )
-        if "success" in suspension_response.text:
+
+        response_message = flatten_xml_to_dict(suspension_response)
+
+        if response_message["result"] == "Successfully changed HA state to suspended":
             logging.info(
                 f"{get_emoji(action='success')} {hostname}: Passive target device HA state suspended."
             )

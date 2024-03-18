@@ -39,11 +39,15 @@ def test_determine_upgrade():
     target_minor = 0  # For example, target PAN-OS x.0.x
     target_maintenance = "1-h1"  # For example, target PAN-OS x.x.1-h1
 
+    # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
+    target_device.refresh_system_info()
+    current_version = target_device.version
+
     # Use a try-except block to capture the SystemExit raised by the determine_upgrade function when no upgrade is needed or a downgrade is attempted
     try:
         determine_upgrade(
+            current_version=current_version,
             hostname=hostname,
-            target_device=target_device,
             target_maintenance=target_maintenance,
             target_major=target_major,
             target_minor=target_minor,

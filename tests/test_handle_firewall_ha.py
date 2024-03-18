@@ -12,6 +12,14 @@ load_dotenv(".dev.env")
 
 # Define test cases with different HA configurations
 test_cases = [
+    (
+        "austin-fw1.cdot.io",
+        "active-primary",
+    ),  # HA and is active-primary, might be added to revisit list, check proceed accordingly
+    (
+        "austin-fw2.cdot.io",
+        "active-secondary",
+    ),  # HA and is active, might be added to revisit list, check proceed accordingly
     ("austin-fw3.cdot.io", None),  # Standalone, expecting no HA peer and proceed
     (
         "dallas-fw1.cdot.io",

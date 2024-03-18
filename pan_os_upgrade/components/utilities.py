@@ -481,8 +481,8 @@ def create_firewall_mapping(
 
 
 def determine_upgrade(
+    current_version: str,
     hostname: str,
-    target_device: Union[Firewall, Panorama],
     target_maintenance: Union[int, str],
     target_major: int,
     target_minor: int,
@@ -498,9 +498,8 @@ def determine_upgrade(
 
     Parameters
     ----------
-    target_device : Union[Firewall, Panorama]
-        The device (Firewall or Panorama) to be evaluated for an upgrade. This must be an initialized instance with
-        connectivity to the device.
+    current_version : str
+        The device's current PAN-OS version to be evaluated for an upgrade.
     hostname : str
         The hostname or IP address of the target device. It is used for logging purposes to clearly identify the device
         in log messages.
@@ -540,7 +539,7 @@ def determine_upgrade(
     safeguard against unintended firmware changes that could affect device stability and security.
     """
 
-    current_version = parse_version(version=target_device.version)
+    current_version_parsed = parse_version(version=current_version)
 
     if isinstance(target_maintenance, int):
         # Handling integer maintenance version separately
@@ -552,15 +551,15 @@ def determine_upgrade(
         )
 
     logging.info(
-        f"{get_emoji(action='report')} {hostname}: Current version: {target_device.version}"
+        f"{get_emoji(action='report')} {hostname}: Current version: {current_version}"
     )
     logging.info(
         f"{get_emoji(action='report')} {hostname}: Target version: {target_major}.{target_minor}.{target_maintenance}"
     )
 
-    if current_version < target_version:
+    if current_version_parsed < target_version:
         logging.info(
-            f"{get_emoji(action='success')} {hostname}: Upgrade required from {target_device.version} to {target_major}.{target_minor}.{target_maintenance}"
+            f"{get_emoji(action='success')} {hostname}: Upgrade required from {current_version} to {target_major}.{target_minor}.{target_maintenance}"
         )
     else:
         logging.info(

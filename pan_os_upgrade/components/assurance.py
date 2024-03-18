@@ -119,7 +119,7 @@ class AssuranceOptions:
             "enabled_by_default": True,
         },
         "free_disk_space": {
-            "description": "Check if a there is enough space on the `/opt/panrepo` volume for downloading an PanOS image.",
+            "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
             "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": True,
