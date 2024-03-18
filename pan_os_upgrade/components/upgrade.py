@@ -54,14 +54,14 @@ def check_ha_compatibility(
     hostname: str,
     current_major: int,
     current_minor: int,
-    upgrade_major: int,
-    upgrade_minor: int,
+    target_major: int,
+    target_minor: int,
 ) -> bool:
     """
     Checks the compatibility of the target PAN-OS version with the current version in an HA pair.
 
     This function assesses whether upgrading a firewall in an HA pair to the target PAN-OS version is compatible
-    with the current version running on the firewall. It compares the major and minor version numbers to determine
+    with the current version running on the firewall. It compares the target_major and target_minor version numbers to determine
     if the upgrade spans more than one major release or if the minor version increment is too large within the same
     major version. The function logs warnings for potential compatibility issues and returns a boolean indicating
     whether the upgrade is compatible or not.
@@ -76,9 +76,9 @@ def check_ha_compatibility(
         The current major version number of PAN-OS running on the firewall.
     current_minor : int
         The current minor version number of PAN-OS running on the firewall.
-    upgrade_major : int
+    target_major : int
         The target major version number of PAN-OS for the upgrade.
-    upgrade_minor : int
+    target_minor : int
         The target minor version number of PAN-OS for the upgrade.
 
     Returns
@@ -116,21 +116,21 @@ def check_ha_compatibility(
 
     if is_ha_pair:
         # Check if the major upgrade is more than one release apart
-        if upgrade_major - current_major > 1:
+        if target_major - current_major > 1:
             logging.warning(
                 f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that is more than one major release apart may cause compatibility issues."
             )
             return False
 
         # Check if the upgrade is within the same major version but the minor upgrade is more than one release apart
-        elif upgrade_major == current_major and upgrade_minor - current_minor > 1:
+        elif target_major == current_major and target_minor - current_minor > 1:
             logging.warning(
                 f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that is more than one minor release apart may cause compatibility issues."
             )
             return False
 
         # Check if the upgrade spans exactly one major version but also increases the minor version
-        elif upgrade_major - current_major == 1 and upgrade_minor > 0:
+        elif target_major - current_major == 1 and target_minor > 0:
             logging.warning(
                 f"{get_emoji(action='warning')} {hostname}: Upgrading firewalls in an HA pair to a version that spans more than one major release or increases the minor version beyond the first in the next major release may cause compatibility issues."
             )
@@ -409,7 +409,7 @@ def software_update_check(
     settings_file: LazySettings,
     settings_file_path: Path,
     target_device: Union[Firewall, Panorama],
-    version: str,
+    target_version: str,
 ) -> bool:
     """
     Checks the availability of the specified software version for upgrade on the target device, taking into account HA configurations.
@@ -422,7 +422,7 @@ def software_update_check(
         The device on which the software version's availability is being checked.
     hostname : str
         The hostname or IP address of the target device for identification in logs.
-    version : str
+    target_version : str
         The target PAN-OS version for potential upgrade.
     ha_details : dict
         A dictionary containing the HA configuration of the target device, if applicable.
@@ -456,39 +456,43 @@ def software_update_check(
     - Retry logic for downloading the required base image, if not already present, can be customized through the `settings.yaml` file, allowing for operational flexibility and adherence to network policies.
     """
 
-    # parse version
-    major, minor, maintenance = version.split(".")
+    # parse target_version
+    target_major, target_minor, target_maintenance = target_version.split(".")
+
+    # Convert target_major and target_minor to integers
+    target_major = int(target_major)
+    target_minor = int(target_minor)
+
+    # Check if target_maintenance can be converted to an integer
+    if target_maintenance.isdigit():
+        # Convert target_maintenance to integer
+        target_maintenance = int(target_maintenance)
 
     # Make sure we know about the system details - if we have connected via Panorama, this can be null without this.
-    logging.debug(
-        f"{get_emoji(action='working')} {hostname}: Refreshing running system information"
-    )
     target_device.refresh_system_info()
+    current_version = target_device.version
 
     # check to see if the specified version is older than the current version
     determine_upgrade(
+        current_version=current_version,
         hostname=hostname,
-        target_device=target_device,
-        target_maintenance=maintenance,
-        target_major=major,
-        target_minor=minor,
+        target_maintenance=target_maintenance,
+        target_major=target_major,
+        target_minor=target_minor,
     )
 
-    current_version = target_device.refresh_system_info().version
     current_parts = current_version.split(".")
     current_major, current_minor = map(int, current_parts[:2])
-    upgrade_parts = version.split(".")
-    upgrade_major, upgrade_minor = map(int, upgrade_parts[:2])
 
     if ha_details and ha_details["result"].get("enabled"):
         # Check if the target version is compatible with the current version and the HA setup
         if not check_ha_compatibility(
-            ha_details,
-            hostname,
-            current_major,
-            current_minor,
-            upgrade_major,
-            upgrade_minor,
+            ha_details=ha_details,
+            hostname=hostname,
+            current_major=current_major,
+            current_minor=current_minor,
+            target_major=target_major,
+            target_minor=target_minor,
         ):
             return False
 
@@ -499,24 +503,24 @@ def software_update_check(
     target_device.software.check()
     available_versions = target_device.software.versions
 
-    if version in available_versions:
+    if target_version in available_versions:
         retry_count = settings_file.get("download.max_tries", 3)
         wait_time = settings_file.get("download.retry_interval", 60)
 
         logging.info(
-            f"{get_emoji(action='success')} {hostname}: version {version} is available for download"
+            f"{get_emoji(action='success')} {hostname}: version {target_version} is available for download"
         )
 
-        base_version_key = f"{major}.{minor}.0"
+        base_version_key = f"{target_major}.{target_minor}.0"
         if available_versions.get(base_version_key, {}).get("downloaded"):
             logging.info(
-                f"{get_emoji(action='success')} {hostname}: Base image for {version} is already downloaded"
+                f"{get_emoji(action='success')} {hostname}: Base image for {target_version} is already downloaded"
             )
             return True
         else:
             for attempt in range(retry_count):
                 logging.error(
-                    f"{get_emoji(action='error')} {hostname}: Base image for {version} is not downloaded. Attempting download."
+                    f"{get_emoji(action='error')} {hostname}: Base image for {target_version} is not downloaded. Attempting download."
                 )
                 downloaded = software_download(
                     target_device, hostname, base_version_key, ha_details
@@ -527,7 +531,7 @@ def software_update_check(
                         f"{get_emoji(action='success')} {hostname}: Base image {base_version_key} downloaded successfully"
                     )
                     logging.info(
-                        f"{get_emoji(action='success')} {hostname}: Pausing for {wait_time} seconds to let {base_version_key} image load into the software manager before downloading {version}"
+                        f"{get_emoji(action='success')} {hostname}: Pausing for {wait_time} seconds to let {base_version_key} image load into the software manager before downloading {target_version}"
                     )
 
                     # Wait before retrying to ensure the device has processed the downloaded base image
@@ -535,7 +539,7 @@ def software_update_check(
 
                     # Re-check the versions after waiting
                     target_device.software.check()
-                    if version in target_device.software.versions:
+                    if target_version in target_device.software.versions:
                         # Proceed with the target version check again
                         return software_update_check(
                             ha_details=ha_details,
@@ -543,7 +547,7 @@ def software_update_check(
                             settings_file=settings_file,
                             settings_file_path=settings_file_path,
                             target_device=target_device,
-                            version=version,
+                            target_version=target_version,
                         )
 
                     else:
@@ -555,7 +559,7 @@ def software_update_check(
                 else:
                     if attempt < retry_count - 1:
                         logging.error(
-                            f"{get_emoji(action='error')} {hostname}: Failed to download base image for version {version}. Retrying in {wait_time} seconds."
+                            f"{get_emoji(action='error')} {hostname}: Failed to download base image for version {target_version}. Retrying in {wait_time} seconds."
                         )
                         time.sleep(wait_time)
                     else:
@@ -566,10 +570,12 @@ def software_update_check(
 
     else:
         # If the version is not available, find and log close matches
-        close_matches = find_close_matches(list(available_versions.keys()), version)
+        close_matches = find_close_matches(
+            list(available_versions.keys()), target_version
+        )
         close_matches_str = ", ".join(close_matches)
         logging.error(
-            f"{get_emoji(action='error')} {hostname}: Version {version} is not available for download. Closest matches: {close_matches_str}"
+            f"{get_emoji(action='error')} {hostname}: Version {target_version} is not available for download. Closest matches: {close_matches_str}"
         )
         return False
 
@@ -690,7 +696,7 @@ def upgrade_firewall(
         settings_file=settings_file,
         settings_file_path=settings_file_path,
         target_device=firewall,
-        version=target_version,
+        target_version=target_version,
     )
 
     # gracefully exit if the firewall is not ready for an upgrade to target version
@@ -1014,7 +1020,7 @@ def upgrade_panorama(
         settings_file=settings_file,
         settings_file_path=settings_file_path,
         target_device=panorama,
-        version=target_version,
+        target_version=target_version,
     )
 
     # gracefully exit if the Panorama is not ready for an upgrade to target version
