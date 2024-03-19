@@ -102,6 +102,7 @@ from pan_os_upgrade.components.upgrade import (
 from pan_os_upgrade.components.utilities import (
     console_welcome_banner,
     create_firewall_mapping,
+    flatten_xml_to_dict,
     get_emoji,
     ip_callback,
     select_devices_from_table,
@@ -241,14 +242,107 @@ def firewall(
         settings_file_path=SETTINGS_FILE_PATH,
     )
 
-    # Perform upgrade
-    upgrade_firewall(
-        dry_run=dry_run,
-        firewall=device,
-        settings_file=SETTINGS_FILE,
-        settings_file_path=SETTINGS_FILE_PATH,
-        target_version=target_version,
-    )
+    firewall_objects_for_upgrade = [device]
+
+    # Determine if the targeted device is operating in an HA pair
+    ha_status = device.op("show high-availability state")
+    ha_dict = flatten_xml_to_dict(ha_status)
+
+    # If the device is in an HA pair, store the peer's information
+    if ha_dict["result"]["enabled"] == "yes":
+        # Store all peer-info details in a dictionary
+        peer = ha_dict["result"]["group"]["peer-info"]
+
+        # Determine the peer's IP address if the mgmt-ip is not empty
+        if peer["mgmt-ip"] and len(peer["mgmt-ip"]) > 0:
+            peer["ip"] = peer["mgmt-ip"].split("/")[0]
+
+        # If the mgmt-ip is empty, use the mgmt-ipv6 field
+        elif peer["mgmt-ipv6"] and len(peer["mgmt-ipv6"]) > 0:
+            peer["ip"] = peer["mgmt-ipv6"].split("/")[0]
+
+        # If the mgmt-ip and mgmt-ipv6 fields are both empty, use the ha1-ipaddr field
+        elif peer["ha1-ipaddr"] and len(peer["ha1-ipaddr"]) > 0:
+            peer["ip"] = peer["ha1-ipaddr"]
+
+        else:
+            # no mgmt-ip or mgmt-ipv6 or ha1-ipaddr found, log message and sys.exit
+            logging.error(
+                f"{get_emoji(action='error')} {hostname}: No IP address found for the peer firewall. Exiting."
+            )
+            sys.exit(1)
+
+        firewall_objects_for_upgrade.append(Firewall(peer["ip"], username, password))
+
+    # First round of upgrades, targeting all firewalls and placing active firewalls in an HA pair on a revisit list
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        # Store future objects along with firewalls for reference
+        future_to_firewall = {
+            executor.submit(
+                upgrade_firewall,
+                dry_run=dry_run,
+                firewall=target_device,
+                settings_file=SETTINGS_FILE,
+                settings_file_path=SETTINGS_FILE_PATH,
+                target_devices_to_revisit=target_devices_to_revisit,
+                target_devices_to_revisit_lock=target_devices_to_revisit_lock,
+                target_version=target_version,
+            ): target_device
+            for target_device in firewall_objects_for_upgrade
+        }
+
+        # Process completed tasks
+        for future in as_completed(future_to_firewall):
+            firewall = future_to_firewall[future]
+            try:
+                future.result()
+            except Exception as exc:
+                logging.error(
+                    f"{get_emoji(action='error')} {hostname}: Firewall {firewall.hostname} generated an exception: {exc}"
+                )
+
+    # Second round of upgrades, revisiting firewalls that were active in an HA pair and had the same version as their peers
+    if target_devices_to_revisit:
+        logging.info(
+            f"{get_emoji(action='start')} {hostname}: Revisiting firewalls that were active in an HA pair and had the same version as their peers."
+        )
+
+        # Using ThreadPoolExecutor to manage threads for revisiting firewalls
+        threads = SETTINGS_FILE.get("concurrency.threads", 10)
+        logging.debug(
+            f"{get_emoji(action='working')} {hostname}: Using {threads} threads."
+        )
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            future_to_firewall = {
+                executor.submit(
+                    upgrade_firewall,
+                    dry_run=dry_run,
+                    firewall=target_device,
+                    settings_file=SETTINGS_FILE,
+                    settings_file_path=SETTINGS_FILE_PATH,
+                    target_devices_to_revisit=target_devices_to_revisit,
+                    target_devices_to_revisit_lock=target_devices_to_revisit_lock,
+                    target_version=target_version,
+                ): target_device
+                for target_device in target_devices_to_revisit
+            }
+
+            # Process completed tasks
+            for future in as_completed(future_to_firewall):
+                firewall = future_to_firewall[future]
+                try:
+                    future.result()
+                    logging.info(
+                        f"{get_emoji(action='success')} {hostname}: Completed revisiting firewalls"
+                    )
+                except Exception as exc:
+                    logging.error(
+                        f"{get_emoji(action='error')} {hostname}: Exception while revisiting firewalls: {exc}"
+                    )
+
+        # Clear the list after revisiting
+        with target_devices_to_revisit_lock:
+            target_devices_to_revisit.clear()
 
 
 # Subcommand for upgrading Panorama
