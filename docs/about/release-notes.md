@@ -2,6 +2,14 @@
 
 Welcome to the release notes for the `pan-os-upgrade` tool. This document provides a detailed record of changes, enhancements, and fixes in each version of the tool.
 
+## Version 1.3.9
+
+**Release Date:** *<20240319>*
+
+### What's New in version 1.3.9
+
+- Added support for beta releases with `-b` in their PAN-OS version names
+
 ## Version 1.3.8
 
 **Release Date:** *<20240318>*
