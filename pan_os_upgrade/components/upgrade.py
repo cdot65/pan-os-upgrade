@@ -664,6 +664,26 @@ def upgrade_firewall(
     logging.info(f"{get_emoji(action='report')} {hostname}: HA mode: {deploy_info}")
     logging.debug(f"{get_emoji(action='report')} {hostname}: HA details: {ha_details}")
 
+    # Check to see if the firewall is ready for an upgrade
+    logging.debug(
+        f"{get_emoji(action='start')} {hostname}: Checking to see if a PAN-OS upgrade is available."
+    )
+    update_available = software_update_check(
+        ha_details=ha_details,
+        hostname=hostname,
+        settings_file=settings_file,
+        settings_file_path=settings_file_path,
+        target_device=firewall,
+        target_version=target_version,
+    )
+
+    # gracefully exit if the firewall is not ready for an upgrade to target version
+    if not update_available:
+        logging.error(
+            f"{get_emoji(action='error')} {hostname}: Not ready for upgrade to {target_version}.",
+        )
+        sys.exit(1)
+
     # If firewall is part of HA pair, determine if it's active or passive
     if ha_details:
         proceed_with_upgrade, peer_firewall = handle_firewall_ha(
@@ -685,26 +705,6 @@ def upgrade_firewall(
                 upgrade_firewall(peer_firewall, target_version, dry_run)
             else:
                 return  # Exit the function without proceeding to upgrade
-
-    # Check to see if the firewall is ready for an upgrade
-    logging.debug(
-        f"{get_emoji(action='start')} {hostname}: Checking to see if a PAN-OS upgrade is available."
-    )
-    update_available = software_update_check(
-        ha_details=ha_details,
-        hostname=hostname,
-        settings_file=settings_file,
-        settings_file_path=settings_file_path,
-        target_device=firewall,
-        target_version=target_version,
-    )
-
-    # gracefully exit if the firewall is not ready for an upgrade to target version
-    if not update_available:
-        logging.error(
-            f"{get_emoji(action='error')} {hostname}: Not ready for upgrade to {target_version}.",
-        )
-        sys.exit(1)
 
     # Download the target version
     logging.info(
