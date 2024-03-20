@@ -501,60 +501,101 @@ def handle_panorama_ha(
 
     # If the active and passive target devices are running the same version
     if version_comparison == "equal":
+
+        # If the current device is primary-active
         if local_state == "primary-active":
+
             # Add the active target device to the list and exit the upgrade process
             with target_devices_to_revisit_lock:
                 target_devices_to_revisit.append(target_device)
+
+            # Log message to console
             logging.info(
                 f"{get_emoji(action='search')} {hostname}: Detected primary-active target device in HA pair running the same version as its peer. Added target device to revisit list."
             )
+
+            # Exit the upgrade process for the target device at this time, to be revisited later
             return False, None
 
+        # if the current device is secondary-passive
         elif local_state == "secondary-passive":
-            # Continue with upgrade process on the secondary-passive target device
-            logging.info(
-                f"{get_emoji(action='report')} {hostname}: Target device is secondary-passive",
-            )
+
+            # suspend HA state of the target device
+            if not dry_run:
+                logging.info(
+                    f"{get_emoji(action='report')} {hostname}: Suspending HA state of secondary-passive"
+                )
+                suspend_ha_passive(
+                    target_device,
+                    hostname,
+                )
+
+            # log message to console
+            else:
+                logging.info(
+                    f"{get_emoji(action='report')} {hostname}: Target device is secondary-passive, but we are in dry-run mode. Skipping HA state suspension.",
+                )
+
+            # Continue with upgrade process on the passive target device
             return True, None
 
         elif (
             local_state == "secondary-suspended"
             or local_state == "secondary-non-functional"
         ):
+
             # Continue with upgrade process on the secondary-suspended or secondary-non-functional target device
             logging.info(
                 f"{get_emoji(action='warning')} {hostname}: Target device is {local_state}",
             )
+
+            # Continue with upgrade process on the passive target device
             return True, None
 
     elif version_comparison == "older":
+
+        # log message to console
         logging.info(
             f"{get_emoji(action='report')} {hostname}: Target device is on an older version"
         )
+
         # Suspend HA state of active if the primary-active is on a later release
         if local_state == "primary-active" and not dry_run:
+
+            # log message to console
             logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of primary-active"
             )
+
+            # Suspend HA state of primary-active
             suspend_ha_active(
                 target_device,
                 hostname,
             )
+
         return True, None
 
     elif version_comparison == "newer":
+
+        # log message to console
         logging.info(
             f"{get_emoji(action='report')} {hostname}: Target device is on a newer version"
         )
+
         # Suspend HA state of secondary-passive if the primary-active is on a later release
         if local_state == "primary-active" and not dry_run:
+
+            # log message to console
             logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of primary-active"
             )
+
+            # Suspend HA state of primary-active
             suspend_ha_passive(
                 target_device,
                 hostname,
             )
+
         return True, None
 
     return False, None
