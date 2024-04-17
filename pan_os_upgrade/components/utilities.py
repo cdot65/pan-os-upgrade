@@ -790,7 +790,7 @@ def get_emoji(action: str) -> str:
     return emoji_map.get(action, "")
 
 
-def ip_callback(value: str) -> str:
+def ip_callback(value: str) -> Union[str, None]:
     """
     Validates the input as either a resolvable hostname or a valid IP address, intended for CLI input validation.
 
@@ -825,6 +825,8 @@ def ip_callback(value: str) -> str:
     - The function's utility extends beyond mere validation, contributing to the tool's overall resilience and user-friendliness by preventing erroneous network operations.
     - Default settings can be overridden by configurations specified in a `settings.yaml` file if `SETTINGS_FILE_PATH` is used within the script, allowing for customized validation logic based on the application's needs.
     """
+    if value is None:
+        return value
 
     # First, try to resolve as a hostname
     if resolve_hostname(hostname=value):
