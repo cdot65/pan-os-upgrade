@@ -79,6 +79,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Lock
 from typing_extensions import Annotated
+from typing import Optional
 
 # Palo Alto Networks imports
 from panos.firewall import Firewall
@@ -93,6 +94,7 @@ from dynaconf import Dynaconf
 from pan_os_upgrade.components.assurance import AssuranceOptions
 from pan_os_upgrade.components.device import (
     common_setup,
+    connect_to_host,
     get_firewalls_from_panorama,
     threaded_get_firewall_details,
 )
@@ -182,14 +184,20 @@ def firewall(
         ),
     ],
     dry_run: Annotated[
-        bool,
+        Optional[bool],
         typer.Option(
             "--dry-run",
             "-d",
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-            prompt="Dry Run?",
         ),
-    ] = True,
+    ] = None,
+    non_interactive: Annotated[
+        bool,
+        typer.Option(
+            "--non-interactive",
+            help="Perform non-interactive upgrade with default options. Disables --dry-run option.",
+        ),
+    ] = False,
 ):
     """
     Launches the upgrade process for a Palo Alto Networks firewall, facilitating a comprehensive and controlled upgrade workflow.
@@ -207,7 +215,9 @@ def firewall(
     target_version : str
         The version of PAN-OS to which the firewall is to be upgraded. Must be a valid and supported version for the device.
     dry_run : bool, optional
-        When set to True, the function performs all preparatory and validation steps without executing the actual upgrade, defaulting to False.
+        When set, the function performs all preparatory and validation steps without executing the actual upgrade. Dry run is the default selection in interactive mode.
+    non_interactive: bool, optional
+        When set, the function performs all the upgrade steps without any prompts. Dry run is disabled in non interactive mode.
 
     Examples
     --------
@@ -235,12 +245,23 @@ def firewall(
     typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(
+    common_setup(
+        settings_file=SETTINGS_FILE,
+        settings_file_path=SETTINGS_FILE_PATH,
+    )
+
+    if non_interactive:
+        logging.info(
+            f"{get_emoji(action='skipped')} Non-interactive mode is set, ignoring --dry-run option."
+        )
+        dry_run = False         # override dry run to false in non-interactive mode
+    elif dry_run is None:       # if dry-run option is not set explicitly
+        dry_run = typer.confirm("Dry Run?", default=True)
+
+    device = connect_to_host(
         hostname=hostname,
         username=username,
         password=password,
-        settings_file=SETTINGS_FILE,
-        settings_file_path=SETTINGS_FILE_PATH,
     )
 
     firewall_objects_for_upgrade = [device]
@@ -441,12 +462,15 @@ def panorama(
     typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(
+    common_setup(
+        settings_file=SETTINGS_FILE,
+        settings_file_path=SETTINGS_FILE_PATH,
+    )
+
+    device = connect_to_host(
         hostname=hostname,
         username=username,
         password=password,
-        settings_file=SETTINGS_FILE,
-        settings_file_path=SETTINGS_FILE_PATH,
     )
 
     panorama_objects_for_upgrade = [device]
@@ -590,15 +614,20 @@ def batch(
         ),
     ],
     dry_run: Annotated[
-        bool,
+        Optional[bool],
         typer.Option(
             "--dry-run",
             "-d",
             help="Perform a dry run of all tests and downloads without performing the actual upgrade",
-            prompt="Dry Run?",
-            is_flag=True,
         ),
-    ] = True,
+    ] = None,
+    non_interactive: Annotated[
+        bool,
+        typer.Option(
+            "--non-interactive",
+            help="Perform non-interactive upgrade with default options. Disables --dry-run option.",
+        ),
+    ] = False,
 ):
     """
     Orchestrates a batch upgrade process for firewalls under Panorama's management. This command leverages Panorama
@@ -622,7 +651,9 @@ def batch(
     target_version : str
         The version of PAN-OS to which the firewalls should be upgraded.
     dry_run : bool, optional
-        If set, the command simulates the upgrade process without making any changes to the devices. Defaults to True, meaning dry run is enabled by default.
+        If set, the command simulates the upgrade process without making any changes to the devices. Dry run is the default selection in interactive mode.
+    non_interactive: bool, optional
+        When set, the function performs all the upgrade steps without any prompts. Dry run is disabled in non interactive mode.
 
     Examples
     --------
@@ -665,12 +696,23 @@ def batch(
     typer.echo(banner)
 
     # Perform common setup tasks, return a connected device
-    device = common_setup(
+    common_setup(
+        settings_file=SETTINGS_FILE,
+        settings_file_path=SETTINGS_FILE_PATH,
+    )
+
+    if non_interactive:
+        logging.info(
+            f"{get_emoji(action='skipped')} Non-interactive mode is set, ignoring --dry-run option."
+        )
+        dry_run = False         # override dry run to false in non-interactive mode
+    elif dry_run is None:       # if dry-run option is not set explicitly
+        dry_run = typer.confirm("Dry Run?", default=True)
+
+    device = connect_to_host(
         hostname=hostname,
         username=username,
         password=password,
-        settings_file=SETTINGS_FILE,
-        settings_file_path=SETTINGS_FILE_PATH,
     )
 
     # Exit script if device is Firewall (batch upgrade is only supported when connecting to Panorama)
@@ -711,9 +753,10 @@ def batch(
 
     # If inventory.yaml does not exist, then prompt the user to select devices
     else:
-        # Present a table of firewalls with detailed system information for selection
+        # Present a table of firewalls with detailed system information for selection - skipped in non interactive mode
         user_selected_hostnames = select_devices_from_table(
             firewall_mapping=firewall_mapping
+        ) if not non_interactive else []
         )
 
     # Extracting the Firewall objects from the filtered mapping
@@ -747,8 +790,13 @@ def batch(
         f"{get_emoji(action='report')} {hostname}: Please confirm the selected firewalls:\n{firewall_list}"
     )
 
-    # Asking for user confirmation before proceeding
-    if dry_run:
+    # Proceed with upgrade if in non-interactive mode otherwise ask for user confirmation before proceeding
+    if non_interactive:
+        typer.echo(
+            f"{get_emoji(action='warning')} {hostname}: Non interactive mode is enabled, upgrade workflow will be executed without confirmation."
+        )
+        confirmation = True
+    elif dry_run:
         typer.echo(
             f"{get_emoji(action='warning')} {hostname}: Dry run mode is enabled, upgrade workflow will be skipped."
         )
@@ -927,12 +975,15 @@ def inventory(
     banner = console_welcome_banner(mode="inventory")
     typer.echo(banner)
 
-    device = common_setup(
+    common_setup(
+        settings_file=SETTINGS_FILE,
+        settings_file_path=SETTINGS_FILE_PATH,
+    )
+
+    device = connect_to_host(
         hostname=hostname,
         username=username,
         password=password,
-        settings_file=SETTINGS_FILE,
-        settings_file_path=SETTINGS_FILE_PATH,
     )
 
     if type(device) is Firewall:
