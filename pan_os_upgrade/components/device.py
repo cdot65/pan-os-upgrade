@@ -35,42 +35,34 @@ from pan_os_upgrade.models import ManagedDevice, ManagedDevices
 
 # Common setup for all subcommands
 def common_setup(
-    hostname: str,
-    username: str,
-    password: str,
     settings_file: LazySettings,
     settings_file_path: Path,
-) -> PanDevice:
+) -> None:
     """
-    Initializes the environment for interacting with a Palo Alto Networks device, including directory setup, logging configuration, and establishing a device connection.
+    Initializes the environment for interacting with a Palo Alto Networks device, including directory setup and logging configuration.
 
-    This function consolidates essential preparatory steps required before performing operations on a Palo Alto Networks device. It ensures the creation of necessary directories for organized data storage and logs, sets up logging with a configurable verbosity level, and establishes a secure connection to the device using the provided API credentials. The function is designed to return a `PanDevice` object, which could be a `Firewall` or `Panorama` instance, ready for subsequent API interactions.
+    This function consolidates essential preparatory steps required before performing operations on a Palo Alto Networks device. It ensures the creation of necessary directories for organized data storage and logs, and sets up logging with a configurable verbosity level.
 
     Parameters
     ----------
-    hostname : str
-        The network address or DNS name of the Palo Alto Networks device to connect to.
-    username : str
-        The API username for authenticating with the device.
-    password : str
-        The API password for authenticating with the device.
-
-    Returns
-    -------
-    PanDevice
-        A connected `PanDevice` instance, representing the target Palo Alto Networks device, fully initialized and ready for further API operations.
+    settings_file : LazySettings
+        The LazySettings object containing configurations loaded from the settings file.
+    settings_file_path : Path
+        The filesystem path to the settings.yaml file, which contains custom configuration settings.
 
     Example
     -------
     Initializing the environment for a device:
-        >>> device = common_setup('10.0.0.1', 'apiuser', 'apipassword')
-        # Ensures necessary directories exist, logging is configured, and returns a connected `PanDevice` instance.
+        >>> common_setup(
+                settings_file=Dynaconf(settings_files=[str(SETTINGS_FILE_PATH)]),
+                settings_file_path=SETTINGS_FILE_PATH,
+            )
+        # Ensures necessary directories exist, and logging is configured.
 
     Notes
     -----
     - Directory setup is performed only once; existing directories are not modified.
     - Logging configuration affects the entire application's logging behavior; the log level can be overridden by `settings.yaml` if `SETTINGS_FILE_PATH` is detected in the function.
-    - A successful device connection is critical for the function to return; otherwise, it may raise exceptions based on connection issues.
 
     The ability to override default settings with `settings.yaml` is supported for the log level configuration in this function if `SETTINGS_FILE_PATH` is utilized within `configure_logging`.
     """
@@ -93,14 +85,6 @@ def common_setup(
         settings_file_path=settings_file_path,
     )
 
-    # Connect to the device
-    device = connect_to_host(
-        hostname=hostname,
-        username=username,
-        password=password,
-    )
-    return device
-
 
 def connect_to_host(
     hostname: str,
@@ -115,16 +99,16 @@ def connect_to_host(
     Parameters
     ----------
     hostname : str
-        The hostname or IP address of the target Palo Alto Networks device.
-    api_username : str
-        The API username for authentication.
-    api_password : str
-        The password corresponding to the API username.
+        The network address or DNS name of the Palo Alto Networks device to connect to.
+    username : str
+        The API username for authenticating with the device.
+    password : str
+        The API password for authenticating with the device.
 
     Returns
     -------
     PanDevice
-        A PanDevice object representing the connected device, which may be a Firewall or Panorama instance.
+        A PanDevice object representing the connected device, which may be a Firewall or Panorama instance, ready for further API operations.
 
     Raises
     ------
@@ -146,6 +130,7 @@ def connect_to_host(
     - Initiating a connection to a device is a prerequisite for performing any operational or configuration tasks via the API.
     - The function's error handling provides clear diagnostics, aiding in troubleshooting connection issues.
     - Configuration settings for the connection, such as timeout periods and retry attempts, can be customized through the `settings.yaml` file, if `settings_file_path` is utilized within the function.
+    - A successful device connection is critical for the function to return; otherwise, it may raise exceptions based on connection issues.
     """
 
     try:
