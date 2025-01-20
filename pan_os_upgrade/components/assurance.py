@@ -78,91 +78,76 @@ class AssuranceOptions:
     READINESS_CHECKS = {
         "active_support": {
             "description": "Check if active support is available",
-            "log_level": "warning",
-            "exit_on_failure": False,
+            "exit_on_failure": True,
             "enabled_by_default": True,
         },
         "arp_entry_exist": {
             "description": "Check if a given ARP entry is available in the ARP table",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": False,
         },
         "candidate_config": {
             "description": "Check if there are pending changes on device",
-            "log_level": "error",
             "exit_on_failure": True,
             "enabled_by_default": True,
         },
         "certificates_requirements": {
             "description": "Check if the certificates' keys meet minimum size requirements",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": False,
         },
         "content_version": {
             "description": "Running Latest Content Version",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "dynamic_updates": {
             "description": "Check if any Dynamic Update job is scheduled to run within the specified time window",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "expired_licenses": {
             "description": "No Expired Licenses",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": True,
         },
         "free_disk_space": {
             "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": True,
         },
         "ha": {
             "description": "Checks HA pair status from the perspective of the current device",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "ip_sec_tunnel_status": {
             "description": "Check if a given IPsec tunnel is in active state",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "jobs": {
             "description": "Check for any job with status different than FIN",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": False,
         },
         "ntp_sync": {
             "description": "Check if NTP is synchronized",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": False,
         },
         "planes_clock_sync": {
             "description": "Check if the clock is synchronized between dataplane and management plane",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "panorama": {
             "description": "Check connectivity with the Panorama appliance",
-            "log_level": "warning",
             "exit_on_failure": False,
-            "enabled_by_default": True,
+            "enabled_by_default": False,
         },
         "session_exist": {
             "description": "Check if a critical session is present in the sessions table",
-            "log_level": "warning",
             "exit_on_failure": False,
             "enabled_by_default": False,
         },
@@ -296,20 +281,16 @@ def check_readiness_and_log(
             f"{get_emoji(action='success')} {hostname}: Passed Readiness Check: {test_info['description']}"
         )
     else:
-        if test_info["log_level"] == "error":
-            logging.error(f"{get_emoji(action='error')} {hostname}: {log_message}")
-            if test_info["exit_on_failure"]:
-                logging.error(f"{get_emoji(action='stop')} {hostname}: Halting script.")
-
-                sys.exit(1)
-        elif test_info["log_level"] == "warning":
+        if test_name not in result:
             logging.info(
                 f"{get_emoji(action='skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
             )
+        elif test_info["exit_on_failure"]:
+            logging.error(f"{get_emoji(action='stop')} {hostname}: Halting script.")
+            sys.exit(1)
+
         else:
-            logging.info(
-                f"{get_emoji(action='report')} {hostname}: Log Message {log_message}"
-            )
+            logging.error(f"{get_emoji(action='error')} {hostname}: {log_message}")
 
 
 def generate_diff_report_pdf(
@@ -530,13 +511,19 @@ def perform_readiness_checks(
         # Determine readiness checks to perform based on settings
         if settings.get("readiness_checks", {}).get("customize", False):
             # Extract checks where value is True
+            configured_checks = settings.get("readiness_checks", {}).get("checks", {})
+
             selected_checks = [
-                check
-                for check, enabled in settings.get("readiness_checks", {})
-                .get("checks", {})
-                .items()
-                if enabled
+                (
+                    check
+                    if isinstance(details, bool) or details == {"enabled": True}
+                    else {check: details["params"]} if "params" in details else check
+                )
+                for check, details in configured_checks.items()
+                if details is True
+                or (isinstance(details, dict) and details.get("enabled") is True)
             ]
+
         else:
             # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
             selected_checks = [
@@ -721,7 +708,7 @@ def perform_snapshot(
 
 
 def run_assurance(
-    actions: List[str],
+    actions: List[str | dict],
     firewall: Firewall,
     hostname: str,
     operation_type: str,
@@ -742,7 +729,7 @@ def run_assurance(
         The hostname or IP address of the firewall. This is used for identification and logging purposes.
     operation_type : str
         A string specifying the type of operation to perform. Supported types include 'readiness_check' and 'state_snapshot'.
-    actions : List[str]
+    actions : List[str | dict]
         A list of actions to be performed as part of the operation. The valid actions depend on the operation type.
     config : Dict[str, Union[str, int, float, bool]]
         A dictionary of additional configuration options that customize the operation. These might include thresholds,
@@ -789,11 +776,20 @@ def run_assurance(
 
     if operation_type == "readiness_check":
         for action in actions:
-            if action not in AssuranceOptions.READINESS_CHECKS.keys():
+            if isinstance(action, str):  # Simple check name
+                check_name = action
+            elif isinstance(action, dict):  # Check with arguments
+                check_name = next(iter(action))  # Extract key from dict
+            else:
                 logging.error(
-                    f"{get_emoji(action='error')} {hostname}: Invalid action for readiness check: {action}"
+                    f"{get_emoji(action='error')} {hostname}: Invalid action format: {action}"
                 )
+                sys.exit(1)
 
+            if check_name not in AssuranceOptions.READINESS_CHECKS:
+                logging.error(
+                    f"{get_emoji(action='error')} {hostname}: Invalid action for readiness check: {check_name}"
+                )
                 sys.exit(1)
 
         try:
