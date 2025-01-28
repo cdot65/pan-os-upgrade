@@ -83,7 +83,7 @@ class AssuranceOptions:
         },
         "arp_entry_exist": {
             "description": "Check if a given ARP entry is available in the ARP table",
-            "exit_on_failure": False,
+            "exit_on_failure": True,
             "enabled_by_default": False,
         },
         "candidate_config": {
@@ -286,7 +286,7 @@ def check_readiness_and_log(
                 f"{get_emoji(action='skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
             )
         elif test_info["exit_on_failure"]:
-            logging.error(f"{get_emoji(action='stop')} {hostname}: Halting script.")
+            logging.error(f"{get_emoji(action='stop')} {hostname}: {log_message}. Test has `exit_on_failure` flag set. Halting script.")
             sys.exit(1)
 
         else:
