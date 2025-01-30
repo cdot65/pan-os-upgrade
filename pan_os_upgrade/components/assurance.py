@@ -39,9 +39,12 @@ class AssuranceOptions:
 
     Attributes
     ----------
+    FREE_DISK_SPACE : dict
+        A dictionary that is used for a specific area (free_disk_space) check and maps the name of the check to it's
+        attributes, which includes a description, ahd flags to indicate wether to exit the process upon checl failure.
     READINESS_CHECKS : dict
-        A dictionary mapping the names of readiness checks to their attributes, which include descriptions, associated
-        log levels, and flags to indicate whether to exit the process upon check failure. These checks are designed to
+        A dictionary mapping the names of readiness checks to their attributes, which include descriptions,
+        and flags to indicate whether to exit the process upon check failure. These checks are designed to
         ensure a device's readiness for an upgrade by validating its operational and configuration status.
     REPORTS : dict
         A dictionary enumerating the types of reports that can be generated to offer insights into the device's state
@@ -74,7 +77,13 @@ class AssuranceOptions:
     - Default settings are predefined within this class; however, they can be overridden by specifying custom configurations
       in the `settings.yaml` file, thus enhancing the script's flexibility and adaptability to different upgrade contexts.
     """
-
+    FREE_DISK_CHECK = {
+         "free_disk_space": {
+            "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
+            "exit_on_failure": True,
+            "enabled_by_default": True,
+        },       
+    }
     READINESS_CHECKS = {
         "active_support": {
             "description": "Check if active support is available",
@@ -108,11 +117,6 @@ class AssuranceOptions:
         },
         "expired_licenses": {
             "description": "No Expired Licenses",
-            "exit_on_failure": False,
-            "enabled_by_default": True,
-        },
-        "free_disk_space": {
-            "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
             "exit_on_failure": False,
             "enabled_by_default": True,
         },
@@ -445,6 +449,7 @@ def perform_readiness_checks(
     firewall: Firewall,
     hostname: str,
     settings_file_path: Path,
+    check_area: str = "default",
 ) -> None:
     """
     Conducts a set of predefined readiness checks on a specified Palo Alto Networks Firewall to verify its
@@ -469,6 +474,12 @@ def perform_readiness_checks(
         The designated file path where the JSON-formatted report summarizing the results of the readiness
         checks will be stored. The function ensures the existence of the specified directory, creating it
         if necessary.
+    check_area: str = "default"
+        A string representing the specific area or aspect of the firewall's configuration or state that the
+        readiness checks should focus on. This parameter allows for a more targeted evaluation, rather than
+        a comprehensive assessment of the entire firewall. This is used as a discriminator between different
+        key points in the upgrade process. The default value of `default` indicates a comprehensive 
+        evaluation of the firewall.
 
     Raises
     ------
@@ -513,16 +524,35 @@ def perform_readiness_checks(
             # Extract checks where value is True
             configured_checks = settings.get("readiness_checks", {}).get("checks", {})
 
-            selected_checks = [
-                (
-                    check
-                    if isinstance(details, bool) or details == {"enabled": True}
-                    else {check: details["params"]} if "params" in details else check
-                )
-                for check, details in configured_checks.items()
-                if details is True
-                or (isinstance(details, dict) and details.get("enabled") is True)
-            ]
+            if check_area == "default":
+                selected_checks = [
+                    (
+                        check
+                        if isinstance(details, bool) or details == {"enabled": True}
+                        else {check: details["params"]} if "params" in details else check
+                    )
+                    for check, details in configured_checks.items()
+                    if details is True
+                    or (isinstance(details, dict) and details.get("enabled") is True)
+                ]
+                # Remove area specific checks from the list
+                area_specific_checks = ["free_disk_space"]
+                selected_checks = [check for check in selected_checks if check not in area_specific_checks]
+               
+            # Handle area specific check - free_disk_space for image_download 
+            elif check_area == "free_disk_space":
+                selected_checks = [
+                    (
+                        check
+                        if isinstance(details, bool) or details == {"enabled": True}
+                        else {check: details["params"]} if "params" in details else check
+                    )
+                    for check, details in configured_checks.items()
+                    if check == "free_disk_space" and (
+                        details is True
+                        or (isinstance(details, dict) and details.get("enabled") is True)
+                    )
+                ]
 
         else:
             # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
@@ -785,8 +815,7 @@ def run_assurance(
                     f"{get_emoji(action='error')} {hostname}: Invalid action format: {action}"
                 )
                 sys.exit(1)
-
-            if check_name not in AssuranceOptions.READINESS_CHECKS:
+            if check_name not in AssuranceOptions.READINESS_CHECKS and check_name not in AssuranceOptions.FREE_DISK_CHECK:
                 logging.error(
                     f"{get_emoji(action='error')} {hostname}: Invalid action for readiness check: {check_name}"
                 )
@@ -798,16 +827,26 @@ def run_assurance(
             )
             result = checks_firewall.run_readiness_checks(actions)
 
-            for (
-                test_name,
-                test_info,
-            ) in AssuranceOptions.READINESS_CHECKS.items():
-                check_readiness_and_log(
-                    hostname=hostname,
-                    result=result,
-                    test_info=test_info,
-                    test_name=test_name,
-                )
+            # Handle area specific checks
+            if set(result.keys()) == {"free_disk_space"}:
+                for (test_name, test_info) in AssuranceOptions.FREE_DISK_CHECK.items():
+                    check_readiness_and_log(
+                        hostname=hostname,
+                        result=result,
+                        test_info=test_info,
+                        test_name=test_name,                       
+                    )
+            else:
+                for (
+                    test_name,
+                    test_info,
+                ) in AssuranceOptions.READINESS_CHECKS.items():
+                    check_readiness_and_log(
+                        hostname=hostname,
+                        result=result,
+                        test_info=test_info,
+                        test_name=test_name,
+                    )
 
             return ReadinessCheckReport(**result)
 
