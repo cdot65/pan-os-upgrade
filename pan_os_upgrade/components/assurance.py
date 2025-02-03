@@ -77,12 +77,20 @@ class AssuranceOptions:
     - Default settings are predefined within this class; however, they can be overridden by specifying custom configurations
       in the `settings.yaml` file, thus enhancing the script's flexibility and adaptability to different upgrade contexts.
     """
+
     FREE_DISK_CHECK = {
-         "free_disk_space": {
+        "free_disk_space": {
             "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
             "exit_on_failure": True,
             "enabled_by_default": True,
-        },       
+        },
+    }
+    HA = {
+        "ha": {
+            "description": "Checks HA pair status from the perspective of the current device",
+            "exit_on_failure": True,
+            "enabled_by_default": True,
+        },
     }
     READINESS_CHECKS = {
         "active_support": {
@@ -119,11 +127,6 @@ class AssuranceOptions:
             "description": "No Expired Licenses",
             "exit_on_failure": False,
             "enabled_by_default": True,
-        },
-        "ha": {
-            "description": "Checks HA pair status from the perspective of the current device",
-            "exit_on_failure": False,
-            "enabled_by_default": False,
         },
         "ip_sec_tunnel_status": {
             "description": "Check if a given IPsec tunnel is in active state",
@@ -290,7 +293,9 @@ def check_readiness_and_log(
                 f"{get_emoji(action='skipped')} {hostname}: Skipped Readiness Check: {test_info['description']}"
             )
         elif test_info["exit_on_failure"]:
-            logging.error(f"{get_emoji(action='stop')} {hostname}: {log_message}. Test has `exit_on_failure` flag set. Halting script.")
+            logging.error(
+                f"{get_emoji(action='stop')} {hostname}: {log_message}. Test has `exit_on_failure` flag set. Halting script."
+            )
             sys.exit(1)
 
         else:
@@ -478,7 +483,7 @@ def perform_readiness_checks(
         A string representing the specific area or aspect of the firewall's configuration or state that the
         readiness checks should focus on. This parameter allows for a more targeted evaluation, rather than
         a comprehensive assessment of the entire firewall. This is used as a discriminator between different
-        key points in the upgrade process. The default value of `default` indicates a comprehensive 
+        key points in the upgrade process. The default value of `default` indicates a comprehensive
         evaluation of the firewall.
 
     Raises
@@ -529,28 +534,58 @@ def perform_readiness_checks(
                     (
                         check
                         if isinstance(details, bool) or details == {"enabled": True}
-                        else {check: details["params"]} if "params" in details else check
+                        else (
+                            {check: details["params"]} if "params" in details else check
+                        )
                     )
                     for check, details in configured_checks.items()
                     if details is True
                     or (isinstance(details, dict) and details.get("enabled") is True)
                 ]
                 # Remove area specific checks from the list
-                area_specific_checks = ["free_disk_space"]
-                selected_checks = [check for check in selected_checks if check not in area_specific_checks]
-               
-            # Handle area specific check - free_disk_space for image_download 
+                area_specific_checks = ["free_disk_space", "ha"]
+                selected_checks = [
+                    check
+                    for check in selected_checks
+                    if check not in area_specific_checks
+                ]
+
+            # Handle area specific check - free_disk_space for image_download
             elif check_area == "free_disk_space":
                 selected_checks = [
                     (
                         check
                         if isinstance(details, bool) or details == {"enabled": True}
-                        else {check: details["params"]} if "params" in details else check
+                        else (
+                            {check: details["params"]} if "params" in details else check
+                        )
                     )
                     for check, details in configured_checks.items()
-                    if check == "free_disk_space" and (
+                    if check == "free_disk_space"
+                    and (
                         details is True
-                        or (isinstance(details, dict) and details.get("enabled") is True)
+                        or (
+                            isinstance(details, dict) and details.get("enabled") is True
+                        )
+                    )
+                ]
+            # Handle area specific check - ha for ha_upgrade
+            elif check_area == "ha":
+                selected_checks = [
+                    (
+                        check
+                        if isinstance(details, bool) or details == {"enabled": True}
+                        else (
+                            {check: details["params"]} if "params" in details else check
+                        )
+                    )
+                    for check, details in configured_checks.items()
+                    if check == "ha"
+                    and (
+                        details is True
+                        or (
+                            isinstance(details, dict) and details.get("enabled") is True
+                        )
                     )
                 ]
 
@@ -815,7 +850,11 @@ def run_assurance(
                     f"{get_emoji(action='error')} {hostname}: Invalid action format: {action}"
                 )
                 sys.exit(1)
-            if check_name not in AssuranceOptions.READINESS_CHECKS and check_name not in AssuranceOptions.FREE_DISK_CHECK:
+            if (
+                check_name not in AssuranceOptions.READINESS_CHECKS
+                and check_name not in AssuranceOptions.FREE_DISK_CHECK
+                and check_name not in AssuranceOptions.HA
+            ):
                 logging.error(
                     f"{get_emoji(action='error')} {hostname}: Invalid action for readiness check: {check_name}"
                 )
@@ -829,12 +868,20 @@ def run_assurance(
 
             # Handle area specific checks
             if set(result.keys()) == {"free_disk_space"}:
-                for (test_name, test_info) in AssuranceOptions.FREE_DISK_CHECK.items():
+                for test_name, test_info in AssuranceOptions.FREE_DISK_CHECK.items():
                     check_readiness_and_log(
                         hostname=hostname,
                         result=result,
                         test_info=test_info,
-                        test_name=test_name,                       
+                        test_name=test_name,
+                    )
+            elif set(result.keys()) == {"ha"}:
+                for test_name, test_info in AssuranceOptions.HA.items():
+                    check_readiness_and_log(
+                        hostname=hostname,
+                        result=result,
+                        test_info=test_info,
+                        test_name=test_name,
                     )
             else:
                 for (

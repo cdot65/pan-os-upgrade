@@ -279,7 +279,7 @@ def software_download(
     hostname: str,
     target_version: str,
     ha_details: dict,
-    settings_file_path: Path, 
+    settings_file_path: Path,
 ) -> bool:
     """
     Downloads the specified software version to a Palo Alto Networks device, handling HA configurations.
@@ -355,13 +355,15 @@ def software_download(
 
         try:
             # Check if there is enough space for the image
-            logging.info(f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade disk space check")
+            logging.info(
+                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade disk space check"
+            )
             perform_readiness_checks(
                 file_path=f'assurance/readiness_checks/{hostname}/pre/disk_space_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
                 firewall=target_device,
                 hostname=hostname,
                 settings_file_path=settings_file_path,
-                check_area = "free_disk_space"
+                check_area="free_disk_space",
             )
             logging.info(
                 f"{get_emoji(action='start')} {hostname}: version {target_version} is beginning download"
@@ -535,7 +537,11 @@ def software_update_check(
                     f"{get_emoji(action='error')} {hostname}: Base image for {target_version} is not downloaded. Attempting download."
                 )
                 downloaded = software_download(
-                    target_device, hostname, base_version_key, ha_details, settings_file_path
+                    target_device,
+                    hostname,
+                    base_version_key,
+                    ha_details,
+                    settings_file_path,
                 )
 
                 if downloaded:

@@ -14,6 +14,9 @@ from pan_os_upgrade.components.utilities import (
     flatten_xml_to_dict,
     get_emoji,
 )
+from pan_os_upgrade.components.assurance import (
+    perform_readiness_checks,
+)
 
 
 def ha_sync_check_firewall(
@@ -315,6 +318,17 @@ def handle_firewall_ha(
             # suspend HA state of the target device
             if not dry_run:
                 logging.info(
+                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+                )
+                perform_readiness_checks(
+                    file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                    firewall=target_device,
+                    hostname=hostname,
+                    settings_file_path=settings_file_path,
+                    check_area="ha",
+                )
+
+                logging.info(
                     f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
                 )
                 suspend_ha_passive(
@@ -345,6 +359,16 @@ def handle_firewall_ha(
         # Suspend HA state of active if the passive is on a later release
         if local_state == "active" or local_state == "active-primary" and not dry_run:
             logging.info(
+                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+            )
+            perform_readiness_checks(
+                file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                firewall=target_device,
+                hostname=hostname,
+                settings_file_path=settings_file_path,
+                check_area="ha",
+            )
+            logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of active or active-primary"
             )
             suspend_ha_active(
@@ -363,6 +387,16 @@ def handle_firewall_ha(
             or local_state == "active-secondary"
             and not dry_run
         ):
+            logging.info(
+                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+            )
+            perform_readiness_checks(
+                file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                firewall=target_device,
+                hostname=hostname,
+                settings_file_path=settings_file_path,
+                check_area="ha",
+            )
             logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
             )
