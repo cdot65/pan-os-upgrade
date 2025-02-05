@@ -39,9 +39,6 @@ class AssuranceOptions:
 
     Attributes
     ----------
-    FREE_DISK_SPACE : dict
-        A dictionary that is used for a specific area (free_disk_space) check and maps the name of the check to it's
-        attributes, which includes a description, ahd flags to indicate wether to exit the process upon checl failure.
     READINESS_CHECKS : dict
         A dictionary mapping the names of readiness checks to their attributes, which include descriptions,
         and flags to indicate whether to exit the process upon check failure. These checks are designed to
@@ -78,20 +75,6 @@ class AssuranceOptions:
       in the `settings.yaml` file, thus enhancing the script's flexibility and adaptability to different upgrade contexts.
     """
 
-    FREE_DISK_CHECK = {
-        "free_disk_space": {
-            "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
-            "exit_on_failure": True,
-            "enabled_by_default": True,
-        },
-    }
-    HA = {
-        "ha": {
-            "description": "Checks HA pair status from the perspective of the current device",
-            "exit_on_failure": True,
-            "enabled_by_default": True,
-        },
-    }
     READINESS_CHECKS = {
         "active_support": {
             "description": "Check if active support is available",
@@ -126,6 +109,16 @@ class AssuranceOptions:
         "expired_licenses": {
             "description": "No Expired Licenses",
             "exit_on_failure": False,
+            "enabled_by_default": True,
+        },
+        "free_disk_space": {
+            "description": "Check if a there is enough space on the `/opt/panrepo` volume for PAN-OS image.",
+            "exit_on_failure": True,
+            "enabled_by_default": True,
+        },
+        "ha": {
+            "description": "Checks HA pair status from the perspective of the current device",
+            "exit_on_failure": True,
             "enabled_by_default": True,
         },
         "ip_sec_tunnel_status": {
@@ -222,6 +215,72 @@ class AssuranceOptions:
             "description": "Snapshot of the Session Statistics",
         },
     }
+
+
+def get_checks_list(settings_file_path: Path) -> List[str | dict]:
+    """
+    Function that reads the contents of the `settings.yaml` indicated in the `settings_file_path`
+    and return a list of checks.
+
+    Parameters
+    ----------
+    settings_file_path : Path
+        The file path to the 'settings.yaml' configuration file, used to override default settings.
+
+    Raises
+    ------
+    IOError
+        Signals an issue with writing the readiness report to the specified file path, potentially due to
+        file access restrictions or insufficient disk space, warranting further investigation.
+
+    Returns
+    -------
+    List
+        A list with strings and dicts as elements that represent the parsed selected checks
+    """
+    # Load settings if the file exists
+    if settings_file_path.exists():
+        with open(settings_file_path, "r") as file:
+            settings = yaml.safe_load(file)
+
+        # Check if readiness checks are disabled in the settings
+        if settings.get("readiness_checks", {}).get("disabled", False):
+            logging.info(
+                f"{get_emoji(action='skipped')} {hostname}: Readiness checks are disabled in the settings. Skipping readiness checks for {hostname}."
+            )
+            # Early return, no readiness checks performed
+            return
+        # Determine readiness checks to perform based on settings
+        if settings.get("readiness_checks", {}).get("customize", False):
+            configured_checks = settings.get("readiness_checks", {}).get("checks", {})
+
+            selected_checks = [
+                (
+                    check
+                    if isinstance(details, bool) or details == {"enabled": True}
+                    else ({check: details["params"]} if "params" in details else check)
+                )
+                for check, details in configured_checks.items()
+                if details is True
+                or (isinstance(details, dict) and details.get("enabled") is True)
+            ]
+        else:
+            # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
+            selected_checks = [
+                check
+                for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
+                if attrs.get("enabled_by_default", False)
+            ]
+
+    else:
+        # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
+        selected_checks = [
+            check
+            for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
+            if attrs.get("enabled_by_default", False)
+        ]
+
+    return selected_checks
 
 
 def check_readiness_and_log(
@@ -453,8 +512,7 @@ def perform_readiness_checks(
     file_path: str,
     firewall: Firewall,
     hostname: str,
-    settings_file_path: Path,
-    check_area: str = "default",
+    checks: List[str | dict],
 ) -> None:
     """
     Conducts a set of predefined readiness checks on a specified Palo Alto Networks Firewall to verify its
@@ -479,12 +537,10 @@ def perform_readiness_checks(
         The designated file path where the JSON-formatted report summarizing the results of the readiness
         checks will be stored. The function ensures the existence of the specified directory, creating it
         if necessary.
-    check_area: str = "default"
-        A string representing the specific area or aspect of the firewall's configuration or state that the
-        readiness checks should focus on. This parameter allows for a more targeted evaluation, rather than
-        a comprehensive assessment of the entire firewall. This is used as a discriminator between different
-        key points in the upgrade process. The default value of `default` indicates a comprehensive
-        evaluation of the firewall.
+    checks: List [str | dict]
+        A required list of checks used to trigger specific checks from this function. If there is no given
+        input, then the function will run checks against the input `settings.yml` file or the default checks
+        list, depending on the case. If a value IS given - then those checks will be processed.
 
     Raises
     ------
@@ -512,104 +568,12 @@ def perform_readiness_checks(
     """
 
     # Load settings if the file exists
-    if settings_file_path.exists():
-        with open(settings_file_path, "r") as file:
-            settings = yaml.safe_load(file)
-
-        # Check if readiness checks are disabled in the settings
-        if settings.get("readiness_checks", {}).get("disabled", False):
-            logging.info(
-                f"{get_emoji(action='skipped')} {hostname}: Readiness checks are disabled in the settings. Skipping readiness checks for {hostname}."
-            )
-            # Early return, no readiness checks performed
-            return
-
-        # Determine readiness checks to perform based on settings
-        if settings.get("readiness_checks", {}).get("customize", False):
-            # Extract checks where value is True
-            configured_checks = settings.get("readiness_checks", {}).get("checks", {})
-
-            if check_area == "default":
-                selected_checks = [
-                    (
-                        check
-                        if isinstance(details, bool) or details == {"enabled": True}
-                        else (
-                            {check: details["params"]} if "params" in details else check
-                        )
-                    )
-                    for check, details in configured_checks.items()
-                    if details is True
-                    or (isinstance(details, dict) and details.get("enabled") is True)
-                ]
-                # Remove area specific checks from the list
-                area_specific_checks = ["free_disk_space", "ha"]
-                selected_checks = [
-                    check
-                    for check in selected_checks
-                    if check not in area_specific_checks
-                ]
-
-            # Handle area specific check - free_disk_space for image_download
-            elif check_area == "free_disk_space":
-                selected_checks = [
-                    (
-                        check
-                        if isinstance(details, bool) or details == {"enabled": True}
-                        else (
-                            {check: details["params"]} if "params" in details else check
-                        )
-                    )
-                    for check, details in configured_checks.items()
-                    if check == "free_disk_space"
-                    and (
-                        details is True
-                        or (
-                            isinstance(details, dict) and details.get("enabled") is True
-                        )
-                    )
-                ]
-            # Handle area specific check - ha for ha_upgrade
-            elif check_area == "ha":
-                selected_checks = [
-                    (
-                        check
-                        if isinstance(details, bool) or details == {"enabled": True}
-                        else (
-                            {check: details["params"]} if "params" in details else check
-                        )
-                    )
-                    for check, details in configured_checks.items()
-                    if check == "ha"
-                    and (
-                        details is True
-                        or (
-                            isinstance(details, dict) and details.get("enabled") is True
-                        )
-                    )
-                ]
-
-        else:
-            # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
-            selected_checks = [
-                check
-                for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
-                if attrs.get("enabled_by_default", False)
-            ]
-    else:
-        # Select checks based on 'enabled_by_default' attribute from AssuranceOptions class
-        selected_checks = [
-            check
-            for check, attrs in AssuranceOptions.READINESS_CHECKS.items()
-            if attrs.get("enabled_by_default", False)
-        ]
-
     logging.info(
         f"{get_emoji(action='start')} {hostname}: Performing readiness checks of target firewall."
     )
 
     readiness_check = run_assurance(
-        actions=selected_checks,
+        actions=checks,
         firewall=firewall,
         hostname=hostname,
         operation_type="readiness_check",
@@ -850,11 +814,7 @@ def run_assurance(
                     f"{get_emoji(action='error')} {hostname}: Invalid action format: {action}"
                 )
                 sys.exit(1)
-            if (
-                check_name not in AssuranceOptions.READINESS_CHECKS
-                and check_name not in AssuranceOptions.FREE_DISK_CHECK
-                and check_name not in AssuranceOptions.HA
-            ):
+            if check_name not in AssuranceOptions.READINESS_CHECKS:
                 logging.error(
                     f"{get_emoji(action='error')} {hostname}: Invalid action for readiness check: {check_name}"
                 )
@@ -866,28 +826,13 @@ def run_assurance(
             )
             result = checks_firewall.run_readiness_checks(actions)
 
-            # Handle area specific checks
-            if set(result.keys()) == {"free_disk_space"}:
-                for test_name, test_info in AssuranceOptions.FREE_DISK_CHECK.items():
-                    check_readiness_and_log(
-                        hostname=hostname,
-                        result=result,
-                        test_info=test_info,
-                        test_name=test_name,
-                    )
-            elif set(result.keys()) == {"ha"}:
-                for test_name, test_info in AssuranceOptions.HA.items():
-                    check_readiness_and_log(
-                        hostname=hostname,
-                        result=result,
-                        test_info=test_info,
-                        test_name=test_name,
-                    )
-            else:
-                for (
-                    test_name,
-                    test_info,
-                ) in AssuranceOptions.READINESS_CHECKS.items():
+            # If the test to run is within input `actions` - then run it, otherwise do take it into considetaion
+            for test_name, test_info in AssuranceOptions.READINESS_CHECKS.items():
+                if test_name in actions or any(
+                    test_name in action
+                    for action in actions
+                    if isinstance(action, dict)
+                ):
                     check_readiness_and_log(
                         hostname=hostname,
                         result=result,

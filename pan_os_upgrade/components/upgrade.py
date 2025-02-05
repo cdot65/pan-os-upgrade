@@ -28,6 +28,7 @@ from pan_os_upgrade.components.assurance import (
     generate_diff_report_pdf,
     perform_readiness_checks,
     perform_snapshot,
+    get_checks_list,
 )
 from pan_os_upgrade.components.device import (
     check_panorama_license,
@@ -354,17 +355,23 @@ def software_download(
         start_time = time.time()
 
         try:
-            # Check if there is enough space for the image
-            logging.info(
-                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade disk space check"
-            )
-            perform_readiness_checks(
-                file_path=f'assurance/readiness_checks/{hostname}/pre/disk_space_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-                firewall=target_device,
-                hostname=hostname,
-                settings_file_path=settings_file_path,
-                check_area="free_disk_space",
-            )
+            selected_checks = get_checks_list(settings_file_path=settings_file_path)
+            if any(
+                check == "free_disk_space"
+                or (isinstance(check, dict) and "free_disk_space" in check)
+                for check in selected_checks
+            ):
+                # Check if there is enough space for the image
+                logging.info(
+                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade disk space check"
+                )
+
+                perform_readiness_checks(
+                    file_path=f'assurance/readiness_checks/{hostname}/pre/disk_space_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                    firewall=target_device,
+                    hostname=hostname,
+                    checks=["free_disk_space"],
+                )
             logging.info(
                 f"{get_emoji(action='start')} {hostname}: version {target_version} is beginning download"
             )
@@ -777,12 +784,25 @@ def upgrade_firewall(
         settings_file_path=settings_file_path,
     )
 
+    # Eliminate HA and Free Disk Space checks since they are area specific
+    selected_checks = [
+        check
+        for check in get_checks_list(settings_file_path=settings_file_path)
+        if not (
+            check in ["ha", "free_disk_space"]
+            or (
+                isinstance(check, dict)
+                and any(key in ["ha", "free_disk_space"] for key in check)
+            )
+        )
+    ]
+
     # Perform Readiness Checks
     perform_readiness_checks(
         file_path=f'assurance/readiness_checks/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
         firewall=firewall,
         hostname=hostname,
-        settings_file_path=settings_file_path,
+        checks=selected_checks,
     )
 
     # Perform HA sync check, skipping standalone firewalls

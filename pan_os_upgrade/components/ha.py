@@ -16,6 +16,7 @@ from pan_os_upgrade.components.utilities import (
 )
 from pan_os_upgrade.components.assurance import (
     perform_readiness_checks,
+    get_checks_list,
 )
 
 
@@ -230,6 +231,9 @@ def handle_firewall_ha(
         target_device=target_device,
     )
 
+    # Get selected checks
+    selected_checks = get_checks_list(settings_file_path=settings_file_path)
+
     # If the target device is not part of an HA configuration, proceed with the upgrade
     if not ha_details:
         return True, None
@@ -317,16 +321,19 @@ def handle_firewall_ha(
 
             # suspend HA state of the target device
             if not dry_run:
-                logging.info(
-                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
-                )
-                perform_readiness_checks(
-                    file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-                    firewall=target_device,
-                    hostname=hostname,
-                    settings_file_path=settings_file_path,
-                    check_area="ha",
-                )
+                if any(
+                    check == "ha" or (isinstance(check, dict) and "ha" in check)
+                    for check in selected_checks
+                ):
+                    logging.info(
+                        f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+                    )
+                    perform_readiness_checks(
+                        file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                        firewall=target_device,
+                        hostname=hostname,
+                        checks=["ha"],
+                    )
 
                 logging.info(
                     f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
@@ -358,16 +365,19 @@ def handle_firewall_ha(
         )
         # Suspend HA state of active if the passive is on a later release
         if local_state == "active" or local_state == "active-primary" and not dry_run:
-            logging.info(
-                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
-            )
-            perform_readiness_checks(
-                file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-                firewall=target_device,
-                hostname=hostname,
-                settings_file_path=settings_file_path,
-                check_area="ha",
-            )
+            if any(
+                check == "ha" or (isinstance(check, dict) and "ha" in check)
+                for check in selected_checks
+            ):
+                logging.info(
+                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+                )
+                perform_readiness_checks(
+                    file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                    firewall=target_device,
+                    hostname=hostname,
+                    checks=["ha"],
+                )
             logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of active or active-primary"
             )
@@ -387,16 +397,19 @@ def handle_firewall_ha(
             or local_state == "active-secondary"
             and not dry_run
         ):
-            logging.info(
-                f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
-            )
-            perform_readiness_checks(
-                file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
-                firewall=target_device,
-                hostname=hostname,
-                settings_file_path=settings_file_path,
-                check_area="ha",
-            )
+            if any(
+                check == "ha" or (isinstance(check, dict) and "ha" in check)
+                for check in selected_checks
+            ):
+                logging.info(
+                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade HA status check."
+                )
+                perform_readiness_checks(
+                    file_path=f'assurance/readiness_checks/{hostname}/pre/ha_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                    firewall=target_device,
+                    hostname=hostname,
+                    checks=["ha"],
+                )
             logging.info(
                 f"{get_emoji(action='report')} {hostname}: Suspending HA state of passive or active-secondary"
             )
