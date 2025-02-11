@@ -50,6 +50,38 @@ from pan_os_upgrade.components.utilities import (
 )
 
 
+def convert_to_dict(obj) -> dict:
+    """
+    Recursively converts an object and its nested attributes to a dictionary.
+
+    This function takes any Python object and converts it to a dictionary, including nested objects and lists. It's particularly useful for serializing complex objects that may contain custom classes or nested structures.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to be converted to a dictionary.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the input object.
+
+    Notes
+    -----
+    - This function handles dictionaries, lists, and objects with a __dict__ attribute.
+    - For objects without a __dict__ attribute, it returns the object as-is.
+    - This is particularly useful for preparing complex objects for JSON serialization or similar operations.
+    """
+    if isinstance(obj, dict):
+        return {k: convert_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_dict(v) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        return convert_to_dict(obj.__dict__)
+    else:
+        return obj
+
+
 def check_ha_compatibility(
     ha_details: dict,
     hostname: str,
@@ -763,9 +795,18 @@ def upgrade_firewall(
     if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
         # Extract state actions where value is True from settings.yaml
         selected_actions = [
-            action
-            for action, enabled in settings_file.get("snapshots.state", {}).items()
-            if enabled
+            (
+                action
+                if isinstance(details, bool) or details == {"enabled": True}
+                else (
+                    {action: convert_to_dict(details["params"])}
+                    if details.get("params")
+                    else action
+                )
+            )
+            for action, details in settings_file.get("snapshots.state", {}).items()
+            if details is True
+            or (isinstance(details, dict) and details.get("enabled") is True)
         ]
     else:
         # Select actions based on 'enabled_by_default' attribute from AssuranceOptions class
@@ -775,9 +816,15 @@ def upgrade_firewall(
             if attrs.get("enabled_by_default", False)
         ]
 
+    # Create a list from selected_actions so that it can be safely passed to `perform_snapshot`
+    selected_actions_list = [
+        action if isinstance(action, str) else list(action.keys())[0]
+        for action in selected_actions
+    ]
+
     # Perform the pre-upgrade snapshot
     pre_snapshot = perform_snapshot(
-        actions=selected_actions,
+        actions=selected_actions_list,
         file_path=f'assurance/snapshots/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
         firewall=firewall,
         hostname=hostname,
@@ -886,7 +933,7 @@ def upgrade_firewall(
 
         # Perform the post-upgrade snapshot
         post_snapshot = perform_snapshot(
-            actions=selected_actions,
+            actions=selected_actions_list,
             file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
             firewall=firewall,
             hostname=hostname,

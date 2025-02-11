@@ -176,11 +176,11 @@ class AssuranceOptions:
             "description": "Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": False,
+            "enabled_by_default": True,
             "description": "Route Table",
         },
         "session_stats": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Session Stats",
         },
     }
@@ -207,11 +207,11 @@ class AssuranceOptions:
             "description": "Snapshot of the Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": False,
+            "enabled_by_default": True,
             "description": "Snapshot of the Routing Table",
         },
         "session_stats": {
-            "enabled_by_default": False,
+            "enabled_by_default": True,
             "description": "Snapshot of the Session Statistics",
         },
     }
@@ -450,7 +450,6 @@ def generate_diff_report_pdf(
     d.add(line)
     content.append(d)
     content.append(Spacer(1, 20))
-
     for section, details in pre_post_diff.items():
         # Section title with background color
         section_style = styles["Heading2"]
@@ -608,7 +607,7 @@ def perform_snapshot(
     firewall: Firewall,
     hostname: str,
     settings_file_path: Path,
-    actions: Optional[List[str]] = None,
+    actions: Optional[List[str | dict]] = None,
 ) -> SnapshotReport:
     """
     Captures and saves a comprehensive snapshot of a specified firewall's current state, focusing on key areas such
@@ -631,7 +630,7 @@ def perform_snapshot(
     file_path : str
         The filesystem path where the snapshot JSON file will be saved. If the specified directory does not exist, it will
         be created.
-    actions : Optional[List[str]], optional
+    actions : Optional[List[str | dict]], optional
         A list of specific data points to be included in the snapshot. This allows for customization of the snapshot's
         content based on operational needs. If not specified, a default set of data points will be captured.
 
@@ -852,9 +851,14 @@ def run_assurance(
     elif operation_type == "state_snapshot":
         # validate each type of action
         for action in actions:
-            if action not in AssuranceOptions.STATE_SNAPSHOTS.keys():
+            if isinstance(action, dict):
+                action_key = next(iter(action))  # Get the first key of the dictionary
+            else:
+                action_key = action
+
+            if action_key not in AssuranceOptions.STATE_SNAPSHOTS.keys():
                 logging.error(
-                    f"{get_emoji(action='error')} {hostname}: Invalid action for state snapshot: {action}"
+                    f"{get_emoji(action='error')} {hostname}: Invalid action for state snapshot: {action_key}"
                 )
                 return
 
