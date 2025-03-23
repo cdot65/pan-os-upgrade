@@ -172,3 +172,4 @@ pan_os_upgrade/components/example.py
 .idea
 poetry.lock
 settings.yaml
+.CLAUDE

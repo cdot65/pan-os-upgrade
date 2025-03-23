@@ -1,21 +1,84 @@
-site_name: pan-os-upgrade Documentation
+site_name: PAN-OS Upgrade Automation
 site_description: Automate upgrades of Palo Alto Networks firewalls with Python
 site_url: https://cdot65.github.io/pan-os-upgrade/
 repo_name: cdot65/pan-os-upgrade
 repo_url: https://github.com/cdot65/pan-os-upgrade
+site_dir: site
+copyright: Copyright &copy; 2023-2025 Calvin Remsburg
+
 theme:
   name: material
+  logo: images/logo.svg
+  favicon: images/logo.svg
   language: en
   features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.instant
+    - navigation.tracking
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
 plugins:
   - search
+  - autorefs:
+      link_titles: true
   - mkdocstrings:
       handlers:
         python:
-          rendering:
-            show_source: true
+          options:
+            show_source: false
+          selection:
+            docstring_style: google
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+
+# Explicitly set the layout for home page with customizations
+not_in_nav: |
+  index.md
+
+extra_css:
+  - css/termynal.css
+  - css/custom.css
+
+extra_javascript:
+  - js/termynal.js
+  - js/custom.js
+
+# Define the navigation menu
 nav:
   - Home: index.md
   - User Guide:
@@ -34,9 +97,3 @@ nav:
       - License: about/license.md
       - Contributing: about/contributing.md
       - Release Notes: about/release-notes.md
-extra_css:
-  - css/termynal.css
-  - css/custom.css
-extra_javascript:
-  - js/termynal.js
-  - js/custom.js
