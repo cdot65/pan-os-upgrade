@@ -176,7 +176,7 @@ class AssuranceOptions:
             "description": "Network Interfaces",
         },
         "routes": {
-            "enabled_by_default": True,
+            "enabled_by_default": False,
             "description": "Route Table",
         },
         "session_stats": {
