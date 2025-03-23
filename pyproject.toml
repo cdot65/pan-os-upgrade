@@ -50,14 +50,19 @@ colorama = "^0.4.6"
 black = "^23.12.1"
 flake8 = "^7.0.0"
 ipdb = "^0.13.13"
+# MkDocs and related dependencies
+mkdocs = "^1.6.0"
 mkdocs-material = "^9.5.4"
-mkdocstrings = "^0.24.0"
-mkdocs-autorefs = "^0.4.1"
-mkdocs-termynal = "^0.0.2"
+mkdocstrings = {extras = ["python"], version = "^0.24.0"}
+mkdocs-autorefs = "^0.4.1"  # Using a compatible version for current setup
+termynal = "^0.12.1"  # Use termynal package instead of mkdocs-termynal
+# Testing related
 pytest = "^7.4.4"
-python-dotenv = "^1.0.1"
 pytest-mock = "^3.12.0"
+pytest-cov = "^4.1.0"
+python-dotenv = "^1.0.1"
 prompt-toolkit = "^3.0.43"
+rich = "^13.7.0"  # For better console output
 
 [tool.poetry.scripts]
 pan-os-upgrade = 'pan_os_upgrade.main:app'

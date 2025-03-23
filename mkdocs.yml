@@ -39,7 +39,6 @@ theme:
 
 plugins:
   - search
-  - termynal
   - autorefs:
       link_titles: true
   - mkdocstrings:
