@@ -28,6 +28,7 @@ from pan_os_upgrade.components.assurance import (
     generate_diff_report_pdf,
     perform_readiness_checks,
     perform_snapshot,
+    get_checks_list,
 )
 from pan_os_upgrade.components.device import (
     check_panorama_license,
@@ -47,6 +48,38 @@ from pan_os_upgrade.components.utilities import (
     find_close_matches,
     get_emoji,
 )
+
+
+def convert_to_dict(obj) -> dict:
+    """
+    Recursively converts an object and its nested attributes to a dictionary.
+
+    This function takes any Python object and converts it to a dictionary, including nested objects and lists. It's particularly useful for serializing complex objects that may contain custom classes or nested structures.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to be converted to a dictionary.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the input object.
+
+    Notes
+    -----
+    - This function handles dictionaries, lists, and objects with a __dict__ attribute.
+    - For objects without a __dict__ attribute, it returns the object as-is.
+    - This is particularly useful for preparing complex objects for JSON serialization or similar operations.
+    """
+    if isinstance(obj, dict):
+        return {k: convert_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_dict(v) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        return convert_to_dict(obj.__dict__)
+    else:
+        return obj
 
 
 def check_ha_compatibility(
@@ -279,6 +312,7 @@ def software_download(
     hostname: str,
     target_version: str,
     ha_details: dict,
+    settings_file_path: Path,
 ) -> bool:
     """
     Downloads the specified software version to a Palo Alto Networks device, handling HA configurations.
@@ -298,6 +332,8 @@ def software_download(
         The target PAN-OS version to download (e.g., '10.1.0').
     ha_details : dict
         A dictionary containing HA configuration details, essential for devices in HA pairs.
+    settings_file_path : Path
+        The file path to the 'settings.yaml' configuration file, used to override default settings.
 
     Returns
     -------
@@ -351,6 +387,23 @@ def software_download(
         start_time = time.time()
 
         try:
+            selected_checks = get_checks_list(settings_file_path=settings_file_path)
+            if any(
+                check == "free_disk_space"
+                or (isinstance(check, dict) and "free_disk_space" in check)
+                for check in selected_checks
+            ):
+                # Check if there is enough space for the image
+                logging.info(
+                    f"{get_emoji(action='start')} {hostname}: Performing pre-upgrade disk space check"
+                )
+
+                perform_readiness_checks(
+                    file_path=f'assurance/readiness_checks/{hostname}/pre/disk_space_{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
+                    firewall=target_device,
+                    hostname=hostname,
+                    checks=["free_disk_space"],
+                )
             logging.info(
                 f"{get_emoji(action='start')} {hostname}: version {target_version} is beginning download"
             )
@@ -523,7 +576,11 @@ def software_update_check(
                     f"{get_emoji(action='error')} {hostname}: Base image for {target_version} is not downloaded. Attempting download."
                 )
                 downloaded = software_download(
-                    target_device, hostname, base_version_key, ha_details
+                    target_device,
+                    hostname,
+                    base_version_key,
+                    ha_details,
+                    settings_file_path,
                 )
 
                 if downloaded:
@@ -715,6 +772,7 @@ def upgrade_firewall(
         hostname,
         target_version,
         ha_details,
+        settings_file_path,
     )
     if deploy_info == "active" or deploy_info == "passive":
         logging.info(
@@ -737,9 +795,18 @@ def upgrade_firewall(
     if settings_file_path.exists() and settings_file.get("snapshots.customize", False):
         # Extract state actions where value is True from settings.yaml
         selected_actions = [
-            action
-            for action, enabled in settings_file.get("snapshots.state", {}).items()
-            if enabled
+            (
+                action
+                if isinstance(details, bool) or details == {"enabled": True}
+                else (
+                    {action: convert_to_dict(details["params"])}
+                    if details.get("params")
+                    else action
+                )
+            )
+            for action, details in settings_file.get("snapshots.state", {}).items()
+            if details is True
+            or (isinstance(details, dict) and details.get("enabled") is True)
         ]
     else:
         # Select actions based on 'enabled_by_default' attribute from AssuranceOptions class
@@ -749,21 +816,40 @@ def upgrade_firewall(
             if attrs.get("enabled_by_default", False)
         ]
 
+    # Create a list from selected_actions so that it can be safely passed to `perform_snapshot`
+    selected_actions_list = [
+        action if isinstance(action, str) else list(action.keys())[0]
+        for action in selected_actions
+    ]
+
     # Perform the pre-upgrade snapshot
     pre_snapshot = perform_snapshot(
-        actions=selected_actions,
+        actions=selected_actions_list,
         file_path=f'assurance/snapshots/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
         firewall=firewall,
         hostname=hostname,
         settings_file_path=settings_file_path,
     )
 
+    # Eliminate HA and Free Disk Space checks since they are area specific
+    selected_checks = [
+        check
+        for check in get_checks_list(settings_file_path=settings_file_path)
+        if not (
+            check in ["ha", "free_disk_space"]
+            or (
+                isinstance(check, dict)
+                and any(key in ["ha", "free_disk_space"] for key in check)
+            )
+        )
+    ]
+
     # Perform Readiness Checks
     perform_readiness_checks(
         file_path=f'assurance/readiness_checks/{hostname}/pre/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
         firewall=firewall,
         hostname=hostname,
-        settings_file_path=settings_file_path,
+        checks=selected_checks,
     )
 
     # Perform HA sync check, skipping standalone firewalls
@@ -847,7 +933,7 @@ def upgrade_firewall(
 
         # Perform the post-upgrade snapshot
         post_snapshot = perform_snapshot(
-            actions=selected_actions,
+            actions=selected_actions_list,
             file_path=f'assurance/snapshots/{hostname}/post/{time.strftime("%Y-%m-%d_%H-%M-%S")}.json',
             firewall=firewall,
             hostname=hostname,
@@ -1039,6 +1125,7 @@ def upgrade_panorama(
         hostname,
         target_version,
         ha_details,
+        settings_file_path,
     )
     if deploy_info == "primary-active" or deploy_info == "secondary-passive":
         logging.info(

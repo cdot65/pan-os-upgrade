@@ -73,7 +73,6 @@ def test_readiness_check_failed_critical(mocker):
     )
 
     mock_error.assert_any_call(
-        f"{get_emoji('error')} fw01.example.com: Unsupported software version: Software Version Check"
+        f"{get_emoji('stop')} fw01.example.com: Unsupported software version: Software Version Check. Test has `exit_on_failure` flag set. Halting script."
     )
-    mock_error.assert_any_call(f"{get_emoji('stop')} fw01.example.com: Halting script.")
     mock_exit.assert_called_once_with(1)
