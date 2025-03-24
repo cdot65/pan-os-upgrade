@@ -148,6 +148,12 @@ def check_ha_compatibility(
     is_ha_pair = ha_details["result"].get("enabled", False)
 
     if is_ha_pair:
+        # Check if the starting release is higher then 10.2
+        if target_major >= 11 and ((current_major == 10 and current_minor == 2) or (current_major >= 11)):
+            logging.info(
+                f"{get_emoji(action='success')} {hostname}: The starting release is higher than 10.2. Continuing with direct upgrade"
+            )
+            return True
         # Check if the major upgrade is more than one release apart
         if target_major - current_major > 1:
             logging.warning(
