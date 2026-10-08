@@ -946,13 +946,42 @@ def upgrade_firewall(
             settings_file_path=settings_file_path,
         )
 
+        if pre_snapshot is None or post_snapshot is None:
+            logging.error(
+                f"{get_emoji(action='error')} {hostname}: Pre or post upgrade snapshot is not available. Skipping snapshot comparison."
+            )
+            return None
+
+        pre_snapshot_data = pre_snapshot.model_dump()
+        post_snapshot_data = post_snapshot.model_dump()
+
+        # Only compare the areas that were captured in both snapshots
+        comparable_actions = []
+        for action in selected_actions:
+            action_key = action if isinstance(action, str) else next(iter(action))
+            if (
+                pre_snapshot_data.get(action_key) is not None
+                and post_snapshot_data.get(action_key) is not None
+            ):
+                comparable_actions.append(action)
+            else:
+                logging.warning(
+                    f"{get_emoji(action='warning')} {hostname}: '{action_key}' was not captured in both snapshots. Skipping its comparison."
+                )
+
+        if not comparable_actions:
+            logging.error(
+                f"{get_emoji(action='error')} {hostname}: No snapshot areas available to compare. Skipping snapshot comparison."
+            )
+            return None
+
         # initialize object storing both snapshots
         snapshot_compare = SnapshotCompare(
-            left_snapshot=pre_snapshot.model_dump(),
-            right_snapshot=post_snapshot.model_dump(),
+            left_snapshot=pre_snapshot_data,
+            right_snapshot=post_snapshot_data,
         )
 
-        pre_post_diff = snapshot_compare.compare_snapshots(selected_actions)
+        pre_post_diff = snapshot_compare.compare_snapshots(comparable_actions)
 
         logging.debug(
             f"{get_emoji(action='report')} {hostname}: Snapshot comparison before and after upgrade {pre_post_diff}"
