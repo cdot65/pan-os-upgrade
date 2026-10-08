@@ -43,6 +43,7 @@ from pan_os_upgrade.components.ha import (
 )
 from pan_os_upgrade.components.utilities import (
     backup_configuration,
+    determine_base_version,
     determine_upgrade,
     ensure_directory_exists,
     find_close_matches,
@@ -570,7 +571,12 @@ def software_update_check(
             f"{get_emoji(action='success')} {hostname}: version {target_version} is available for download"
         )
 
-        base_version_key = f"{target_major}.{target_minor}.0"
+        # The base image is not always x.y.0 (e.g. 12.1.2 is the base image of 12.1)
+        base_version_key = determine_base_version(
+            available_versions=available_versions,
+            target_major=target_major,
+            target_minor=target_minor,
+        )
         if available_versions.get(base_version_key, {}).get("downloaded"):
             logging.info(
                 f"{get_emoji(action='success')} {hostname}: Base image for {target_version} is already downloaded"

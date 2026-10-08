@@ -480,6 +480,58 @@ def create_firewall_mapping(
     return firewall_mapping
 
 
+def determine_base_version(
+    available_versions: Union[Dict[str, Any], List[str]],
+    target_major: int,
+    target_minor: int,
+) -> str:
+    """
+    Determines the base image version of a PAN-OS feature release (major.minor) from the versions available to the device.
+
+    Historically the base image of every PAN-OS feature release was the x.y.0 release. Newer feature releases no longer follow this pattern (for example, the base image of 12.1 is 12.1.2), so the base image cannot be assumed to end in ".0". If the x.y.0 release is available to the device it is used, preserving the behavior for older releases. Otherwise the lowest maintenance release available for the feature release is treated as its base image.
+
+    Parameters
+    ----------
+    available_versions : Union[Dict[str, Any], List[str]]
+        The PAN-OS versions available to the device, typically `target_device.software.versions`.
+    target_major : int
+        The major version component of the target PAN-OS version (e.g., '12' in PAN-OS 12.1.4).
+    target_minor : int
+        The minor version component of the target PAN-OS version (e.g., '1' in PAN-OS 12.1.4).
+
+    Returns
+    -------
+    str
+        The base image version for the feature release. Falls back to x.y.0 if no maintenance release of the feature release is available.
+
+    Examples
+    --------
+        >>> determine_base_version(['10.1.0', '10.1.1', '10.1.2'], 10, 1)
+        '10.1.0'
+
+        >>> determine_base_version(['12.1.2', '12.1.3-h1', '12.1.4'], 12, 1)
+        '12.1.2'
+    """
+
+    default_base_version = f"{target_major}.{target_minor}.0"
+
+    if default_base_version in available_versions:
+        return default_base_version
+
+    # Only consider plain maintenance releases (x.y.z), a hotfix can never be a base image
+    pattern = re.compile(rf"^{target_major}\.{target_minor}\.(\d+)$")
+    maintenance_releases = [
+        int(match.group(1))
+        for match in (pattern.match(str(version)) for version in available_versions)
+        if match
+    ]
+
+    if not maintenance_releases:
+        return default_base_version
+
+    return f"{target_major}.{target_minor}.{min(maintenance_releases)}"
+
+
 def determine_upgrade(
     current_version: str,
     hostname: str,
