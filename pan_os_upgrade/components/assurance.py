@@ -451,6 +451,10 @@ def generate_diff_report_pdf(
     content.append(d)
     content.append(Spacer(1, 20))
     for section, details in pre_post_diff.items():
+        # Skip sections without a comparison result (e.g. session_stats when no thresholds are configured)
+        if not isinstance(details, dict):
+            continue
+
         # Section title with background color
         section_style = styles["Heading2"]
         section_style.backColor = colors.HexColor("#EEEEEE")
